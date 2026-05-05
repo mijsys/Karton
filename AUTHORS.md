@@ -2,6 +2,6 @@
 
 # Autorzy
 
-- mijsys — KartON/Tektura workspace, integracja środowiska KartON, panele, ustawienia i skrypty repozytorium.
+- MijagiKutasamoto 
 
-Uwaga: katalog `tektura` zawiera kod bazowy/fork komponentu Tektura i może zachowywać własne nagłówki licencyjne oraz autorów upstream.
+- Kompozytor tektura bazuje na labWC  https://github.com/labwc/labwc
