@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2026 mijsys
+# SPDX-License-Identifier: GPL-2.0-only
+
+# Build directories
+build/
+builddir/
+builddir-*/
+**/build/
+**/builddir/
+**/builddir-*/
+
+# Meson/Ninja generated files
+.mesonpy-*/
+
+# Runtime/debug artifacts
+*.log
+core
+core.*
+
+# Local screenshots and temporary images
+a.png
+zlauncher.png
+karton-*.png
+
+# Editor/cache
+.vscode/
+.cache/

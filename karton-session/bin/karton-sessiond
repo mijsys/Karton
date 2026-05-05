@@ -1,0 +1,236 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+set -eu
+pids=""
+sessiond_pidfile=""
+
+sanitize_tag() {
+	printf '%s' "$1" | tr -c 'A-Za-z0-9._-' '_'
+}
+
+read_process_env_var() {
+	pid="$1"
+	key="$2"
+	env_file="/proc/$pid/environ"
+	if [ ! -r "$env_file" ]; then
+		return 1
+	fi
+	tr '\000' '\n' < "$env_file" 2>/dev/null | awk -F= -v k="$key" '$1==k { print substr($0, index($0, "=") + 1); exit }'
+}
+
+is_own_sessiond_process() {
+	pid="$1"
+	case "$pid" in
+		''|*[!0-9]*)
+			return 1
+			;;
+	esac
+
+	kill -0 "$pid" 2>/dev/null || return 1
+
+	cmdline_file="/proc/$pid/cmdline"
+	if [ ! -r "$cmdline_file" ]; then
+		return 1
+	fi
+
+	cmdline="$(tr '\000' ' ' < "$cmdline_file" 2>/dev/null || true)"
+	case "$cmdline" in
+		*karton-sessiond*) return 0 ;;
+	esac
+
+	return 1
+}
+
+is_same_session_context() {
+	pid="$1"
+
+	current_session_id="${XDG_SESSION_ID:-}"
+	current_wayland="${WAYLAND_DISPLAY:-}"
+
+	proc_session_id="$(read_process_env_var "$pid" XDG_SESSION_ID 2>/dev/null || true)"
+	proc_wayland="$(read_process_env_var "$pid" WAYLAND_DISPLAY 2>/dev/null || true)"
+
+	if [ -n "$current_session_id" ] && [ -n "$proc_session_id" ] && [ "$current_session_id" != "$proc_session_id" ]; then
+		return 1
+	fi
+
+	if [ -n "$current_wayland" ] && [ -n "$proc_wayland" ] && [ "$current_wayland" != "$proc_wayland" ]; then
+		return 1
+	fi
+
+	return 0
+}
+
+ensure_runtime_defaults() {
+	if [ -d "${HOME}/.local-karton/bin" ]; then
+		case ":${PATH}:" in
+		*":${HOME}/.local-karton/bin:"*) ;;
+		*) PATH="${HOME}/.local-karton/bin:${PATH}" ;;
+		esac
+		export PATH
+	fi
+
+	if [ -z "${KARTON_LOCALEDIR:-}" ] && [ -d "${HOME}/.local-karton/share/locale" ]; then
+		KARTON_LOCALEDIR="${HOME}/.local-karton/share/locale"
+		export KARTON_LOCALEDIR
+	fi
+}
+
+setup_single_instance() {
+	runtime_dir="${XDG_RUNTIME_DIR:-/tmp}"
+	uid="$(id -u)"
+	session_id_tag="$(sanitize_tag "${XDG_SESSION_ID:-nosession}")"
+	wayland_tag="$(sanitize_tag "${WAYLAND_DISPLAY:-nowayland}")"
+	sessiond_pidfile="${runtime_dir}/karton-sessiond.${uid}.${session_id_tag}.${wayland_tag}.pid"
+	legacy_pidfile="${runtime_dir}/karton-sessiond.${uid}.pid"
+
+	if [ -f "$legacy_pidfile" ]; then
+		legacy_pid="$(cat "$legacy_pidfile" 2>/dev/null || true)"
+		if is_own_sessiond_process "$legacy_pid" && ! is_same_session_context "$legacy_pid"; then
+			kill "$legacy_pid" 2>/dev/null || true
+		fi
+		rm -f "$legacy_pidfile" 2>/dev/null || true
+	fi
+
+	if [ -f "$sessiond_pidfile" ]; then
+		old_pid="$(cat "$sessiond_pidfile" 2>/dev/null || true)"
+		if is_own_sessiond_process "$old_pid"; then
+			if is_same_session_context "$old_pid"; then
+				exit 0
+			fi
+			kill "$old_pid" 2>/dev/null || true
+		fi
+	fi
+
+	printf '%s\n' "$$" > "$sessiond_pidfile"
+}
+
+sync_desktop_theme() {
+	if cmd_path="$(resolve_component_cmd karton-apply-theme 2>/dev/null || true)"; then
+		if [ -n "$cmd_path" ]; then
+			"$cmd_path" --sync-from-css >/dev/null 2>&1 || true
+		fi
+	fi
+}
+
+i18n_init() {
+	TEXTDOMAIN=karton-session
+	export TEXTDOMAIN
+
+	if [ -n "${KARTON_LOCALEDIR:-}" ] && [ -d "${KARTON_LOCALEDIR}" ]; then
+		TEXTDOMAINDIR="${KARTON_LOCALEDIR}"
+	elif [ -d "${HOME}/.local-karton/share/locale" ]; then
+		KARTON_LOCALEDIR="${HOME}/.local-karton/share/locale"
+		export KARTON_LOCALEDIR
+		TEXTDOMAINDIR="${HOME}/.local-karton/share/locale"
+	elif [ -d "/usr/local/share/locale" ]; then
+		TEXTDOMAINDIR="/usr/local/share/locale"
+	fi
+
+	if [ -n "${TEXTDOMAINDIR:-}" ]; then
+		export TEXTDOMAINDIR
+	fi
+}
+
+_() {
+	if command -v gettext >/dev/null 2>&1; then
+		gettext "$1"
+	else
+		printf '%s' "$1"
+	fi
+}
+
+resolve_component_cmd() {
+	cmd="$1"
+	local_cmd="${HOME}/.local-karton/bin/${cmd}"
+	if [ -x "$local_cmd" ]; then
+		printf '%s\n' "$local_cmd"
+		return 0
+	fi
+
+	if command -v "$cmd" >/dev/null 2>&1; then
+		command -v "$cmd"
+		return 0
+	fi
+
+	return 1
+}
+
+ensure_runtime_defaults
+i18n_init
+setup_single_instance
+sync_desktop_theme
+
+start_component() {
+	cmd="$1"
+	shift || true
+	if ! cmd_path="$(resolve_component_cmd "$cmd")"; then
+		printf "$(_ "karton-sessiond: missing component %s")\n" "$cmd" >&2
+		return 0
+	fi
+	"$cmd_path" "$@" >/dev/null 2>&1 &
+	pids="$pids $!"
+}
+
+start_component_supervised() {
+	cmd="$1"
+	shift || true
+	if ! cmd_path="$(resolve_component_cmd "$cmd")"; then
+		printf "$(_ "karton-sessiond: missing component %s")\n" "$cmd" >&2
+		return 0
+	fi
+
+	(
+		child_pid=""
+		stopping=0
+		trap 'stopping=1; if [ -n "$child_pid" ]; then kill "$child_pid" 2>/dev/null || true; fi' INT TERM
+		while :; do
+			"$cmd_path" "$@" >/dev/null 2>&1 &
+			child_pid=$!
+			if wait "$child_pid"; then
+				status=0
+			else
+				status=$?
+			fi
+			child_pid=""
+
+			if [ "$stopping" -ne 0 ]; then
+				exit 0
+			fi
+
+			if [ "$status" -eq 0 ]; then
+				exit 0
+			fi
+
+			printf "$(_ "karton-sessiond: component %s exited with %s, restarting")\n" "$cmd" "$status" >&2
+			sleep 1
+		done
+	) &
+	pids="$pids $!"
+}
+
+cleanup() {
+	if [ -n "$sessiond_pidfile" ] && [ -f "$sessiond_pidfile" ]; then
+		rm -f "$sessiond_pidfile" 2>/dev/null || true
+	fi
+	for pid in $pids; do
+		kill "$pid" 2>/dev/null || true
+	done
+	wait || true
+}
+
+trap cleanup INT TERM EXIT
+
+if command -v swaybg >/dev/null 2>&1; then
+	swaybg -c '#113344' >/dev/null 2>&1 &
+	pids="$pids $!"
+fi
+
+start_component_supervised karton-top-panel
+start_component_supervised karton-side-dock
+start_component_supervised karton-screenshot --daemon
+start_component karton-settingsd
+start_component karton-notifyd
+
+wait

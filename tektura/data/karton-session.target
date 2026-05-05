@@ -1,0 +1,6 @@
+[Unit]
+Description=Karton session
+Documentation=man:karton(1) man:systemd.special(7)
+BindsTo=graphical-session.target
+Wants=graphical-session-pre.target
+After=graphical-session-pre.target

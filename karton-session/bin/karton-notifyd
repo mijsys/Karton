@@ -1,0 +1,35 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+TEXTDOMAIN=karton-session
+export TEXTDOMAIN
+
+if [ -n "${KARTON_LOCALEDIR:-}" ] && [ -d "${KARTON_LOCALEDIR}" ]; then
+	TEXTDOMAINDIR="${KARTON_LOCALEDIR}"
+	export TEXTDOMAINDIR
+elif [ -d "${HOME}/.local-karton/share/locale" ]; then
+	TEXTDOMAINDIR="${HOME}/.local-karton/share/locale"
+	export TEXTDOMAINDIR
+fi
+
+_() {
+	if command -v gettext >/dev/null 2>&1; then
+		gettext "$1"
+	else
+		printf '%s' "$1"
+	fi
+}
+
+if command -v mako >/dev/null 2>&1; then
+	cfg="${XDG_CONFIG_HOME:-$HOME/.config}/karton/mako/config"
+	if [ -r "$cfg" ]; then
+		exec mako --config "$cfg"
+	fi
+	exec mako
+fi
+
+echo "$(_ "karton-notifyd: mako not found, running idle fallback")" >&2
+while :; do
+	sleep 3600
+
+done

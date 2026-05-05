@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Karton
+Comment=A wayland stacking compositor
+Exec=karton
+Icon=karton
+Type=Application
+DesktopNames=karton;wlroots

@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2026 mijsys
+msgid ""
+msgstr ""
+"Project-Id-Version: karton-session 0.1.0\n"
+"POT-Creation-Date: 2026-05-03 00:00+0000\n"
+"PO-Revision-Date: 2026-05-03 00:00+0000\n"
+"Last-Translator: Karton Team\n"
+"Language-Team: German\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "karton-sessiond: missing component %s"
+msgstr "karton-sessiond: fehlende Komponente %s"
+
+msgid "karton-sessiond: component %s exited with %s, restarting"
+msgstr "karton-sessiond: Komponente %s wurde mit %s beendet, starte neu"
+
+msgid "karton-launcher: install fuzzel, wofi, bemenu, zenity or kdialog"
+msgstr "karton-launcher: bitte fuzzel, wofi, bemenu, zenity oder kdialog installieren"
+
+msgid "Search apps..."
+msgstr "Apps suchen..."
+
+msgid "karton-notifyd: mako not found, running idle fallback"
+msgstr "karton-notifyd: mako nicht gefunden, starte Leerlauf-Fallback"
+
+msgid "karton-settingsd: no backends found (kanshi/swayidle), running idle fallback"
+msgstr "karton-settingsd: keine Backends gefunden (kanshi/swayidle), starte Leerlauf-Fallback"

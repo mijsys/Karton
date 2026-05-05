@@ -1,0 +1,209 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+TEXTDOMAIN=karton-session
+export TEXTDOMAIN
+
+if [ -n "${KARTON_LOCALEDIR:-}" ] && [ -d "${KARTON_LOCALEDIR}" ]; then
+	TEXTDOMAINDIR="${KARTON_LOCALEDIR}"
+	export TEXTDOMAINDIR
+elif [ -d "${HOME}/.local-karton/share/locale" ]; then
+	TEXTDOMAINDIR="${HOME}/.local-karton/share/locale"
+	export TEXTDOMAINDIR
+fi
+
+_() {
+	if command -v gettext >/dev/null 2>&1; then
+		gettext "$1"
+	else
+		printf '%s' "$1"
+	fi
+}
+
+mk_runtime_file() {
+	mkdir -p "${XDG_RUNTIME_DIR:-/tmp}" 2>/dev/null || true
+	mktemp "${XDG_RUNTIME_DIR:-/tmp}/karton-launcher.XXXXXX"
+}
+
+run_fuzzel() {
+	prompt="$(_ "Search apps...") "
+	user_cfg="${XDG_CONFIG_HOME:-$HOME/.config}/karton/launcher/fuzzel.ini"
+
+	if [ -r "$user_cfg" ]; then
+		exec fuzzel --config "$user_cfg" --prompt "$prompt"
+	fi
+
+	tmp_cfg="$(mk_runtime_file)" || return 1
+	cat >"$tmp_cfg" <<'EOF'
+[main]
+width=56
+lines=12
+horizontal-pad=22
+vertical-pad=20
+inner-pad=12
+font=Noto Sans:size=12
+icons=yes
+show-actions=no
+fields=filename,name,generic,keywords
+layer=overlay
+
+[border]
+width=2
+radius=14
+
+[colors]
+background=1b1f27f2
+text=e9edf5ff
+prompt=8ec5ffff
+input=e9edf5ff
+match=f4b400ff
+selection=2d6ad6ff
+selection-text=ffffffff
+selection-match=ffe08aff
+border=4b89dcff
+EOF
+
+	fuzzel --config "$tmp_cfg" --prompt "$prompt"
+	rc=$?
+	rm -f "$tmp_cfg"
+	return $rc
+}
+
+run_wofi() {
+	user_css="${XDG_CONFIG_HOME:-$HOME/.config}/karton/launcher/wofi.css"
+	if [ -r "$user_css" ]; then
+		exec wofi --show drun --insensitive --allow-images \
+			--prompt "$(_ "Search apps...")" --style "$user_css"
+	fi
+
+	tmp_css="$(mk_runtime_file)" || return 1
+	cat >"$tmp_css" <<'EOF'
+window {
+  background: rgba(27, 31, 39, 0.95);
+  color: #e9edf5;
+  border: 2px solid #4b89dc;
+  border-radius: 14px;
+  font-family: "Noto Sans";
+  font-size: 14px;
+}
+#input {
+  margin: 12px;
+  padding: 10px 12px;
+  background: rgba(38, 44, 55, 0.98);
+  border: 1px solid #5f7fb0;
+  border-radius: 10px;
+  color: #eef2f9;
+}
+#entry {
+  padding: 9px 12px;
+  border-radius: 10px;
+  margin: 2px 8px;
+}
+#entry:selected {
+  background: #2d6ad6;
+  color: #ffffff;
+}
+#text:selected {
+  color: #ffffff;
+}
+EOF
+
+	wofi --show drun --insensitive --allow-images \
+		--prompt "$(_ "Search apps...")" \
+		--width 760 --height 540 --style "$tmp_css"
+	rc=$?
+	rm -f "$tmp_css"
+	return $rc
+}
+
+run_bemenu() {
+	BEMENU_OPTS="--prompt '$(_ "Search apps...")' --fn 'Noto Sans 12'"
+	BEMENU_OPTS="$BEMENU_OPTS --tb '#1b1f27' --tf '#e9edf5'"
+	BEMENU_OPTS="$BEMENU_OPTS --hb '#2d6ad6' --hf '#ffffff'"
+	BEMENU_OPTS="$BEMENU_OPTS --nb '#1b1f27' --nf '#aeb8c8'"
+	# shellcheck disable=SC2086
+	eval exec bemenu-run $BEMENU_OPTS
+}
+
+list_desktop_entries() {
+	for dir in \
+		"${XDG_DATA_HOME:-$HOME/.local/share}/applications" \
+		"/usr/local/share/applications" \
+		"/usr/share/applications"
+	do
+		[ -d "$dir" ] || continue
+		find "$dir" -type f -name '*.desktop' 2>/dev/null
+	done | sort -u | while IFS= read -r file; do
+		name="$(awk -F= '
+			BEGIN { in_entry=0; no_display=0; hidden=0; app_type=0; name="" }
+			/^\[Desktop Entry\]$/ { in_entry=1; next }
+			/^\[/ { if (in_entry) exit }
+			in_entry && /^NoDisplay=true$/ { no_display=1 }
+			in_entry && /^Hidden=true$/ { hidden=1 }
+			in_entry && /^Type=Application$/ { app_type=1 }
+			in_entry && /^Name=/ { if (name == "") { sub(/^Name=/, ""); name=$0 } }
+			END {
+				if (in_entry && app_type && !no_display && !hidden && name != "") {
+					print name
+				}
+			}
+		' "$file")"
+		[ -n "$name" ] || continue
+		id="$(basename "$file" .desktop)"
+		printf '%s\t%s\n' "$name" "$id"
+	done
+}
+
+run_zenity_launcher() {
+	entries="$(list_desktop_entries)"
+	[ -n "$entries" ] || return 1
+
+	id="$(printf '%s\n' "$entries" | zenity --list \
+		--title="Karton Launcher" \
+		--text="$(_ "Search apps...")" \
+		--column="App" --column="DesktopId" \
+		--hide-column=2 --print-column=2 --search-column=1 \
+		--width=760 --height=560)"
+	[ -n "$id" ] || return 1
+
+	exec gtk-launch "$id"
+}
+
+run_kdialog_launcher() {
+	entries="$(list_desktop_entries)"
+	[ -n "$entries" ] || return 1
+
+	list_file="$(mk_runtime_file)" || return 1
+	printf '%s\n' "$entries" | awk -F'\t' '{print $1}' > "$list_file"
+	app_name="$(kdialog --title "Karton Launcher" --combobox "$(_ "Search apps...")" "" $(cat "$list_file") 2>/dev/null || true)"
+	rm -f "$list_file"
+	[ -n "$app_name" ] || return 1
+
+	id="$(printf '%s\n' "$entries" | awk -F'\t' -v n="$app_name" '$1==n { print $2; exit }')"
+	[ -n "$id" ] || return 1
+
+	exec gtk-launch "$id"
+}
+
+if [ "$#" -gt 0 ]; then
+	exec "$@"
+fi
+
+if command -v fuzzel >/dev/null 2>&1; then
+	run_fuzzel && exit 0
+fi
+if command -v wofi >/dev/null 2>&1; then
+	run_wofi && exit 0
+fi
+if command -v bemenu-run >/dev/null 2>&1; then
+	run_bemenu
+fi
+if command -v zenity >/dev/null 2>&1 && command -v gtk-launch >/dev/null 2>&1; then
+	run_zenity_launcher && exit 0
+fi
+if command -v kdialog >/dev/null 2>&1 && command -v gtk-launch >/dev/null 2>&1; then
+	run_kdialog_launcher && exit 0
+fi
+
+echo "$(_ "karton-launcher: install fuzzel, wofi, bemenu, zenity or kdialog")" >&2
+exit 1

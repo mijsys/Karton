@@ -1,0 +1,170 @@
+# SPDX-FileCopyrightText: 2026 mijsys
+msgid ""
+msgstr ""
+"Project-Id-Version: karton-shell 0.1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-03 19:34+0200\n"
+"PO-Revision-Date: 2026-05-03 00:00+0000\n"
+"Last-Translator: Karton Team\n"
+"Language-Team: Polish\n"
+"Language: pl\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/karton-shell.c:782
+msgid "All"
+msgstr "Wszystkie"
+
+#: src/karton-shell.c:784
+msgid "Favorites"
+msgstr "Ulubione"
+
+#: src/karton-shell.c:786
+msgid "Internet"
+msgstr "Internet"
+
+#: src/karton-shell.c:788
+msgid "Office"
+msgstr "Biuro"
+
+#: src/karton-shell.c:790
+msgid "Media"
+msgstr "Multimedia"
+
+#: src/karton-shell.c:792
+msgid "Development"
+msgstr "Programowanie"
+
+#: src/karton-shell.c:794
+msgid "System"
+msgstr "System"
+
+#: src/karton-shell.c:796
+msgid "Utility"
+msgstr "Narzędzia"
+
+#: src/karton-shell.c:798
+msgid "Other"
+msgstr "Inne"
+
+#: src/karton-shell.c:830
+#, c-format
+msgid "karton-shell: cannot create %s: %s\n"
+msgstr "karton-shell: nie można utworzyć %s: %s\n"
+
+#: src/karton-shell.c:869 src/karton-shell.c:891
+#, c-format
+msgid "karton-shell: cannot write %s: %s\n"
+msgstr "karton-shell: nie można zapisać %s: %s\n"
+
+#: src/karton-shell.c:1302
+#, c-format
+msgid ""
+"Usage: %s [--top-only|--side-only]\n"
+"  --top-only   Run only the top panel\n"
+"  --side-only  Run only the side dock\n"
+msgstr ""
+"Użycie: %s [--top-only|--side-only]\n"
+"  --top-only   Uruchom tylko górny panel\n"
+"  --side-only  Uruchom tylko boczny dock\n"
+
+#: src/karton-shell.c:1738
+msgid "--:--"
+msgstr "--:--"
+
+#: src/karton-shell.c:1763
+msgid "Quick Settings"
+msgstr "Szybkie ustawienia"
+
+#: src/karton-shell.c:1864
+msgid "Launcher"
+msgstr "Programy"
+
+#: src/karton-shell.c:1893
+#, c-format
+msgid "Search: %s"
+msgstr "Szukaj: %s"
+
+#: src/karton-shell.c:1898
+msgid "Search: type to filter"
+msgstr "Szukaj: wpisz, aby filtrować"
+
+#: src/karton-shell.c:1922
+msgid "No applications found"
+msgstr "Nie znaleziono aplikacji"
+
+#: src/karton-shell.c:1961
+#, c-format
+msgid "and %zu more..."
+msgstr "i jeszcze %zu..."
+
+#: src/karton-shell.c:1973
+msgid "Toggle favorite"
+msgstr "Przełącz ulubione"
+
+#: src/karton-shell.c:1974
+msgid "Category: Internet"
+msgstr "Kategoria: Internet"
+
+#: src/karton-shell.c:1975
+msgid "Category: Office"
+msgstr "Kategoria: Biuro"
+
+#: src/karton-shell.c:1976
+msgid "Category: Media"
+msgstr "Kategoria: Multimedia"
+
+#: src/karton-shell.c:1977
+msgid "Category: Development"
+msgstr "Kategoria: Programowanie"
+
+#: src/karton-shell.c:1978
+msgid "Category: System"
+msgstr "Kategoria: System"
+
+#: src/karton-shell.c:1979
+msgid "Category: Utility"
+msgstr "Kategoria: Narzędzia"
+
+#: src/karton-shell.c:1980
+msgid "Uninstall local entry"
+msgstr "Odinstaluj lokalny wpis"
+
+#: src/karton-shell.c:2259
+#, c-format
+msgid "karton-shell: cannot remove %s: %s\n"
+msgstr "karton-shell: nie można usunąć %s: %s\n"
+
+#: src/karton-shell.c:3322
+msgid "karton-shell: cannot connect to wayland display"
+msgstr "karton-shell: nie można połączyć z wyświetlaczem Wayland"
+
+#: src/karton-shell.c:3332
+msgid "karton-shell: required wayland globals are missing"
+msgstr "karton-shell: brakuje wymaganych globalnych interfejsów Wayland"
+
+#: src/karton-shell.c:3339
+msgid "karton-shell: failed to create layer surfaces"
+msgstr "karton-shell: nie udało się utworzyć powierzchni warstwowych"
+
+#~ msgid "Karton"
+#~ msgstr "Karton"
+
+#~ msgid "Panel shell"
+#~ msgstr "Panel powłoki"
+
+#~ msgid "Wi-Fi"
+#~ msgstr "Wi-Fi"
+
+#~ msgid "Bluetooth"
+#~ msgstr "Bluetooth"
+
+#~ msgid "Mute"
+#~ msgstr "Wycisz"
+
+#~ msgid "Applications"
+#~ msgstr "Aplikacje"
+
+#~ msgid "Polish: Zażółć gęślą jaźń  |  German: ÄÖÜ äöü ß"
+#~ msgstr "Polski: Zażółć gęślą jaźń  |  Niemiecki: ÄÖÜ äöü ß"

@@ -1,0 +1,151 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the karton-shell package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: karton-shell\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-03 19:34+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/karton-shell.c:782
+msgid "All"
+msgstr ""
+
+#: src/karton-shell.c:784
+msgid "Favorites"
+msgstr ""
+
+#: src/karton-shell.c:786
+msgid "Internet"
+msgstr ""
+
+#: src/karton-shell.c:788
+msgid "Office"
+msgstr ""
+
+#: src/karton-shell.c:790
+msgid "Media"
+msgstr ""
+
+#: src/karton-shell.c:792
+msgid "Development"
+msgstr ""
+
+#: src/karton-shell.c:794
+msgid "System"
+msgstr ""
+
+#: src/karton-shell.c:796
+msgid "Utility"
+msgstr ""
+
+#: src/karton-shell.c:798
+msgid "Other"
+msgstr ""
+
+#: src/karton-shell.c:830
+#, c-format
+msgid "karton-shell: cannot create %s: %s\n"
+msgstr ""
+
+#: src/karton-shell.c:869 src/karton-shell.c:891
+#, c-format
+msgid "karton-shell: cannot write %s: %s\n"
+msgstr ""
+
+#: src/karton-shell.c:1302
+#, c-format
+msgid ""
+"Usage: %s [--top-only|--side-only]\n"
+"  --top-only   Run only the top panel\n"
+"  --side-only  Run only the side dock\n"
+msgstr ""
+
+#: src/karton-shell.c:1738
+msgid "--:--"
+msgstr ""
+
+#: src/karton-shell.c:1763
+msgid "Quick Settings"
+msgstr ""
+
+#: src/karton-shell.c:1864
+msgid "Launcher"
+msgstr ""
+
+#: src/karton-shell.c:1893
+#, c-format
+msgid "Search: %s"
+msgstr ""
+
+#: src/karton-shell.c:1898
+msgid "Search: type to filter"
+msgstr ""
+
+#: src/karton-shell.c:1922
+msgid "No applications found"
+msgstr ""
+
+#: src/karton-shell.c:1961
+#, c-format
+msgid "and %zu more..."
+msgstr ""
+
+#: src/karton-shell.c:1973
+msgid "Toggle favorite"
+msgstr ""
+
+#: src/karton-shell.c:1974
+msgid "Category: Internet"
+msgstr ""
+
+#: src/karton-shell.c:1975
+msgid "Category: Office"
+msgstr ""
+
+#: src/karton-shell.c:1976
+msgid "Category: Media"
+msgstr ""
+
+#: src/karton-shell.c:1977
+msgid "Category: Development"
+msgstr ""
+
+#: src/karton-shell.c:1978
+msgid "Category: System"
+msgstr ""
+
+#: src/karton-shell.c:1979
+msgid "Category: Utility"
+msgstr ""
+
+#: src/karton-shell.c:1980
+msgid "Uninstall local entry"
+msgstr ""
+
+#: src/karton-shell.c:2259
+#, c-format
+msgid "karton-shell: cannot remove %s: %s\n"
+msgstr ""
+
+#: src/karton-shell.c:3322
+msgid "karton-shell: cannot connect to wayland display"
+msgstr ""
+
+#: src/karton-shell.c:3332
+msgid "karton-shell: required wayland globals are missing"
+msgstr ""
+
+#: src/karton-shell.c:3339
+msgid "karton-shell: failed to create layer surfaces"
+msgstr ""

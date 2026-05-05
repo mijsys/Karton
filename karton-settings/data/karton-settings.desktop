@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 mijsys
+[Desktop Entry]
+Type=Application
+Name=Karton Settings
+Name[pl]=Ustawienia Karton
+Comment=Configure Karton desktop appearance and behavior
+Exec=karton-settings
+Icon=preferences-desktop-theme
+Terminal=false
+Categories=Settings;DesktopSettings;
+StartupNotify=true

@@ -1,0 +1,35 @@
+<!-- SPDX-FileCopyrightText: 2026 mijsys -->
+
+:root {
+  /* Theme mode: auto | light | dark */
+  --theme-mode: auto;
+
+  /* Dimensions */
+  --top-height: 42;
+  --top-expanded-height: 392;
+  --side-width: 74;
+  --side-expanded-width: 362;
+
+  /* Radius */
+  --quick-button-radius: 13;
+  --quick-panel-radius: 22;
+  --quick-tile-radius: 14;
+  --popup-radius: 20;
+
+  /* Top panel (pastel lavender) */
+  --top-bg: #f7f4ff;
+  --top-text: #2a2242;
+  --quick-button-bg: #8b78f6;
+  --quick-button-fg: #ffffff;
+  --quick-panel-bg: #fffdff;
+  --quick-tile-bg: #ebe6ff;
+  --quick-title-text: #2d2550;
+
+  /* Side panel */
+  --side-bg: #ece7ff;
+  --side-popup-bg: #faf8ff;
+  --side-separator: #b9addf;
+  --side-launcher-bg: #8b78f6;
+  --side-slot-active: #74c7c2;
+  --side-slot-inactive: #8b84b7;
+}
