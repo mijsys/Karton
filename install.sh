@@ -66,6 +66,8 @@ warn_screenshot_runtime_deps() {
     log "Install hint (Debian/Ubuntu): sudo apt install grim slurp wl-clipboard"
   elif command -v dnf >/dev/null 2>&1; then
     log "Install hint (Fedora): sudo dnf install grim slurp wl-clipboard"
+  elif command -v zypper >/dev/null 2>&1; then
+    log "Install hint (openSUSE): sudo zypper install grim slurp wl-clipboard"
   fi
 }
 

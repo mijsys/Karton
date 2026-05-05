@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>KartON Brightness</title>
+  <circle cx="32" cy="32" r="11" fill="#ffb84d"/>
+  <g stroke="#7b66f0" stroke-width="5" stroke-linecap="round">
+    <path d="M32 6v9M32 49v9M6 32h9M49 32h9"/>
+    <path d="M13.5 13.5l6.5 6.5M44 44l6.5 6.5M50.5 13.5 44 20M20 44l-6.5 6.5"/>
+  </g>
+  <path fill="none" stroke="#5dcdc3" stroke-width="4" stroke-linecap="round" d="M24 32h16" opacity="0.9"/>
+</svg>

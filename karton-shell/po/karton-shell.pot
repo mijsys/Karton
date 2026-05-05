@@ -1,14 +1,14 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the karton-shell package.
+# This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: karton-shell\n"
+"Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-03 19:34+0200\n"
+"POT-Creation-Date: 2026-05-05 16:02+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,53 +17,57 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/karton-shell.c:782
-msgid "All"
-msgstr ""
-
-#: src/karton-shell.c:784
-msgid "Favorites"
-msgstr ""
-
-#: src/karton-shell.c:786
-msgid "Internet"
-msgstr ""
-
-#: src/karton-shell.c:788
-msgid "Office"
-msgstr ""
-
-#: src/karton-shell.c:790
-msgid "Media"
-msgstr ""
-
-#: src/karton-shell.c:792
-msgid "Development"
-msgstr ""
-
-#: src/karton-shell.c:794
-msgid "System"
-msgstr ""
-
-#: src/karton-shell.c:796
-msgid "Utility"
-msgstr ""
-
-#: src/karton-shell.c:798
-msgid "Other"
-msgstr ""
-
-#: src/karton-shell.c:830
+#: src/karton-shell.c:465
 #, c-format
 msgid "karton-shell: cannot create %s: %s\n"
 msgstr ""
 
-#: src/karton-shell.c:869 src/karton-shell.c:891
+#: src/karton-shell.c:855
+msgid "Not connected"
+msgstr ""
+
+#: src/karton-shell.c:1463
+msgid "All"
+msgstr ""
+
+#: src/karton-shell.c:1465
+msgid "Favorites"
+msgstr ""
+
+#: src/karton-shell.c:1467
+msgid "Internet"
+msgstr ""
+
+#: src/karton-shell.c:1469
+msgid "Office"
+msgstr ""
+
+#: src/karton-shell.c:1471
+msgid "Media"
+msgstr ""
+
+#: src/karton-shell.c:1473
+msgid "Development"
+msgstr ""
+
+#: src/karton-shell.c:1475
+msgid "System"
+msgstr ""
+
+#: src/karton-shell.c:1477
+msgid "Utility"
+msgstr ""
+
+#: src/karton-shell.c:1479
+msgid "Other"
+msgstr ""
+
+#: src/karton-shell.c:1561 src/karton-shell.c:1583 src/karton-shell.c:3095
 #, c-format
 msgid "karton-shell: cannot write %s: %s\n"
 msgstr ""
 
-#: src/karton-shell.c:1302
+#: src/karton-shell.c:2019
 #, c-format
 msgid ""
 "Usage: %s [--top-only|--side-only]\n"
@@ -71,81 +75,192 @@ msgid ""
 "  --side-only  Run only the side dock\n"
 msgstr ""
 
-#: src/karton-shell.c:1738
+#: src/karton-shell.c:2655 src/karton-shell.c:2674
+msgid "Menu"
+msgstr ""
+
+#: src/karton-shell.c:3171
+msgid "Theme: Light"
+msgstr ""
+
+#: src/karton-shell.c:3174
+msgid "Theme: Dark"
+msgstr ""
+
+#: src/karton-shell.c:3176
+msgid "Theme: Auto"
+msgstr ""
+
+#: src/karton-shell.c:3929 src/karton-shell.c:3933
 msgid "--:--"
 msgstr ""
 
-#: src/karton-shell.c:1763
+#: src/karton-shell.c:3997
+msgid "Calendar"
+msgstr ""
+
+#: src/karton-shell.c:4073
+msgid "Events and Tasks"
+msgstr ""
+
+#: src/karton-shell.c:4093
+msgid "No events or tasks"
+msgstr ""
+
+#: src/karton-shell.c:4110
+msgid "World Clocks"
+msgstr ""
+
+#: src/karton-shell.c:4124
+msgid "Choose timezone"
+msgstr ""
+
+#: src/karton-shell.c:4150
+msgid "Local time"
+msgstr ""
+
+#: src/karton-shell.c:4175
+msgid "Click + to add timezone"
+msgstr ""
+
+#: src/karton-shell.c:4208
+msgid "Notifications"
+msgstr ""
+
+#: src/karton-shell.c:4208
 msgid "Quick Settings"
 msgstr ""
 
-#: src/karton-shell.c:1864
+#: src/karton-shell.c:4213
+msgid "Review recent notifications"
+msgstr ""
+
+#: src/karton-shell.c:4213
+msgid "Network, sound and appearance"
+msgstr ""
+
+#: src/karton-shell.c:4244
+msgid "Mark all as read"
+msgstr ""
+
+#: src/karton-shell.c:4244
+msgid "Clear all"
+msgstr ""
+
+#: src/karton-shell.c:4263
+msgid "No notifications"
+msgstr ""
+
+#: src/karton-shell.c:4283
+msgid "Read"
+msgstr ""
+
+#: src/karton-shell.c:4283
+msgid "Unread"
+msgstr ""
+
+#: src/karton-shell.c:4289
+msgid "Brightness"
+msgstr ""
+
+#: src/karton-shell.c:4290
+msgid "Volume"
+msgstr ""
+
+#: src/karton-shell.c:4351
+msgid "Wi-Fi"
+msgstr ""
+
+#: src/karton-shell.c:4352
+msgid "Bluetooth"
+msgstr ""
+
+#: src/karton-shell.c:4354
+msgid "Do not disturb: On"
+msgstr ""
+
+#: src/karton-shell.c:4354
+msgid "Do not disturb: Off"
+msgstr ""
+
+#: src/karton-shell.c:4390
+msgid "Open network settings"
+msgstr ""
+
+#: src/karton-shell.c:4390
+msgid "Open Bluetooth settings"
+msgstr ""
+
+#: src/karton-shell.c:4390
+msgid "Switch theme mode"
+msgstr ""
+
+#: src/karton-shell.c:4390
+msgid "Toggle quiet mode"
+msgstr ""
+
+#: src/karton-shell.c:4526
 msgid "Launcher"
 msgstr ""
 
-#: src/karton-shell.c:1893
-#, c-format
-msgid "Search: %s"
+#: src/karton-shell.c:4560
+msgid "Type to filter applications"
 msgstr ""
 
-#: src/karton-shell.c:1898
-msgid "Search: type to filter"
-msgstr ""
-
-#: src/karton-shell.c:1922
+#: src/karton-shell.c:4593
 msgid "No applications found"
 msgstr ""
 
-#: src/karton-shell.c:1961
+#: src/karton-shell.c:4647
 #, c-format
 msgid "and %zu more..."
 msgstr ""
 
-#: src/karton-shell.c:1973
+#: src/karton-shell.c:4659
 msgid "Toggle favorite"
 msgstr ""
 
-#: src/karton-shell.c:1974
+#: src/karton-shell.c:4660
 msgid "Category: Internet"
 msgstr ""
 
-#: src/karton-shell.c:1975
+#: src/karton-shell.c:4661
 msgid "Category: Office"
 msgstr ""
 
-#: src/karton-shell.c:1976
+#: src/karton-shell.c:4662
 msgid "Category: Media"
 msgstr ""
 
-#: src/karton-shell.c:1977
+#: src/karton-shell.c:4663
 msgid "Category: Development"
 msgstr ""
 
-#: src/karton-shell.c:1978
+#: src/karton-shell.c:4664
 msgid "Category: System"
 msgstr ""
 
-#: src/karton-shell.c:1979
+#: src/karton-shell.c:4665
 msgid "Category: Utility"
 msgstr ""
 
-#: src/karton-shell.c:1980
+#: src/karton-shell.c:4666
 msgid "Uninstall local entry"
 msgstr ""
 
-#: src/karton-shell.c:2259
+#: src/karton-shell.c:5225
 #, c-format
 msgid "karton-shell: cannot remove %s: %s\n"
 msgstr ""
 
-#: src/karton-shell.c:3322
+#: src/karton-shell.c:6339
 msgid "karton-shell: cannot connect to wayland display"
 msgstr ""
 
-#: src/karton-shell.c:3332
+#: src/karton-shell.c:6349
 msgid "karton-shell: required wayland globals are missing"
 msgstr ""
 
-#: src/karton-shell.c:3339
+#: src/karton-shell.c:6356
 msgid "karton-shell: failed to create layer surfaces"
 msgstr ""
