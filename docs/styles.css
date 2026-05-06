@@ -61,7 +61,12 @@ img {
   z-index: 1;
   width: min(var(--max-width), calc(100% - 2rem));
   margin: 0 auto;
-  padding: 1rem 0 4rem;
+  padding: 1rem 0 3rem;
+  border: 1px solid var(--line);
+  border-radius: 34px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(236, 231, 255, 0.55));
+  box-shadow: 0 28px 80px -36px var(--surface-shadow);
+  overflow: hidden;
 }
 
 .site-header {
@@ -79,6 +84,31 @@ img {
   background: rgba(255, 253, 255, 0.78);
   backdrop-filter: blur(16px);
   box-shadow: 0 18px 50px -24px var(--surface-shadow);
+}
+
+.header-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.github-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.2rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(250, 248, 255, 0.86);
+  color: var(--accent-deep);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.github-link img {
+  width: 1rem;
+  height: 1rem;
 }
 
 .brand {
@@ -154,6 +184,51 @@ img {
   box-shadow: 0 24px 60px -28px var(--surface-shadow);
 }
 
+main {
+  display: grid;
+  gap: 1rem;
+  padding: 0 1rem 1rem;
+}
+
+.window-frame {
+  position: relative;
+  padding-top: 3.5rem;
+}
+
+.window-frame::before {
+  content: attr(data-window);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2.45rem;
+  display: flex;
+  align-items: center;
+  padding-left: 5.2rem;
+  border-bottom: 1px solid var(--line);
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+  background: rgba(235, 230, 255, 0.84);
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+}
+
+.window-frame::after {
+  content: "";
+  position: absolute;
+  top: 0.92rem;
+  left: 1.2rem;
+  width: 2.8rem;
+  height: 0.7rem;
+  background:
+    radial-gradient(circle at 0.32rem 0.34rem, #ff7fa6 0 0.28rem, transparent 0.31rem),
+    radial-gradient(circle at 1.4rem 0.34rem, #ffd36d 0 0.28rem, transparent 0.31rem),
+    radial-gradient(circle at 2.48rem 0.34rem, #74c7c2 0 0.28rem, transparent 0.31rem);
+}
+
 .hero {
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
@@ -161,6 +236,10 @@ img {
   align-items: center;
   padding: 3.2rem;
   overflow: hidden;
+}
+
+.summary-strip {
+  margin: 0;
 }
 
 .hero-copy,
@@ -372,7 +451,6 @@ h3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1px;
-  margin: 1.5rem 0;
   padding: 1px;
   overflow: hidden;
 }
@@ -391,7 +469,7 @@ h3 {
 
 .section-block,
 .kartonos-hero {
-  margin-top: 1.5rem;
+  margin-top: 0;
   padding: 2.2rem;
 }
 
@@ -711,9 +789,14 @@ h3 {
   }
 
   .site-nav,
+  .header-controls,
   .lang-switcher,
   .hero-actions {
     flex-wrap: wrap;
+  }
+
+  .header-controls {
+    justify-content: flex-start;
   }
 
   .component-grid,
@@ -759,6 +842,11 @@ h3 {
 @media (max-width: 640px) {
   .page-shell {
     width: min(var(--max-width), calc(100% - 1rem));
+    border-radius: 20px;
+  }
+
+  .github-link span {
+    display: none;
   }
 
   .site-header,
@@ -766,6 +854,21 @@ h3 {
   .section-block,
   .kartonos-hero {
     padding: 1rem;
+  }
+
+  .window-frame {
+    padding-top: 3.15rem;
+  }
+
+  .window-frame::before {
+    height: 2.2rem;
+    padding-left: 4.2rem;
+    font-size: 0.67rem;
+  }
+
+  .window-frame::after {
+    top: 0.8rem;
+    left: 0.95rem;
   }
 
   h1 {

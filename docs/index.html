@@ -23,16 +23,22 @@
         <a data-i18n="navGallery" href="#gallery">Gallery</a>
         <a data-i18n="navKartonOS" href="kartonos.html">KartonOS</a>
       </nav>
-      <div class="lang-switcher" aria-label="Language switcher">
-        <button type="button" data-lang="en">EN</button>
-        <button type="button" data-lang="pl">PL</button>
-        <button type="button" data-lang="de">DE</button>
-        <button type="button" data-lang="fr">FR</button>
+      <div class="header-controls">
+        <a class="github-link" href="https://github.com/mijsys/Tektura-i-Karton" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository">
+          <img src="assets/icons/github.svg" alt="">
+          <span data-i18n="navGithub">GitHub</span>
+        </a>
+        <div class="lang-switcher" aria-label="Language switcher">
+          <button type="button" data-lang="en">EN</button>
+          <button type="button" data-lang="pl">PL</button>
+          <button type="button" data-lang="de">DE</button>
+          <button type="button" data-lang="fr">FR</button>
+        </div>
       </div>
     </header>
 
     <main>
-      <section class="hero" id="overview">
+      <section class="hero window-frame" data-window="workspace-overview" id="overview">
         <div class="hero-copy">
           <p class="eyebrow" data-i18n="heroEyebrow">Wayland desktop environment</p>
           <h1 data-i18n="heroTitle">Karton brings the compositor, shell and session into one focused desktop.</h1>
@@ -87,7 +93,7 @@
         </article>
       </section>
 
-      <section class="section-block" id="components">
+      <section class="section-block window-frame" data-window="components" id="components">
         <div class="section-heading">
           <p class="eyebrow" data-i18n="componentsEyebrow">Components</p>
           <h2 data-i18n="componentsTitle">Three layers, one environment</h2>
@@ -108,7 +114,7 @@
         </div>
       </section>
 
-      <section class="section-block" id="roadmap">
+      <section class="section-block window-frame" data-window="roadmap" id="roadmap">
         <div class="section-heading">
           <p class="eyebrow" data-i18n="roadmapEyebrow">Roadmap</p>
           <h2 data-i18n="roadmapTitle">Clickable timeline with version galleries</h2>
@@ -135,7 +141,7 @@
         </div>
       </section>
 
-      <section class="section-block" id="gallery">
+      <section class="section-block window-frame" data-window="gallery" id="gallery">
         <div class="section-heading split-heading">
           <div>
             <p class="eyebrow" data-i18n="galleryEyebrow">Gallery</p>
