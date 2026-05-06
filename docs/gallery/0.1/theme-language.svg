@@ -1,0 +1,24 @@
+<svg width="1600" height="1200" viewBox="0 0 1600 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="1200" fill="#F5EFE3"/>
+  <rect x="90" y="82" width="1420" height="1036" rx="48" fill="#FFF8EB" stroke="#D9CBB1" stroke-width="4"/>
+  <rect x="148" y="146" width="498" height="910" rx="42" fill="#FFFDF8" stroke="#E7D8BD" stroke-width="4"/>
+  <circle cx="286" cy="342" r="92" fill="#DDB582"/>
+  <circle cx="462" cy="342" r="92" fill="#506A44"/>
+  <circle cx="374" cy="520" r="92" fill="#B4512F"/>
+  <rect x="210" y="674" width="372" height="26" rx="13" fill="#CFB99B"/>
+  <rect x="210" y="722" width="286" height="18" rx="9" fill="#E1D3BC"/>
+  <rect x="210" y="760" width="330" height="18" rx="9" fill="#E1D3BC"/>
+  <rect x="696" y="146" width="756" height="434" rx="42" fill="#FAF5EA" stroke="#E7D8BD" stroke-width="4"/>
+  <rect x="748" y="216" width="196" height="28" rx="14" fill="#B4512F" fill-opacity="0.18"/>
+  <rect x="748" y="276" width="652" height="24" rx="12" fill="#F0E1CA"/>
+  <rect x="748" y="324" width="586" height="24" rx="12" fill="#F0E1CA"/>
+  <rect x="748" y="372" width="610" height="24" rx="12" fill="#F0E1CA"/>
+  <rect x="748" y="420" width="418" height="24" rx="12" fill="#F0E1CA"/>
+  <rect x="696" y="620" width="756" height="436" rx="42" fill="#FAF5EA" stroke="#E7D8BD" stroke-width="4"/>
+  <rect x="760" y="704" width="148" height="148" rx="34" fill="#DDB582"/>
+  <rect x="932" y="704" width="148" height="148" rx="34" fill="#506A44"/>
+  <rect x="1104" y="704" width="148" height="148" rx="34" fill="#B4512F"/>
+  <rect x="1276" y="704" width="112" height="148" rx="34" fill="#CFB99B"/>
+  <text x="150" y="1048" fill="#7F3418" font-family="Space Grotesk, Arial, sans-serif" font-size="74" font-weight="700">Theme Language</text>
+  <text x="150" y="1106" fill="#6D5A46" font-family="IBM Plex Sans, Arial, sans-serif" font-size="34">Warm surfaces, clear contrast and a desktop identity built from simple parts.</text>
+</svg>

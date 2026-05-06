@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KartonOS</title>
+  <meta name="description" content="KartonOS is still under construction.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="kartonos" class="kartonos-page">
+  <div class="page-shell">
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Karton home">
+        <img src="assets/karton.svg" alt="Karton logo">
+        <span>Karton</span>
+      </a>
+      <nav class="site-nav">
+        <a data-i18n="navOverview" href="index.html#overview">Overview</a>
+        <a data-i18n="navRoadmap" href="index.html#roadmap">Roadmap</a>
+        <a data-i18n="navGallery" href="index.html#gallery">Gallery</a>
+        <a data-i18n="navKartonOS" href="kartonos.html">KartonOS</a>
+      </nav>
+      <div class="lang-switcher" aria-label="Language switcher">
+        <button type="button" data-lang="en">EN</button>
+        <button type="button" data-lang="pl">PL</button>
+        <button type="button" data-lang="de">DE</button>
+        <button type="button" data-lang="fr">FR</button>
+      </div>
+    </header>
+
+    <main class="kartonos-main">
+      <section class="kartonos-hero">
+        <div class="section-heading">
+          <p class="eyebrow" data-i18n="kartonosEyebrow">KartonOS</p>
+          <h1 data-i18n="kartonosTitle">Still building the full system.</h1>
+          <p class="section-lead" data-i18n="kartonosText">The OS page is an easter egg for now. The crane keeps moving while the pieces are being assembled.</p>
+          <a class="primary-link" data-i18n="kartonosBack" href="index.html">Back to Karton desktop</a>
+        </div>
+        <div class="construction-scene" aria-hidden="true">
+          <div class="crane-base"></div>
+          <div class="crane-tower"></div>
+          <div class="crane-arm"></div>
+          <div class="crane-cable"></div>
+          <div class="crane-hook"></div>
+          <div class="crane-load">OS</div>
+          <div class="site-block block-a"></div>
+          <div class="site-block block-b"></div>
+          <div class="site-block block-c"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
