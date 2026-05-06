@@ -16,6 +16,43 @@
   --radius-sm: 14px;
   --radius-button: 13px;
   --max-width: 1180px;
+
+  --panel-bg: #f3f5f9;
+  --panel-text: #1f2a3d;
+  --quick-panel-bg: #ffffff;
+  --quick-tile-bg: #eef2f8;
+  --side-bg: #f1f4f9;
+  --side-popup-bg: #fcfdff;
+  --side-separator: #c5d0e0;
+  --side-launcher-bg: #7b66f0;
+  --side-slot-active: #58c6be;
+  --side-slot-inactive: #d7e0ec;
+}
+
+:root[data-theme="dark"] {
+  --bg: #121a29;
+  --bg-accent: #1a2436;
+  --surface: rgba(29, 40, 59, 0.8);
+  --surface-strong: rgba(29, 40, 59, 0.96);
+  --surface-shadow: rgba(0, 0, 0, 0.44);
+  --text: #eaf1ff;
+  --muted: #b8c7df;
+  --accent: #7b66f0;
+  --accent-soft: #63779b;
+  --accent-deep: #ebf2ff;
+  --line: rgba(99, 119, 155, 0.32);
+  --success: #5dcdc3;
+
+  --panel-bg: #171f2d;
+  --panel-text: #eaf1ff;
+  --quick-panel-bg: #1d283b;
+  --quick-tile-bg: #283750;
+  --side-bg: #121a29;
+  --side-popup-bg: #1a2436;
+  --side-separator: #63779b;
+  --side-launcher-bg: #8d72ff;
+  --side-slot-active: #5dcdc3;
+  --side-slot-inactive: #33445f;
 }
 
 * {
@@ -153,7 +190,13 @@ img {
   gap: 0.35rem;
 }
 
+.theme-switcher {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
 .lang-switcher button,
+.theme-switcher button,
 .timeline-item,
 .primary-link,
 .secondary-link {
@@ -170,7 +213,23 @@ img {
   cursor: pointer;
 }
 
+.theme-switcher button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  padding: 0.45rem 0.72rem;
+  font: inherit;
+  color: var(--muted);
+  cursor: pointer;
+}
+
 .lang-switcher button.is-active {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.theme-switcher button.is-active {
   color: #fff;
   background: var(--accent);
   border-color: var(--accent);
@@ -352,8 +411,8 @@ h3 {
   height: 42px;
   margin-left: 84px;
   border-radius: var(--radius-button);
-  border: 1px solid rgba(79, 96, 121, 0.18);
-  background: #f3f5f9;
+  border: 1px solid color-mix(in srgb, var(--side-separator) 60%, transparent);
+  background: var(--panel-bg);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -379,7 +438,7 @@ h3 {
   font-family: "Space Grotesk", sans-serif;
   font-size: 0.86rem;
   letter-spacing: 0.03em;
-  color: var(--accent-deep);
+  color: var(--panel-text);
   text-transform: uppercase;
 }
 
@@ -387,7 +446,7 @@ h3 {
   height: 11px;
   width: 58px;
   border-radius: 999px;
-  background: rgba(79, 96, 121, 0.2);
+  background: color-mix(in srgb, var(--side-separator) 60%, transparent);
 }
 
 .panel-pill.short {
@@ -401,8 +460,8 @@ h3 {
   bottom: 1rem;
   width: 74px;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(79, 96, 121, 0.16);
-  background: #f1f4f9;
+  border: 1px solid color-mix(in srgb, var(--side-separator) 56%, transparent);
+  background: var(--side-bg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -414,7 +473,7 @@ h3 {
   width: 44px;
   height: 44px;
   border-radius: var(--radius-button);
-  background: #7b66f0;
+  background: var(--side-launcher-bg);
   box-shadow: 0 12px 22px -14px rgba(123, 102, 240, 0.78);
 }
 
@@ -422,19 +481,19 @@ h3 {
   width: 32px;
   height: 32px;
   border-radius: 12px;
-  background: #d7e0ec;
+  background: var(--side-slot-inactive);
 }
 
 .slot.is-active {
-  background: #58c6be;
+  background: var(--side-slot-active);
 }
 
 .shell-launcher-panel,
 .shell-popup {
   position: absolute;
-  border: 1px solid rgba(79, 96, 121, 0.16);
+  border: 1px solid color-mix(in srgb, var(--side-separator) 56%, transparent);
   border-radius: var(--radius-md);
-  background: #ffffff;
+  background: var(--side-popup-bg);
   box-shadow: 0 24px 40px -30px rgba(31, 42, 61, 0.45);
 }
 
@@ -455,7 +514,7 @@ h3 {
 .launcher-tile {
   height: 54px;
   border-radius: var(--radius-sm);
-  background: #eef2f8;
+  background: var(--quick-tile-bg);
 }
 
 .shell-popup {
@@ -464,7 +523,7 @@ h3 {
   width: 52%;
   padding: 0.9rem;
   border-radius: var(--radius-lg);
-  background: #ffffff;
+  background: var(--quick-panel-bg);
   animation: float-card 6.6s ease-in-out infinite;
 }
 

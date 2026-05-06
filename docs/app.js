@@ -5,6 +5,8 @@ const translations = {
     navGallery: "Gallery",
     navKartonOS: "KartonOS",
     navGithub: "GitHub",
+    themeLight: "Light",
+    themeDark: "Dark",
     heroEyebrow: "Wayland desktop environment",
     heroTitle: "Karton brings the compositor, shell and session into one focused desktop.",
     heroText: "Built on the Tektura compositor and expanded with Karton shell panels plus session services, the project aims for a fast, calm and configurable desktop for daily work.",
@@ -46,6 +48,8 @@ const translations = {
     navGallery: "Galeria",
     navKartonOS: "KartonOS",
     navGithub: "GitHub",
+    themeLight: "Jasny",
+    themeDark: "Ciemny",
     heroEyebrow: "Środowisko graficzne Wayland",
     heroTitle: "Karton łączy kompozytor, shell i sesję w jedno spójne środowisko.",
     heroText: "Projekt jest zbudowany na kompozytorze Tektura i rozwijany o panele Karton shell oraz usługi sesyjne, żeby dać szybki, spokojny i konfigurowalny desktop do codziennej pracy.",
@@ -87,6 +91,8 @@ const translations = {
     navGallery: "Galerie",
     navKartonOS: "KartonOS",
     navGithub: "GitHub",
+    themeLight: "Hell",
+    themeDark: "Dunkel",
     heroEyebrow: "Wayland-Desktopumgebung",
     heroTitle: "Karton verbindet Compositor, Shell und Sitzung zu einer fokussierten Desktop-Umgebung.",
     heroText: "Das Projekt basiert auf dem Tektura-Compositor und wird mit Karton-Shell-Panels sowie Sitzungsdiensten erweitert, um einen schnellen, ruhigen und konfigurierbaren Desktop für den Alltag zu liefern.",
@@ -128,6 +134,8 @@ const translations = {
     navGallery: "Galerie",
     navKartonOS: "KartonOS",
     navGithub: "GitHub",
+    themeLight: "Clair",
+    themeDark: "Sombre",
     heroEyebrow: "Environnement graphique Wayland",
     heroTitle: "Karton réunit le compositeur, le shell et la session dans un seul environnement cohérent.",
     heroText: "Construit sur le compositeur Tektura et enrichi par les panneaux Karton shell ainsi que les services de session, le projet vise un bureau rapide, calme et configurable pour le quotidien.",
@@ -276,9 +284,22 @@ const defaultLanguage = "en";
 const page = document.body.dataset.page;
 const html = document.documentElement;
 const storedLanguage = localStorage.getItem("karton-site-language");
+const storedTheme = localStorage.getItem("karton-site-theme");
 const browserLanguage = navigator.language ? navigator.language.slice(0, 2) : defaultLanguage;
 let currentLanguage = translations[storedLanguage] ? storedLanguage : translations[browserLanguage] ? browserLanguage : defaultLanguage;
 let currentVersion = "0.1";
+let currentTheme = storedTheme === "dark" || storedTheme === "light"
+  ? storedTheme
+  : window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+
+function applyTheme(theme) {
+  html.dataset.theme = theme;
+  document.querySelectorAll(".theme-switcher button").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.theme === theme);
+  });
+}
 
 function translatePage() {
   const dictionary = translations[currentLanguage];
@@ -359,6 +380,16 @@ function bindLanguageSwitcher() {
   });
 }
 
+function bindThemeSwitcher() {
+  document.querySelectorAll(".theme-switcher button").forEach((button) => {
+    button.addEventListener("click", () => {
+      currentTheme = button.dataset.theme;
+      localStorage.setItem("karton-site-theme", currentTheme);
+      applyTheme(currentTheme);
+    });
+  });
+}
+
 function bindTimeline() {
   document.querySelectorAll(".timeline-item").forEach((button) => {
     button.addEventListener("click", () => {
@@ -375,5 +406,7 @@ function bindTimeline() {
 }
 
 bindLanguageSwitcher();
+bindThemeSwitcher();
 bindTimeline();
+applyTheme(currentTheme);
 translatePage();
