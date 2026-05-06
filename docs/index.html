@@ -3,171 +3,179 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Karton Desktop</title>
-  <meta name="description" content="Karton is a Wayland desktop environment built from the Tektura compositor, Karton shell and Karton session services.">
+  <title>Karton Shell Web</title>
+  <meta name="description" content="Shell-like web desktop for Karton with top panel, side dock, launcher and window apps.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body data-page="home">
-  <div class="page-shell">
-    <header class="site-header">
-      <a class="brand" href="index.html" aria-label="Karton home">
-        <img src="assets/karton.svg" alt="Karton logo">
-        <span>Karton</span>
-      </a>
-      <nav class="site-nav">
-        <a data-i18n="navOverview" href="#overview">Overview</a>
-        <a data-i18n="navRoadmap" href="#roadmap">Roadmap</a>
-        <a data-i18n="navGallery" href="#gallery">Gallery</a>
-        <a data-i18n="navKartonOS" href="kartonos.html">KartonOS</a>
-      </nav>
-      <div class="header-controls">
-        <a class="github-link" href="https://github.com/mijsys/Tektura-i-Karton" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository">
-          <img src="assets/icons/github.svg" alt="">
-          <span data-i18n="navGithub">GitHub</span>
-        </a>
-        <div class="theme-switcher" aria-label="Theme switcher">
+<body>
+  <div class="desktop-shell">
+    <header class="top-panel">
+      <div class="top-left">
+        <button class="top-button launcher-toggle" type="button" data-action="toggle-launcher" aria-label="Toggle launcher">
+          <img src="assets/karton.svg" alt="">
+          <span>Karton</span>
+        </button>
+      </div>
+      <div class="top-center" aria-live="polite">
+        <strong id="panel-time">00:00</strong>
+        <span id="panel-date">1970-01-01</span>
+      </div>
+      <div class="top-right">
+        <button class="status-icon" type="button" aria-label="Network status">
+          <img src="assets/icons/network.svg" alt="">
+        </button>
+        <button class="status-icon" type="button" aria-label="Notifications">
+          <img src="assets/icons/notifications.svg" alt="">
+        </button>
+        <button class="status-icon" type="button" data-action="toggle-quick" aria-label="Quick settings">
+          <img src="assets/icons/theme.svg" alt="">
+        </button>
+      </div>
+    </header>
+
+    <aside class="side-dock">
+      <button class="dock-launcher" type="button" data-action="toggle-launcher" aria-label="Open launcher">
+        <img src="assets/icons/app.svg" alt="">
+      </button>
+      <div class="dock-separator"></div>
+      <div id="running-apps" class="running-apps" aria-label="Running applications"></div>
+    </aside>
+
+    <main id="workspace" class="workspace">
+      <article class="app-window" data-app="overview">
+        <header class="window-bar">
+          <strong data-i18n="appOverviewTitle">Overview</strong>
+          <div class="window-controls">
+            <button type="button" class="win-btn" data-action="minimize" data-app="overview" aria-label="Minimize">_</button>
+            <button type="button" class="win-btn close" data-action="close" data-app="overview" aria-label="Close">x</button>
+          </div>
+        </header>
+        <div class="window-content overview-grid">
+          <section class="content-card">
+            <p class="eyebrow" data-i18n="heroEyebrow">Wayland desktop environment</p>
+            <h1 data-i18n="heroTitle">Karton brings the compositor, shell and session into one focused desktop.</h1>
+            <p data-i18n="heroText">Built on the Tektura compositor and expanded with Karton shell panels plus session services, the project aims for a fast, calm and configurable desktop for daily work.</p>
+          </section>
+          <section class="content-card stat-stack">
+            <article>
+              <span data-i18n="summaryCurrentLabel">Current milestone</span>
+              <strong data-i18n="summaryCurrentValue">0.1 in progress</strong>
+            </article>
+            <article>
+              <span data-i18n="summaryStackLabel">Stack</span>
+              <strong data-i18n="summaryStackValue">Tektura + shell-layer + session services</strong>
+            </article>
+            <article>
+              <span data-i18n="summaryGoalLabel">Goal</span>
+              <strong data-i18n="summaryGoalValue">Light, cohesive, configurable desktop</strong>
+            </article>
+          </section>
+        </div>
+      </article>
+
+      <article class="app-window" data-app="roadmap">
+        <header class="window-bar">
+          <strong data-i18n="appRoadmapTitle">Roadmap</strong>
+          <div class="window-controls">
+            <button type="button" class="win-btn" data-action="minimize" data-app="roadmap" aria-label="Minimize">_</button>
+            <button type="button" class="win-btn close" data-action="close" data-app="roadmap" aria-label="Close">x</button>
+          </div>
+        </header>
+        <div class="window-content">
+          <p class="eyebrow" data-i18n="roadmapEyebrow">Roadmap</p>
+          <h2 data-i18n="roadmapTitle">Clickable timeline with version galleries</h2>
+          <p data-i18n="roadmapLead">Select a version on the timeline to switch the gallery below. The current work starts at 0.1.</p>
+          <div class="timeline" role="tablist" aria-label="Roadmap timeline">
+            <button class="timeline-item is-active" type="button" data-version="0.1" role="tab" aria-selected="true">
+              <span class="timeline-version">0.1</span>
+              <span class="timeline-status" data-i18n="timelineStatusCurrent">Current</span>
+            </button>
+            <button class="timeline-item" type="button" data-version="0.2" role="tab" aria-selected="false">
+              <span class="timeline-version">0.2</span>
+              <span class="timeline-status" data-i18n="timelineStatusNext">Next</span>
+            </button>
+            <button class="timeline-item" type="button" data-version="0.3" role="tab" aria-selected="false">
+              <span class="timeline-version">0.3</span>
+              <span class="timeline-status" data-i18n="timelineStatusLater">Later</span>
+            </button>
+          </div>
+          <div class="release-note-card">
+            <p class="release-kicker" data-i18n="releaseKicker">Selected milestone</p>
+            <h3 id="release-title">0.1</h3>
+            <p id="release-copy"></p>
+          </div>
+        </div>
+      </article>
+
+      <article class="app-window" data-app="gallery">
+        <header class="window-bar">
+          <strong data-i18n="appGalleryTitle">Gallery</strong>
+          <div class="window-controls">
+            <button type="button" class="win-btn" data-action="minimize" data-app="gallery" aria-label="Minimize">_</button>
+            <button type="button" class="win-btn close" data-action="close" data-app="gallery" aria-label="Close">x</button>
+          </div>
+        </header>
+        <div class="window-content">
+          <p class="eyebrow" data-i18n="galleryEyebrow">Gallery</p>
+          <h2 data-i18n="galleryTitle">Screens and concept frames</h2>
+          <p class="gallery-hint" data-i18n="galleryHint">Images are loaded from the version folders inside docs/gallery.</p>
+          <div id="gallery-grid" class="gallery-grid" aria-live="polite"></div>
+        </div>
+      </article>
+
+      <article class="app-window" data-app="kartonos">
+        <header class="window-bar">
+          <strong data-i18n="appKartonOSTitle">KartonOS</strong>
+          <div class="window-controls">
+            <button type="button" class="win-btn" data-action="minimize" data-app="kartonos" aria-label="Minimize">_</button>
+            <button type="button" class="win-btn close" data-action="close" data-app="kartonos" aria-label="Close">x</button>
+          </div>
+        </header>
+        <div class="window-content">
+          <p class="eyebrow" data-i18n="kartonosEyebrow">KartonOS</p>
+          <h2 data-i18n="kartonosTitle">Still building the full system.</h2>
+          <p data-i18n="kartonosText">The OS page is an easter egg for now. The crane keeps moving while the pieces are being assembled.</p>
+          <a class="primary-link" href="https://github.com/mijsys/Tektura-i-Karton" target="_blank" rel="noopener noreferrer" data-i18n="openGithub">Open GitHub</a>
+        </div>
+      </article>
+
+      <div id="workspace-empty" class="workspace-empty" hidden>
+        <p data-i18n="workspaceEmpty">No app windows are open. Use launcher to start one.</p>
+      </div>
+    </main>
+
+    <section id="launcher-panel" class="overlay-panel launcher-panel" hidden>
+      <h3 data-i18n="launcherTitle">Launcher</h3>
+      <div class="launcher-grid">
+        <button class="launcher-app" type="button" data-app="overview" data-i18n="appOverviewTitle">Overview</button>
+        <button class="launcher-app" type="button" data-app="roadmap" data-i18n="appRoadmapTitle">Roadmap</button>
+        <button class="launcher-app" type="button" data-app="gallery" data-i18n="appGalleryTitle">Gallery</button>
+        <button class="launcher-app" type="button" data-app="kartonos" data-i18n="appKartonOSTitle">KartonOS</button>
+      </div>
+    </section>
+
+    <section id="quick-panel" class="overlay-panel quick-panel" hidden>
+      <h3 data-i18n="quickSettingsTitle">Quick settings</h3>
+      <div class="quick-group">
+        <span data-i18n="themeLabel">Theme</span>
+        <div class="theme-switcher">
           <button type="button" data-theme="light" data-i18n="themeLight">Light</button>
           <button type="button" data-theme="dark" data-i18n="themeDark">Dark</button>
         </div>
-        <div class="lang-switcher" aria-label="Language switcher">
+      </div>
+      <div class="quick-group">
+        <span data-i18n="languageLabel">Language</span>
+        <div class="lang-switcher">
           <button type="button" data-lang="en">EN</button>
           <button type="button" data-lang="pl">PL</button>
           <button type="button" data-lang="de">DE</button>
           <button type="button" data-lang="fr">FR</button>
         </div>
       </div>
-    </header>
-
-    <main>
-      <section class="hero window-frame" data-window="workspace-overview" id="overview">
-        <div class="hero-copy">
-          <p class="eyebrow" data-i18n="heroEyebrow">Wayland desktop environment</p>
-          <h1 data-i18n="heroTitle">Karton brings the compositor, shell and session into one focused desktop.</h1>
-          <p class="hero-text" data-i18n="heroText">
-            Built on the Tektura compositor and expanded with Karton shell panels plus session services, the project aims for a fast, calm and configurable desktop for daily work.
-          </p>
-          <div class="hero-actions">
-            <a class="primary-link" data-i18n="heroPrimary" href="#roadmap">See roadmap</a>
-            <a class="secondary-link" data-i18n="heroSecondary" href="kartonos.html">Open KartonOS page</a>
-          </div>
-        </div>
-        <div class="hero-stage" aria-hidden="true">
-          <div class="desktop-preview shell-mock">
-            <div class="shell-top-panel">
-              <div class="panel-left">
-                <div class="quick-button"></div>
-                <span class="panel-title">Karton</span>
-              </div>
-              <div class="panel-right">
-                <span class="panel-pill short"></span>
-                <span class="panel-pill"></span>
-              </div>
-            </div>
-            <div class="shell-side-dock">
-              <div class="launcher-dot"></div>
-              <div class="slot is-active"></div>
-              <div class="slot"></div>
-              <div class="slot"></div>
-              <div class="slot"></div>
-            </div>
-            <div class="shell-launcher-panel">
-              <span class="window-title">launcher</span>
-              <div class="launcher-grid">
-                <span class="launcher-tile"></span>
-                <span class="launcher-tile"></span>
-                <span class="launcher-tile"></span>
-                <span class="launcher-tile"></span>
-                <span class="launcher-tile"></span>
-                <span class="launcher-tile"></span>
-              </div>
-            </div>
-            <div class="shell-popup">
-              <span class="window-title">quick panel</span>
-              <span class="window-line short"></span>
-              <span class="window-line medium"></span>
-              <span class="window-line long"></span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="summary-strip">
-        <article>
-          <span data-i18n="summaryCurrentLabel">Current milestone</span>
-          <strong data-i18n="summaryCurrentValue">0.1 in progress</strong>
-        </article>
-        <article>
-          <span data-i18n="summaryStackLabel">Stack</span>
-          <strong data-i18n="summaryStackValue">Tektura + shell-layer + session services</strong>
-        </article>
-        <article>
-          <span data-i18n="summaryGoalLabel">Goal</span>
-          <strong data-i18n="summaryGoalValue">Light, cohesive, configurable desktop</strong>
-        </article>
-      </section>
-
-      <section class="section-block window-frame" data-window="components" id="components">
-        <div class="section-heading">
-          <p class="eyebrow" data-i18n="componentsEyebrow">Components</p>
-          <h2 data-i18n="componentsTitle">Three layers, one environment</h2>
-        </div>
-        <div class="component-grid">
-          <article class="component-card">
-            <h3 data-i18n="component1Title">Tektura compositor</h3>
-            <p data-i18n="component1Text">A wlroots-based stacking compositor that stays lean, stable and themeable while keeping the desktop foundation predictable.</p>
-          </article>
-          <article class="component-card">
-            <h3 data-i18n="component2Title">Karton shell</h3>
-            <p data-i18n="component2Text">Top and side panels built as shell-layer clients, styled with a lightweight CSS-like variables file.</p>
-          </article>
-          <article class="component-card">
-            <h3 data-i18n="component3Title">Karton session</h3>
-            <p data-i18n="component3Text">Launcher, notifications, screenshots and session daemons that turn the compositor into a usable desktop flow.</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="section-block window-frame" data-window="roadmap" id="roadmap">
-        <div class="section-heading">
-          <p class="eyebrow" data-i18n="roadmapEyebrow">Roadmap</p>
-          <h2 data-i18n="roadmapTitle">Clickable timeline with version galleries</h2>
-          <p class="section-lead" data-i18n="roadmapLead">Select a version on the timeline to switch the gallery below. The current work starts at 0.1.</p>
-        </div>
-        <div class="timeline" role="tablist" aria-label="Roadmap timeline">
-          <button class="timeline-item is-active" type="button" data-version="0.1" role="tab" aria-selected="true">
-            <span class="timeline-version">0.1</span>
-            <span class="timeline-status" data-i18n="timelineStatusCurrent">Current</span>
-          </button>
-          <button class="timeline-item" type="button" data-version="0.2" role="tab" aria-selected="false">
-            <span class="timeline-version">0.2</span>
-            <span class="timeline-status" data-i18n="timelineStatusNext">Next</span>
-          </button>
-          <button class="timeline-item" type="button" data-version="0.3" role="tab" aria-selected="false">
-            <span class="timeline-version">0.3</span>
-            <span class="timeline-status" data-i18n="timelineStatusLater">Later</span>
-          </button>
-        </div>
-        <div class="release-note-card">
-          <p class="release-kicker" data-i18n="releaseKicker">Selected milestone</p>
-          <h3 id="release-title">0.1</h3>
-          <p id="release-copy"></p>
-        </div>
-      </section>
-
-      <section class="section-block window-frame" data-window="gallery" id="gallery">
-        <div class="section-heading split-heading">
-          <div>
-            <p class="eyebrow" data-i18n="galleryEyebrow">Gallery</p>
-            <h2 data-i18n="galleryTitle">Screens and concept frames</h2>
-          </div>
-          <p class="gallery-hint" data-i18n="galleryHint">Images are loaded from the version folders inside docs/gallery.</p>
-        </div>
-        <div id="gallery-grid" class="gallery-grid" aria-live="polite"></div>
-      </section>
-    </main>
+    </section>
   </div>
 
   <template id="gallery-card-template">
