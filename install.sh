@@ -13,21 +13,32 @@ USE_SUDO=0
 SYSTEM_MODE=0
 RESTART_SESSION=1
 CONFIG_NAME="karton"
+ACTION="install"
+CURRENT_SESSION_TYPE="${XDG_SESSION_TYPE:-}"
+CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-${DESKTOP_SESSION:-}}"
 
 print_usage() {
   cat <<'EOF'
-Usage: ./install.sh [options]
+Usage: ./install.sh [options] [command]
 
-Builds and installs Karton compositor + shell + session components.
+Configure, build, and optionally install the Karton compositor, shell, session,
+and settings components.
+
+Commands:
+  install             Configure, build, and install all components (default)
+  build               Configure and build all components without installing
+  compile             Alias for build
 
 Options:
   --prefix <path>     Install prefix (default: ~/.local-karton)
   --system            Install system-wide to /usr/local (uses sudo)
-  --no-restart        Do not restart running karton session modules
+  --no-restart        Do not restart running karton session modules after install
   -h, --help          Show this help
 
 Examples:
   ./install.sh
+  ./install.sh build
+  ./install.sh compile
   ./install.sh --prefix "$HOME/.local-karton"
   ./install.sh --system
 EOF
@@ -79,7 +90,7 @@ run_install() {
   fi
 }
 
-build_and_install_project() {
+build_project() {
   local src_dir="$1"
   shift
   local extra_setup_args=("$@")
@@ -105,8 +116,10 @@ build_and_install_project() {
   log "Building $(basename "$src_dir")"
   meson compile -C "$build_dir"
 
-  log "Installing $(basename "$src_dir")"
-  run_install "$build_dir"
+  if [[ "$ACTION" == "install" ]]; then
+    log "Installing $(basename "$src_dir")"
+    run_install "$build_dir"
+  fi
 }
 
 ensure_user_config() {
@@ -190,6 +203,38 @@ migrate_legacy_config() {
   done
 }
 
+print_post_install_notes() {
+  cat <<EOF
+
+Installed to: $PREFIX
+Config dir:   ${XDG_CONFIG_HOME:-$HOME/.config}/${CONFIG_NAME}
+EOF
+
+  if [[ "$SYSTEM_MODE" -eq 0 ]]; then
+    cat <<EOF
+
+If your display manager does not see the session, ensure XDG_DATA_DIRS includes:
+  $PREFIX/share
+EOF
+  fi
+
+  if [[ -n "$CURRENT_SESSION_TYPE" || -n "$CURRENT_DESKTOP" ]]; then
+    cat <<EOF
+
+Current session environment detected:
+  XDG_SESSION_TYPE=${CURRENT_SESSION_TYPE:-unknown}
+  XDG_CURRENT_DESKTOP=${CURRENT_DESKTOP:-unknown}
+EOF
+  fi
+
+  cat <<'EOF'
+
+If you installed Karton while another desktop environment or compositor was already running,
+log out to your display manager (or your current login/session manager), then start a fresh
+Karton session so the new session files, binaries, and environment are picked up cleanly.
+EOF
+}
+
 restart_running_session() {
   if [[ "$RESTART_SESSION" -ne 1 ]]; then
     return
@@ -220,6 +265,10 @@ restart_running_session() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    install|build|compile)
+      ACTION="$1"
+      shift
+      ;;
     --prefix)
       [[ $# -ge 2 ]] || die "--prefix requires a value"
       PREFIX="$2"
@@ -240,7 +289,7 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     *)
-      die "Unknown option: $1"
+      die "Unknown option or command: $1"
       ;;
   esac
 done
@@ -262,33 +311,28 @@ if [[ "$USE_SUDO" -eq 1 ]]; then
 fi
 
 if [[ "$SYSTEM_MODE" -eq 1 ]]; then
-  log "Installing in system mode to $PREFIX"
-  build_and_install_project "$TEKTURA_DIR" -Dsystemd-session=enabled
+  log "Using system mode with prefix $PREFIX"
+  build_project "$TEKTURA_DIR" -Dsystemd-session=enabled
 else
-  log "Installing in user mode to $PREFIX"
-  build_and_install_project "$TEKTURA_DIR" -Dsystemd-session=disabled
+  log "Using user mode with prefix $PREFIX"
+  build_project "$TEKTURA_DIR" -Dsystemd-session=disabled
 fi
 
-build_and_install_project "$SHELL_DIR"
-build_and_install_project "$SESSION_DIR"
-build_and_install_project "$SETTINGS_DIR"
+build_project "$SHELL_DIR"
+build_project "$SESSION_DIR"
+build_project "$SETTINGS_DIR"
 
-if [[ "$SYSTEM_MODE" -eq 0 ]]; then
+if [[ "$ACTION" == "install" && "$SYSTEM_MODE" -eq 0 ]]; then
   migrate_legacy_config
   ensure_user_config
   warn_screenshot_runtime_deps
 fi
 
-restart_running_session
+if [[ "$ACTION" == "install" ]]; then
+  restart_running_session
 
-log "Done."
-if [[ "$SYSTEM_MODE" -eq 0 ]]; then
-  cat <<EOF
-
-Installed to: $PREFIX
-Config dir:   ${XDG_CONFIG_HOME:-$HOME/.config}/${CONFIG_NAME}
-
-If your display manager does not see the session, ensure XDG_DATA_DIRS includes:
-  $PREFIX/share
-EOF
+  log "Done."
+  print_post_install_notes
+else
+  log "Build completed. No installation was performed."
 fi
