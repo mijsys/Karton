@@ -6,6 +6,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <ctype.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
 #include <libintl.h>
 #include <limits.h>
 #include <linux/input-event-codes.h>
@@ -32,6 +33,10 @@
 
 #ifndef LOCALEDIR
 #define LOCALEDIR "/usr/local/share/locale"
+#endif
+
+#ifndef DATADIR
+#define DATADIR "/usr/local/share"
 #endif
 
 #define _(s) gettext(s)
@@ -161,7 +166,7 @@ char text[160];
 };
 
 struct icon_cache_entry {
-char icon_name[128];
+char icon_name[PATH_MAX];
 cairo_surface_t *surface;
 };
 
@@ -213,6 +218,7 @@ struct shell_style style;
 bool side_enabled;
 
 int output_scale;
+uint32_t output_height;
 bool running;
 
 struct wl_surface *pointer_surface;
@@ -228,6 +234,8 @@ bool notifications_cleared;
 struct notification_entry notifications[MAX_NOTIFICATIONS];
 size_t notification_count;
 int quick_hover_tile;
+int quick_menu_tile;
+int quick_menu_hover_item;
 bool quick_wifi_enabled;
 bool quick_bluetooth_enabled;
 char quick_wifi_name[96];
@@ -246,6 +254,7 @@ bool clock_picker_open;
 int hovered_group;
 int popup_group;
 int popup_hover_item;
+int popup_selected_item;
 bool launcher_open;
 int launcher_hover_item;
 int launcher_hover_favorite;
@@ -295,17 +304,35 @@ size_t global_menu_top_count;
 };
 
 struct launcher_power_action {
-const char *icon;
+const char *fallback_icon;
+const char *icon_name;
 const char *command;
 };
 
 static const struct launcher_power_action launcher_power_actions[] = {
-    /* Ikona | Komenda */
-	{ "󰈆", "sh -lc 'if command -v karton >/dev/null 2>&1; then karton --exit; elif command -v labwc >/dev/null 2>&1; then labwc --exit; else loginctl terminate-session self; fi'" }, // Czyste wyjście z kompozytora
-    { "󰤄", "systemctl suspend" },      // Uśpienie
-    { "󰑓", "systemctl reboot" },       // Restart
-    { "󰐥", "systemctl poweroff" },     // Wyłączenie
+    /* Fallback glyph | Preferred icon | Command */
+	{ "󰈆", "logout", "sh -lc 'if command -v karton >/dev/null 2>&1; then karton --exit; elif command -v labwc >/dev/null 2>&1; then labwc --exit; else loginctl terminate-session self; fi'" },
+    { "󰤄", "sleep", "systemctl suspend" },
+    { "󰑓", "reboot", "systemctl reboot" },
+    { "󰐥", "power", "systemctl poweroff" },
 };
+
+static const char *
+launcher_power_action_label(int action_idx)
+{
+switch (action_idx) {
+case 0:
+return _("Logout");
+case 1:
+return _("Sleep");
+case 2:
+return _("Restart");
+case 3:
+return _("Power off");
+default:
+return "";
+}
+}
 
 static const char *clock_timezone_candidates[] = {
 "UTC",
@@ -320,6 +347,9 @@ static const char *clock_timezone_candidates[] = {
 
 static void panel_draw(struct panel *panel);
 static bool point_in_rect(double px, double py, double x, double y, double w, double h);
+static void measure_pango_text(cairo_t *cairo, const char *family, PangoWeight weight,
+double size, const char *text, int *width, int *height);
+static bool top_quick_panel_rect(const struct panel *panel, double *x, double *y, double *w, double *h);
 static void launcher_close(struct app *app);
 static void launcher_activate_filtered(struct app *app, int filtered_idx);
 static void shell_style_apply_theme(struct shell_style *style);
@@ -333,6 +363,7 @@ double *x, double *y, double *w, double *h);
 static bool launcher_favorite_tile_rect(const struct panel *panel, const struct app *app, int preview_idx,
 double *x, double *y, double *w, double *h);
 static int launcher_favorite_tile_hit(const struct panel *panel, const struct app *app, double px, double py);
+static void popup_clamp_selection(struct app *app);
 static void request_top_panel_size(struct app *app);
 static void request_side_panel_size(struct app *app);
 static void trigger_redraw(struct app *app);
@@ -840,6 +871,99 @@ return read_command_first_line(command, line, sizeof(line))
 && (!strcasecmp(line, "yes") || !strcasecmp(line, "true") || !strcmp(line, "1"));
 }
 
+static void
+quick_status_command(char *command, size_t command_size)
+{
+if (!command || command_size == 0) {
+return;
+}
+
+command[0] = '\0';
+
+char exe_path[PATH_MAX] = { 0 };
+ssize_t exe_len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+if (exe_len > 0) {
+exe_path[exe_len] = '\0';
+char *slash = strrchr(exe_path, '/');
+if (slash) {
+*slash = '\0';
+char helper_path[PATH_MAX] = { 0 };
+size_t exe_dir_len = strlen(exe_path);
+static const char helper_suffix[] = "/karton-system-status";
+if (exe_dir_len + sizeof(helper_suffix) <= sizeof(helper_path)) {
+memcpy(helper_path, exe_path, exe_dir_len);
+memcpy(helper_path + exe_dir_len, helper_suffix, sizeof(helper_suffix));
+}
+if (helper_path[0] && access(helper_path, X_OK) == 0) {
+snprintf(command, command_size, "'%s' quick", helper_path);
+return;
+}
+}
+}
+
+snprintf(command, command_size,
+"sh -lc 'if command -v karton-system-status >/dev/null 2>&1; then karton-system-status quick; elif [ -x \"$HOME/.local-karton/bin/karton-system-status\" ]; then \"$HOME/.local-karton/bin/karton-system-status\" quick; fi'");
+}
+
+static bool
+load_quick_status_from_helper(struct app *app)
+{
+if (!app) {
+return false;
+}
+
+char command[PATH_MAX + 96] = { 0 };
+quick_status_command(command, sizeof(command));
+if (!command[0]) {
+return false;
+}
+
+FILE *f = popen(command, "r");
+if (!f) {
+return false;
+}
+
+bool saw_any = false;
+char line[256] = { 0 };
+while (fgets(line, sizeof(line), f)) {
+char *text = trim_in_place(line);
+if (!text[0]) {
+continue;
+}
+
+char *sep = strchr(text, '=');
+if (!sep) {
+continue;
+}
+*sep = '\0';
+
+char *key = trim_in_place(text);
+char *value = trim_in_place(sep + 1);
+if (!key[0]) {
+continue;
+}
+
+saw_any = true;
+if (!strcmp(key, "wifi_enabled")) {
+app->quick_wifi_enabled = !strcasecmp(value, "yes") || !strcasecmp(value, "true") || !strcmp(value, "1");
+} else if (!strcmp(key, "bluetooth_enabled")) {
+app->quick_bluetooth_enabled = !strcasecmp(value, "yes") || !strcasecmp(value, "true") || !strcmp(value, "1");
+} else if (!strcmp(key, "wifi_name")) {
+snprintf(app->quick_wifi_name, sizeof(app->quick_wifi_name), "%s", value[0] ? value : _("Not connected"));
+}
+}
+
+pclose(f);
+if (!saw_any) {
+return false;
+}
+
+if (!app->quick_wifi_name[0]) {
+snprintf(app->quick_wifi_name, sizeof(app->quick_wifi_name), "%s", _("Not connected"));
+}
+return true;
+}
+
 static bool
 wifi_enabled(void)
 {
@@ -907,9 +1031,11 @@ if (app->quick_status_updated > 0
 return;
 }
 
+if (!load_quick_status_from_helper(app)) {
 app->quick_wifi_enabled = wifi_enabled();
 app->quick_bluetooth_enabled = bluetooth_enabled();
 wifi_network_name(app->quick_wifi_name, sizeof(app->quick_wifi_name));
+}
 app->quick_status_updated = now;
 }
 
@@ -1009,8 +1135,8 @@ static uint32_t
 launcher_panel_width(const struct app *app)
 {
 uint32_t width = app ? app->style.side_expanded_width : 0;
-if (width < 560) {
-width = 560;
+if (width < 720) {
+width = 720;
 }
 return width;
 }
@@ -1140,7 +1266,81 @@ return false;
 }
 
 static bool
-resolve_icon_png_path(const struct app *app, const char *icon_name,
+resolve_repo_icon_path(const char *icon_name, char *out, size_t out_size)
+{
+if (!icon_name || !*icon_name || !out || out_size == 0) {
+return false;
+}
+
+const char *env_dir = getenv("KARTON_ICON_DIR");
+char project_icons_dir[PATH_MAX] = { 0 };
+char repo_icons_dir[PATH_MAX] = { 0 };
+char exe_path[PATH_MAX] = { 0 };
+ssize_t exe_len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+if (exe_len > 0) {
+exe_path[exe_len] = '\0';
+char *slash = strrchr(exe_path, '/');
+if (slash) {
+*slash = '\0';
+slash = strrchr(exe_path, '/');
+if (slash) {
+*slash = '\0';
+size_t base_len = strlen(exe_path);
+if (base_len + strlen("/icons") < sizeof(project_icons_dir)) {
+memcpy(project_icons_dir, exe_path, base_len + 1);
+memcpy(project_icons_dir + base_len, "/icons", strlen("/icons") + 1);
+}
+
+char *repo_slash = strrchr(exe_path, '/');
+if (repo_slash) {
+*repo_slash = '\0';
+size_t repo_len = strlen(exe_path);
+if (repo_len + strlen("/icons") < sizeof(repo_icons_dir)) {
+memcpy(repo_icons_dir, exe_path, repo_len + 1);
+memcpy(repo_icons_dir + repo_len, "/icons", strlen("/icons") + 1);
+}
+}
+}
+}
+}
+
+const char *dirs[] = {
+env_dir,
+DATADIR "/karton/icons",
+repo_icons_dir,
+project_icons_dir,
+};
+bool has_ext = str_ends_with(icon_name, ".svg") || str_ends_with(icon_name, ".png");
+
+for (size_t i = 0; i < sizeof(dirs) / sizeof(dirs[0]); i++) {
+if (!dirs[i] || !dirs[i][0]) {
+continue;
+}
+
+if (has_ext) {
+snprintf(out, out_size, "%s/%s", dirs[i], icon_name);
+if (access(out, R_OK) == 0) {
+return true;
+}
+continue;
+}
+
+snprintf(out, out_size, "%s/%s.svg", dirs[i], icon_name);
+if (access(out, R_OK) == 0) {
+return true;
+}
+snprintf(out, out_size, "%s/%s.png", dirs[i], icon_name);
+if (access(out, R_OK) == 0) {
+return true;
+}
+}
+
+out[0] = '\0';
+return false;
+}
+
+static bool
+resolve_icon_path(const struct app *app, const char *icon_name,
 char *out, size_t out_size)
 {
 if (!icon_name || !*icon_name || !out || out_size == 0) {
@@ -1148,18 +1348,29 @@ return false;
 }
 out[0] = '\0';
 
+bool has_ext = str_ends_with(icon_name, ".svg") || str_ends_with(icon_name, ".png");
+
 if (icon_name[0] == '/') {
-if (access(icon_name, R_OK) == 0 && str_ends_with(icon_name, ".png")) {
+if (access(icon_name, R_OK) == 0
+&& (str_ends_with(icon_name, ".png") || str_ends_with(icon_name, ".svg"))) {
 snprintf(out, out_size, "%s", icon_name);
 return true;
 }
 if (!strchr(icon_name, '.')) {
+snprintf(out, out_size, "%s.svg", icon_name);
+if (access(out, R_OK) == 0) {
+return true;
+}
 snprintf(out, out_size, "%s.png", icon_name);
 if (access(out, R_OK) == 0) {
 return true;
 }
 }
 return false;
+}
+
+if (resolve_repo_icon_path(icon_name, out, out_size)) {
+return true;
 }
 
 const char *home = getenv("HOME");
@@ -1185,6 +1396,8 @@ app && app->icon_theme_name[0] ? app->icon_theme_name : "hicolor",
 "Kora",
 };
 const int sizes[] = { 64, 48, 32, 24, 22, 16 };
+const char *contexts[] = { "apps", "actions" };
+const char *extensions[] = { ".png", ".svg" };
 
 for (size_t b = 0; b < sizeof(bases) / sizeof(bases[0]); b++) {
 if (!bases[b] || !bases[b][0]) {
@@ -1192,9 +1405,18 @@ continue;
 }
 
 if (!strcmp(bases[b], "/usr/share/pixmaps")) {
-snprintf(out, out_size, "%s/%s.png", bases[b], icon_name);
+if (has_ext) {
+snprintf(out, out_size, "%s/%s", bases[b], icon_name);
 if (access(out, R_OK) == 0) {
 return true;
+}
+} else {
+for (size_t ext = 0; ext < sizeof(extensions) / sizeof(extensions[0]); ext++) {
+snprintf(out, out_size, "%s/%s%s", bases[b], icon_name, extensions[ext]);
+if (access(out, R_OK) == 0) {
+return true;
+}
+}
 }
 continue;
 }
@@ -1203,23 +1425,116 @@ for (size_t t = 0; t < sizeof(themes) / sizeof(themes[0]); t++) {
 if (!themes[t] || !themes[t][0]) {
 continue;
 }
+for (size_t c = 0; c < sizeof(contexts) / sizeof(contexts[0]); c++) {
 for (size_t s = 0; s < sizeof(sizes) / sizeof(sizes[0]); s++) {
-snprintf(out, out_size, "%s/%s/%dx%d/apps/%s.png",
-bases[b], themes[t], sizes[s], sizes[s], icon_name);
+if (has_ext) {
+snprintf(out, out_size, "%s/%s/%dx%d/%s/%s",
+bases[b], themes[t], sizes[s], sizes[s], contexts[c], icon_name);
 if (access(out, R_OK) == 0) {
 return true;
+}
+continue;
+}
+
+for (size_t ext = 0; ext < sizeof(extensions) / sizeof(extensions[0]); ext++) {
+snprintf(out, out_size, "%s/%s/%dx%d/%s/%s%s",
+bases[b], themes[t], sizes[s], sizes[s], contexts[c], icon_name, extensions[ext]);
+if (access(out, R_OK) == 0) {
+return true;
+}
 }
 }
 
-snprintf(out, out_size, "%s/%s/apps/%s.png", bases[b], themes[t], icon_name);
+if (has_ext) {
+snprintf(out, out_size, "%s/%s/scalable/%s/%s",
+bases[b], themes[t], contexts[c], icon_name);
 if (access(out, R_OK) == 0) {
 return true;
+}
+snprintf(out, out_size, "%s/%s/%s/%s",
+bases[b], themes[t], contexts[c], icon_name);
+if (access(out, R_OK) == 0) {
+return true;
+}
+continue;
+}
+
+for (size_t ext = 0; ext < sizeof(extensions) / sizeof(extensions[0]); ext++) {
+snprintf(out, out_size, "%s/%s/scalable/%s/%s%s",
+bases[b], themes[t], contexts[c], icon_name, extensions[ext]);
+if (access(out, R_OK) == 0) {
+return true;
+}
+snprintf(out, out_size, "%s/%s/%s/%s%s",
+bases[b], themes[t], contexts[c], icon_name, extensions[ext]);
+if (access(out, R_OK) == 0) {
+return true;
+}
+}
 }
 }
 }
 
 out[0] = '\0';
 return false;
+}
+
+static cairo_surface_t *
+cairo_surface_from_pixbuf(GdkPixbuf *pixbuf)
+{
+if (!pixbuf) {
+return NULL;
+}
+
+int width = gdk_pixbuf_get_width(pixbuf);
+int height = gdk_pixbuf_get_height(pixbuf);
+if (width <= 0 || height <= 0) {
+return NULL;
+}
+
+cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+if (!surface || cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS) {
+if (surface) {
+cairo_surface_destroy(surface);
+}
+return NULL;
+}
+
+guchar *src = gdk_pixbuf_get_pixels(pixbuf);
+int src_stride = gdk_pixbuf_get_rowstride(pixbuf);
+gboolean has_alpha = gdk_pixbuf_get_has_alpha(pixbuf);
+unsigned char *dst = cairo_image_surface_get_data(surface);
+int dst_stride = cairo_image_surface_get_stride(surface);
+
+for (int y = 0; y < height; y++) {
+guchar *src_row = src + y * src_stride;
+unsigned char *dst_row = dst + y * dst_stride;
+for (int x = 0; x < width; x++) {
+guchar *src_px = src_row + x * (has_alpha ? 4 : 3);
+unsigned char *dst_px = dst_row + x * 4;
+uint8_t r = src_px[0];
+uint8_t g = src_px[1];
+uint8_t b = src_px[2];
+uint8_t a = has_alpha ? src_px[3] : 255;
+uint8_t pr = (uint8_t)((r * a + 127) / 255);
+uint8_t pg = (uint8_t)((g * a + 127) / 255);
+uint8_t pb = (uint8_t)((b * a + 127) / 255);
+#if G_BYTE_ORDER == G_LITTLE_ENDIAN
+dst_px[0] = pb;
+dst_px[1] = pg;
+dst_px[2] = pr;
+dst_px[3] = a;
+#else
+dst_px[0] = a;
+dst_px[1] = pr;
+dst_px[2] = pg;
+dst_px[3] = pb;
+#endif
+}
+}
+
+cairo_surface_mark_dirty(surface);
+return surface;
 }
 
 static cairo_surface_t *
@@ -1236,11 +1551,21 @@ return app->icon_cache[i].surface;
 }
 
 char path[PATH_MAX] = { 0 };
-if (!resolve_icon_png_path(app, icon_name, path, sizeof(path))) {
+if (!resolve_icon_path(app, icon_name, path, sizeof(path))) {
 return NULL;
 }
 
-cairo_surface_t *surface = cairo_image_surface_create_from_png(path);
+GError *error = NULL;
+GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file(path, &error);
+if (!pixbuf) {
+if (error) {
+g_error_free(error);
+}
+return NULL;
+}
+
+cairo_surface_t *surface = cairo_surface_from_pixbuf(pixbuf);
+g_object_unref(pixbuf);
 if (!surface || cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS) {
 if (surface) {
 cairo_surface_destroy(surface);
@@ -1317,22 +1642,76 @@ double *row_h, int *max_visible)
 {
 launcher_geometry(panel, x, y, w, h);
 
-*search_y = *y + 18.0;
-*chips_y = *y + 72.0;
+*search_y = *y + 20.0;
+*chips_y = *y + 74.0;
 
 size_t preview_count = launcher_collect_favorite_preview(panel->app, NULL, 0);
-if (preview_count > 4) {
-preview_count = 4;
+if (preview_count > 8) {
+preview_count = 8;
 }
-int preview_rows = preview_count == 0 ? 0 : (int)((preview_count + 1) / 2);
-double favorites_h = preview_rows == 0 ? 0.0 : (28.0 + preview_rows * 54.0 + (preview_rows - 1) * 10.0);
+int preview_rows = preview_count == 0 ? 0 : (int)((preview_count + 3) / 4);
+double favorites_h = preview_rows == 0 ? 0.0 : (30.0 + preview_rows * 82.0 + (preview_rows - 1) * 12.0);
 
-*list_y = *search_y + 78.0 + favorites_h + 34.0;
-*row_h = 48.0;
-*max_visible = (int)((*y + *h - *list_y - 16.0) / *row_h);
+*list_y = *search_y + 76.0 + favorites_h + 42.0;
+*row_h = 44.0;
+*max_visible = (int)((*y + *h - *list_y - 92.0) / *row_h);
 if (*max_visible < 1) {
 *max_visible = 1;
 }
+}
+
+static void
+launcher_content_rect(const struct panel *panel,
+double *x, double *y, double *w, double *h)
+{
+double lx, ly, lw, lh;
+if (!launcher_geometry(panel, &lx, &ly, &lw, &lh)) {
+*x = *y = *w = *h = 0.0;
+return;
+}
+
+*x = lx + 20.0;
+*y = ly;
+*w = lw - 40.0;
+*h = lh;
+}
+
+static void
+launcher_category_panel_rect(const struct panel *panel,
+double *x, double *y, double *w, double *h)
+{
+double lx, ly, lw, lh;
+double search_y, chips_y, list_y, row_h;
+int max_visible = 0;
+
+if (!launcher_geometry(panel, &lx, &ly, &lw, &lh)) {
+*x = *y = *w = *h = 0.0;
+return;
+}
+
+launcher_layout(panel, &lx, &ly, &lw, &lh,
+&search_y, &chips_y, &list_y, &row_h, &max_visible);
+
+*x = lx + 20.0;
+*y = list_y;
+*w = 146.0;
+*h = ly + lh - list_y - 18.0;
+}
+
+static void
+launcher_apps_panel_rect(const struct panel *panel,
+double *x, double *y, double *w, double *h)
+{
+double content_x, content_y, content_w, content_h;
+double nav_x, nav_y, nav_w, nav_h;
+
+launcher_content_rect(panel, &content_x, &content_y, &content_w, &content_h);
+launcher_category_panel_rect(panel, &nav_x, &nav_y, &nav_w, &nav_h);
+
+*x = nav_x + nav_w + 18.0;
+*y = nav_y;
+*w = content_x + content_w - *x;
+*h = nav_h;
 }
 
 static bool
@@ -1340,8 +1719,9 @@ launcher_power_action_rect(const struct panel *panel, int action_idx,
 double *x, double *y, double *w, double *h)
 {
 double lx, ly, lw, lh, search_y, chips_y, list_y, row_h;
+double content_x, content_y, content_w, content_h;
 int max_visible = 0;
-const double gap = 4.0;
+const double gap = 12.0;
 const int action_count = (int)(sizeof(launcher_power_actions) / sizeof(launcher_power_actions[0]));
 
 if (action_idx < 0 || action_idx >= action_count) {
@@ -1353,17 +1733,17 @@ return false;
 
 launcher_layout(panel, &lx, &ly, &lw, &lh,
 &search_y, &chips_y, &list_y, &row_h, &max_visible);
+launcher_content_rect(panel, &content_x, &content_y, &content_w, &content_h);
 
-*w = 18.0;
-*h = 18.0;
+*w = 46.0;
+*h = 46.0;
 if (action_count != 4) {
 return false;
 }
 
-int row = action_idx / 2;
-int col = action_idx % 2;
-*x = lx + 17.0 + col * (*w + gap + 2.0);
-*y = ly + lh - 52.0 + row * (*h + 8.0);
+double total_w = action_count * (*w) + (action_count - 1) * gap;
+*x = content_x + content_w - total_w - 14.0 + action_idx * (*w + gap);
+*y = ly + lh - *h - 18.0;
 return true;
 }
 
@@ -1527,16 +1907,20 @@ static bool
 launcher_category_rect(const struct panel *panel, int category,
 double *x, double *y, double *w, double *h)
 {
-double lx, ly, lw, lh;
-if (category < 0 || category >= LCAT_COUNT
-|| !launcher_geometry(panel, &lx, &ly, &lw, &lh)) {
+double nav_x, nav_y, nav_w, nav_h;
+if (category < 0 || category >= LCAT_COUNT) {
 return false;
 }
 
-*x = lx + 12.0;
-*y = ly + 72.0 + category * 46.0;
-*w = 44.0;
-*h = 40.0;
+launcher_category_panel_rect(panel, &nav_x, &nav_y, &nav_w, &nav_h);
+if (nav_w <= 0.0 || nav_h <= 0.0) {
+return false;
+}
+
+*x = nav_x;
+*y = nav_y + category * 38.0;
+*w = nav_w;
+*h = 32.0;
 return true;
 }
 
@@ -1547,7 +1931,7 @@ double *x, double *y, double *w, double *h)
 double lx, ly, lw, lh, search_y, chips_y, list_y, row_h;
 int max_visible = 0;
 size_t preview_count = launcher_collect_favorite_preview(app, NULL, 0);
-if (preview_idx < 0 || preview_idx >= (int)preview_count || preview_idx >= 4
+if (preview_idx < 0 || preview_idx >= (int)preview_count || preview_idx >= 8
 || !launcher_geometry(panel, &lx, &ly, &lw, &lh)) {
 return false;
 }
@@ -1555,15 +1939,17 @@ return false;
 launcher_layout(panel, &lx, &ly, &lw, &lh,
 &search_y, &chips_y, &list_y, &row_h, &max_visible);
 
-double content_x = lx + 72.0;
-double content_w = lw - 86.0;
-double tile_w = (content_w - 10.0) / 2.0;
-double tile_h = 54.0;
+double content_x, content_y, content_w, content_h;
+launcher_content_rect(panel, &content_x, &content_y, &content_w, &content_h);
+double tile_w = 64.0;
+double tile_h = 80.0;
+double spacing = (content_w - 4.0 * tile_w) / 3.0;
+if (spacing < 0) spacing = 0;
 double base_y = search_y + 78.0;
-int row = preview_idx / 2;
-int col = preview_idx % 2;
-*x = content_x + col * (tile_w + 10.0);
-*y = base_y + row * (tile_h + 10.0);
+int row = preview_idx / 4;
+int col = preview_idx % 4;
+*x = content_x + col * (tile_w + spacing);
+*y = base_y + row * (tile_h + 12.0);
 *w = tile_w;
 *h = tile_h;
 return true;
@@ -1572,7 +1958,7 @@ return true;
 static int
 launcher_favorite_tile_hit(const struct panel *panel, const struct app *app, double px, double py)
 {
-size_t preview[4] = { 0 };
+size_t preview[8] = { 0 };
 size_t preview_count = launcher_collect_favorite_preview(app, preview, G_N_ELEMENTS(preview));
 for (int i = 0; i < (int)preview_count; i++) {
 double x, y, w, h;
@@ -1662,6 +2048,33 @@ case LCAT_UTILITY:
 return "⌂";
 default:
 return "…";
+}
+}
+
+static const char *
+launcher_category_icon_name(int category)
+{
+switch (category) {
+case LCAT_ALL:
+return "category-all";
+case LCAT_FAVORITES:
+return "category-favorites";
+case LCAT_INTERNET:
+return "category-internet";
+case LCAT_OFFICE:
+return "category-office";
+case LCAT_MEDIA:
+return "category-media";
+case LCAT_DEVELOPMENT:
+return "category-development";
+case LCAT_SYSTEM:
+return "category-system";
+case LCAT_UTILITY:
+return "category-utility";
+case LCAT_OTHER:
+return "category-other";
+default:
+return "category-all";
 }
 }
 
@@ -2094,12 +2507,12 @@ return -1;
 }
 
 launcher_layout(panel, &x, &y, &w, &h, &search_y, &chips_y, &list_y, &row_h, &max_visible);
-double content_x = x + 72.0;
-double content_w = w - 86.0;
+double apps_x, apps_y, apps_w, apps_h;
+launcher_apps_panel_rect(panel, &apps_x, &apps_y, &apps_w, &apps_h);
 if (py < list_y) {
 return -1;
 }
-if (!point_in_rect(px, py, content_x, list_y, content_w, row_h * (double)max_visible)) {
+if (!point_in_rect(px, py, apps_x, list_y, apps_w, row_h * (double)max_visible)) {
 return -1;
 }
 
@@ -2144,7 +2557,9 @@ return false;
 }
 
 launcher_layout(panel, &x, &y, &w, &h, &search_y, &chips_y, &list_y, &row_h, &max_visible);
-return point_in_rect(px, py, x + 72.0, search_y, w - 86.0, 36.0);
+double content_x, content_y, content_w, content_h;
+launcher_content_rect(panel, &content_x, &content_y, &content_w, &content_h);
+return point_in_rect(px, py, content_x, search_y, content_w, 38.0);
 }
 
 static int
@@ -2168,6 +2583,24 @@ if (idx < 0 || idx >= item_count) {
 return -1;
 }
 return idx;
+}
+
+static const char *
+launcher_menu_favorite_label(const struct app *app)
+{
+if (!app || app->launcher_menu_target < 0
+|| app->launcher_menu_target >= (int)app->launcher_filtered_count) {
+return _("Add to favorites");
+}
+
+size_t entry_idx = app->launcher_filtered[app->launcher_menu_target];
+if (entry_idx >= app->launcher_count) {
+return _("Add to favorites");
+}
+
+return app->launcher_entries[entry_idx].favorite
+? _("Remove from favorites")
+: _("Add to favorites");
 }
 
 static void
@@ -2274,6 +2707,34 @@ pango_layout_set_alignment(layout, alignment);
 set_source_hex_a(cairo, color, alpha);
 cairo_move_to(cairo, x, y);
 pango_cairo_show_layout(cairo, layout);
+
+g_object_unref(layout);
+pango_font_description_free(font);
+}
+
+static void
+measure_pango_text(cairo_t *cairo, const char *family, PangoWeight weight,
+double size, const char *text, int *width, int *height)
+{
+if (width) {
+*width = 0;
+}
+if (height) {
+*height = 0;
+}
+if (!text || !*text) {
+return;
+}
+
+PangoLayout *layout = pango_cairo_create_layout(cairo);
+PangoFontDescription *font = pango_font_description_new();
+
+pango_font_description_set_family(font, family);
+pango_font_description_set_weight(font, weight);
+pango_font_description_set_absolute_size(font, size * PANGO_SCALE);
+pango_layout_set_font_description(layout, font);
+pango_layout_set_text(layout, text, -1);
+pango_layout_get_pixel_size(layout, width, height);
 
 g_object_unref(layout);
 pango_font_description_free(font);
@@ -2614,10 +3075,12 @@ group->any_active = true;
 if (app->popup_group >= (int)app->group_count) {
 app->popup_group = -1;
 app->popup_hover_item = -1;
+app->popup_selected_item = -1;
 }
 if (app->hovered_group >= (int)app->group_count) {
 app->hovered_group = -1;
 }
+popup_clamp_selection(app);
 }
 
 static const char *
@@ -3183,7 +3646,13 @@ request_top_panel_size(struct app *app)
 if (!app->top.layer_surface || !app->top.surface) {
 return;
 }
-uint32_t h = app->quick_open ? app->style.top_expanded_height : app->style.top_height;
+uint32_t h = app->style.top_height;
+if (app->quick_open) {
+h = app->style.top_expanded_height;
+if (app->top_popup_mode == TOP_POPUP_QUICK && app->output_height > app->style.top_height) {
+h = app->output_height;
+}
+}
 zwlr_layer_surface_v1_set_size(app->top.layer_surface, 0, h);
 zwlr_layer_surface_v1_set_exclusive_zone(app->top.layer_surface, app->style.top_height);
 wl_surface_commit(app->top.surface);
@@ -3462,6 +3931,152 @@ return _("Theme: Dark");
 return _("Theme: Auto");
 }
 
+static bool
+quick_tile_rect(const struct panel *panel, int tile, double *x, double *y, double *w, double *h)
+{
+double qx, qy, qw, qh;
+if (tile < 0 || tile >= 4 || !top_quick_panel_rect(panel, &qx, &qy, &qw, &qh)) {
+return false;
+}
+
+const double tile_w = (qw - 34.0) / 2.0;
+const double tile_h = 52.0;
+const double base_y = qy + 170.0;
+int row = tile / 2;
+int col = tile % 2;
+
+*x = qx + 12.0 + col * (tile_w + 10.0);
+*y = base_y + row * (tile_h + 10.0);
+*w = tile_w;
+*h = tile_h;
+return true;
+}
+
+static bool
+quick_tile_arrow_rect(const struct panel *panel, int tile, double *x, double *y, double *w, double *h)
+{
+double tx, ty, tw, th;
+if (!quick_tile_rect(panel, tile, &tx, &ty, &tw, &th)) {
+return false;
+}
+
+*w = 24.0;
+*h = 24.0;
+*x = tx + tw - *w - 10.0;
+*y = ty + th * 0.5 - *h * 0.5;
+return true;
+}
+
+static int
+quick_tile_menu_item_count(int tile)
+{
+switch (tile) {
+case 0:
+case 1:
+return 2;
+case 2:
+return 3;
+case 3:
+return 2;
+default:
+return 0;
+}
+}
+
+static const char *
+quick_tile_menu_item_label(const struct app *app, int tile, int item)
+{
+switch (tile) {
+case 0:
+return item == 0 ? (app && app->quick_wifi_enabled ? _("Turn Wi-Fi off") : _("Turn Wi-Fi on")) : _("Open network settings");
+case 1:
+return item == 0 ? (app && app->quick_bluetooth_enabled ? _("Turn Bluetooth off") : _("Turn Bluetooth on")) : _("Open Bluetooth settings");
+case 2:
+if (item == 0) {
+return _("Theme: Auto");
+}
+if (item == 1) {
+return _("Theme: Light");
+}
+return _("Theme: Dark");
+case 3:
+return item == 0 ? _("Do not disturb: Off") : _("Do not disturb: On");
+default:
+return "";
+}
+}
+
+static bool
+quick_tile_menu_rect(const struct panel *panel, const struct app *app, int tile,
+double *x, double *y, double *w, double *h)
+{
+double tx, ty, tw, th;
+if (!app || tile < 0 || tile >= 4 || !quick_tile_rect(panel, tile, &tx, &ty, &tw, &th)) {
+return false;
+}
+
+int item_count = quick_tile_menu_item_count(tile);
+if (item_count <= 0) {
+return false;
+}
+
+double qx, qy, qw, qh;
+if (!top_quick_panel_rect(panel, &qx, &qy, &qw, &qh)) {
+return false;
+}
+
+*w = tile < 2 ? 196.0 : 174.0;
+*h = item_count * 28.0 + 10.0;
+*x = tx + tw - *w;
+*y = ty + th + 6.0;
+if (*x + *w > qx + qw - 12.0) {
+*x = qx + qw - *w - 12.0;
+}
+if (*x < qx + 12.0) {
+*x = qx + 12.0;
+}
+if (*y + *h > qy + qh - 10.0) {
+*y = ty - *h - 6.0;
+}
+if (*y < qy + 72.0) {
+*y = qy + 72.0;
+}
+return true;
+}
+
+static int
+quick_tile_arrow_hit(const struct panel *panel, double px, double py)
+{
+for (int i = 0; i < 4; i++) {
+double x, y, w, h;
+if (quick_tile_arrow_rect(panel, i, &x, &y, &w, &h)
+&& point_in_rect(px, py, x, y, w, h)) {
+return i;
+}
+}
+return -1;
+}
+
+static int
+quick_tile_menu_item_hit(const struct panel *panel, const struct app *app, double px, double py)
+{
+if (!app || app->quick_menu_tile < 0) {
+return -1;
+}
+
+double x, y, w, h;
+if (!quick_tile_menu_rect(panel, app, app->quick_menu_tile, &x, &y, &w, &h)
+|| !point_in_rect(px, py, x, y, w, h)) {
+return -1;
+}
+
+int row = (int)((py - y - 5.0) / 28.0);
+if (row < 0 || row >= quick_tile_menu_item_count(app->quick_menu_tile)) {
+return -1;
+}
+return row;
+}
+
 static void
 top_quick_button_rect(const struct panel *panel, double *x, double *y, double *w, double *h)
 {
@@ -3687,7 +4302,7 @@ desired_h = 250.0;
 if (*x < 10.0) {
 *x = 10.0;
 }
-*y = panel->app->style.top_height + 8.0;
+*y = panel->app->style.top_height + 2.0;
 return true;
 }
 
@@ -3803,20 +4418,10 @@ return -1;
 static int
 quick_tile_hit(const struct panel *panel, double px, double py)
 {
-double qx, qy, qw, qh;
-if (!top_quick_panel_rect(panel, &qx, &qy, &qw, &qh)) {
-return -1;
-}
-
-const double tile_w = (qw - 34.0) / 2.0;
-const double tile_h = 44.0;
-const double base_y = qy + 158.0;
 for (int i = 0; i < 4; i++) {
-int row = i / 2;
-int col = i % 2;
-double tx = qx + 12.0 + col * (tile_w + 10.0);
-double ty = base_y + row * (tile_h + 8.0);
-if (point_in_rect(px, py, tx, ty, tile_w, tile_h)) {
+double tx, ty, tw, th;
+if (quick_tile_rect(panel, i, &tx, &ty, &tw, &th)
+&& point_in_rect(px, py, tx, ty, tw, th)) {
 return i;
 }
 }
@@ -3852,14 +4457,14 @@ return -1;
 }
 
 for (int i = 0; i < 2; i++) {
-double sy = qy + 92.0 + i * 36.0;
-double tx = qx + 38.0;
-double tw = qw - 64.0;
+double sy = qy + 106.0 + i * 52.0;
+double tx = qx + 58.0;
+double tw = qw - 110.0;
 if (tw < 1.0) {
 continue;
 }
 
-if (point_in_rect(px, py, tx, sy - 8.0, tw, 22.0)) {
+if (point_in_rect(px, py, tx, sy - 10.0, tw, 28.0)) {
 double pct = (px - tx) / tw;
 if (pct < 0.0) {
 pct = 0.0;
@@ -3949,9 +4554,80 @@ spawn_command(cmd);
 }
 
 static void
-lock_current_session(void)
+quick_toggle_wifi(struct app *app)
 {
-spawn_command("sh -lc 'if command -v loginctl >/dev/null 2>&1; then loginctl lock-session; else command -v notify-send >/dev/null 2>&1 && notify-send \"Karton Shell\" \"Session locking is not available\" || true; fi'");
+if (!app) {
+return;
+}
+
+app->quick_wifi_enabled = !app->quick_wifi_enabled;
+if (!app->quick_wifi_enabled) {
+snprintf(app->quick_wifi_name, sizeof(app->quick_wifi_name), "%s", _("Not connected"));
+}
+app->quick_status_updated = 0;
+
+spawn_command(app->quick_wifi_enabled
+? "sh -lc 'command -v nmcli >/dev/null 2>&1 && nmcli radio wifi on || true'"
+: "sh -lc 'command -v nmcli >/dev/null 2>&1 && nmcli radio wifi off || true'");
+}
+
+static void
+quick_toggle_bluetooth(struct app *app)
+{
+if (!app) {
+return;
+}
+
+app->quick_bluetooth_enabled = !app->quick_bluetooth_enabled;
+app->quick_status_updated = 0;
+
+spawn_command(app->quick_bluetooth_enabled
+? "sh -lc 'command -v bluetoothctl >/dev/null 2>&1 && bluetoothctl power on >/dev/null 2>&1 || true'"
+: "sh -lc 'command -v bluetoothctl >/dev/null 2>&1 && bluetoothctl power off >/dev/null 2>&1 || true'");
+}
+
+static void
+quick_apply_tile_menu_action(struct app *app, int tile, int item)
+{
+if (!app) {
+return;
+}
+
+bool refresh_now = true;
+
+if (tile == 0) {
+if (item == 0) {
+quick_toggle_wifi(app);
+refresh_now = false;
+} else {
+open_settings_page("network");
+}
+} else if (tile == 1) {
+if (item == 0) {
+quick_toggle_bluetooth(app);
+refresh_now = false;
+} else {
+open_settings_page("bluetooth");
+}
+} else if (tile == 2) {
+app->style.theme_mode = item == 0 ? THEME_AUTO : (item == 1 ? THEME_LIGHT : THEME_DARK);
+shell_style_apply_theme(&app->style);
+save_theme_mode_override(app->style.theme_mode);
+sync_environment_theme(app->style.theme_mode);
+reload_shell_style_runtime(app);
+} else if (tile == 3) {
+app->dnd_enabled = item == 1;
+}
+
+app->quick_menu_tile = -1;
+app->quick_menu_hover_item = -1;
+if (refresh_now) {
+refresh_quick_status(app);
+}
+panel_draw(&app->top);
+if (app->side_enabled) {
+panel_draw(&app->side);
+}
 }
 
 static int
@@ -4070,6 +4746,38 @@ group_center_y(int group_idx)
 return 40.0 + group_idx * 56.0;
 }
 
+static void
+popup_group_label(const char *app_id, char *out, size_t out_size)
+{
+if (!out || out_size == 0) {
+return;
+}
+
+const char *base = app_id_base(app_id);
+if (!base || !*base) {
+snprintf(out, out_size, "%s", "App");
+return;
+}
+
+bool upper = true;
+size_t written = 0;
+for (const char *p = base; *p && written + 1 < out_size; p++) {
+char ch = *p;
+if (ch == '.' || ch == '-' || ch == '_') {
+if (written > 0 && out[written - 1] != ' ' && written + 1 < out_size) {
+out[written++] = ' ';
+}
+upper = true;
+continue;
+}
+
+out[written++] = upper ? (char)g_ascii_toupper(ch) : (char)g_ascii_tolower(ch);
+upper = false;
+}
+
+out[written] = '\0';
+}
+
 static bool
 popup_geometry(const struct panel *panel, const struct app *app,
 int group_idx, double *x, double *y, double *w, double *h)
@@ -4081,13 +4789,16 @@ if (panel->width <= app->style.side_width + 40) {
 return false;
 }
 
-double row_h = 32.0;
-double header_h = 34.0;
+double row_h = 36.0;
+double header_h = 58.0;
 double content_h = header_h + app->groups[group_idx].count * row_h + 10.0;
 double center_y = group_center_y(group_idx);
 
 *x = app->style.side_width + 10.0;
-*w = panel->width - *x - 10.0;
+*w = panel->width - *x - 12.0;
+if (*w > 252.0) {
+*w = 252.0;
+}
 *h = content_h;
 *y = center_y - content_h / 2.0;
 if (*y < 8.0) {
@@ -4121,6 +4832,91 @@ if (idx < 0 || idx >= (int)app->groups[group_idx].count) {
 return -1;
 }
 return idx;
+}
+
+static int
+popup_preferred_item(const struct app *app, int group_idx)
+{
+if (!app || group_idx < 0 || group_idx >= (int)app->group_count) {
+return -1;
+}
+
+const struct app_group *group = &app->groups[group_idx];
+if (group->count == 0) {
+return -1;
+}
+
+for (size_t i = 0; i < group->count; i++) {
+const struct toplevel_entry *entry = &app->toplevels[group->indices[i]];
+if (entry->active && !entry->minimized) {
+return (int)i;
+}
+}
+
+for (size_t i = 0; i < group->count; i++) {
+const struct toplevel_entry *entry = &app->toplevels[group->indices[i]];
+if (!entry->minimized) {
+return (int)i;
+}
+}
+
+return 0;
+}
+
+static void
+popup_clamp_selection(struct app *app)
+{
+if (!app || app->popup_group < 0 || app->popup_group >= (int)app->group_count) {
+if (app) {
+app->popup_selected_item = -1;
+}
+return;
+}
+
+const struct app_group *group = &app->groups[app->popup_group];
+if (group->count == 0) {
+app->popup_selected_item = -1;
+return;
+}
+
+if (app->popup_selected_item < 0 || app->popup_selected_item >= (int)group->count) {
+app->popup_selected_item = popup_preferred_item(app, app->popup_group);
+}
+}
+
+static void
+popup_scroll_by(struct app *app, int delta)
+{
+if (!app || app->popup_group < 0 || app->popup_group >= (int)app->group_count || delta == 0) {
+return;
+}
+
+const struct app_group *group = &app->groups[app->popup_group];
+if (group->count < 2) {
+return;
+}
+
+popup_clamp_selection(app);
+if (app->popup_selected_item < 0) {
+return;
+}
+
+int count = (int)group->count;
+int next = app->popup_selected_item + delta;
+while (next < 0) {
+next += count;
+}
+while (next >= count) {
+next -= count;
+}
+
+if (next == app->popup_selected_item) {
+return;
+}
+
+app->popup_selected_item = next;
+app->popup_hover_item = -1;
+panel_draw(&app->side);
 }
 
 static void
@@ -4503,51 +5299,15 @@ rounded_rect(cairo, qx + 0.5, qy + 0.5, qw - 1.0, qh - 1.0, style->quick_panel_r
 cairo_set_line_width(cairo, 1.0);
 cairo_stroke(cairo);
 
-set_source_hex_a(cairo, style->side_launcher_bg, dark ? 0.30 : 0.16);
-rounded_rect(cairo, qx + 12.0, qy + 12.0, qw - 24.0, 64.0, 18.0);
-cairo_fill(cairo);
-
-set_source_hex_a(cairo, dark ? 0xffffff : 0xffffff, dark ? 0.06 : 0.18);
-rounded_rect(cairo, qx + 12.0, qy + 12.0, qw - 24.0, 30.0, 18.0);
-cairo_fill(cairo);
-
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
 13.0, style->quick_title_text, 0.98, qx + 20.0, qy + 18.0,
-(int)qw - 150, PANGO_ALIGN_LEFT,
+(int)qw - 40, PANGO_ALIGN_LEFT,
 panel->app->top_popup_mode == TOP_POPUP_NOTIFICATIONS ? _("Notifications") : _("Quick Settings"));
 
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
 9.8, style->quick_title_text, 0.74, qx + 20.0, qy + 42.0,
-(int)qw - 150, PANGO_ALIGN_LEFT,
+(int)qw - 40, PANGO_ALIGN_LEFT,
 panel->app->top_popup_mode == TOP_POPUP_NOTIFICATIONS ? _("Review recent notifications") : _("Network, sound and appearance"));
-
-for (int i = 0; i < 4; i++) {
-double icx = qx + qw - 126.0 + i * 32.0;
-bool active_icon = (i == 3 && panel->app->top_popup_mode == TOP_POPUP_NOTIFICATIONS);
-set_source_hex_a(cairo, dark ? 0x10192a : 0xffffff, dark ? 0.42 : 0.52);
-cairo_arc(cairo, icx, qy + 44.0, 12.0, 0, 2.0 * 3.14159265358979323846);
-cairo_fill(cairo);
-if (active_icon) {
-set_source_hex_a(cairo, style->side_launcher_bg, 0.82);
-cairo_arc(cairo, icx, qy + 44.0, 12.0, 0, 2.0 * 3.14159265358979323846);
-cairo_fill(cairo);
-}
-if (i < 3) {
-int symbol_type = i == 0 ? 4 : (i == 1 ? 2 : 5);
-draw_karton_symbol(cairo, i == 0 ? 4 : (i == 1 ? 2 : 5), icx, qy + 44.0,
-17.0, active_icon ? 0xffffff : karton_symbol_color(symbol_type), 0.94);
-} else {
-draw_karton_symbol(cairo, 3, icx, qy + 44.0, 17.0,
-active_icon ? 0xffffff : karton_symbol_color(3), 0.94);
-if (panel->app->notification_count > 0
-&& !panel->app->notifications_read
-&& !panel->app->notifications_cleared) {
-set_source_hex_a(cairo, 0xf05d7b, 0.96);
-cairo_arc(cairo, icx + 7.0, qy + 35.0, 3.0, 0, 2.0 * 3.14159265358979323846);
-cairo_fill(cairo);
-}
-}
-}
 
 if (panel->app->top_popup_mode == TOP_POPUP_NOTIFICATIONS) {
 double button_w = (qw - 34.0) / 2.0;
@@ -4601,19 +5361,19 @@ _("Volume"),
 };
 
 for (int i = 0; i < 2; i++) {
-double sy = qy + 98.0 + i * 42.0;
+double sy = qy + 112.0 + i * 52.0;
 
 set_source_hex_a(cairo, dark ? 0x253555 : 0xf4f7fc, 0.88);
-rounded_rect(cairo, qx + 12.0, sy - 18.0, qw - 24.0, 34.0, 13.0);
+rounded_rect(cairo, qx + 12.0, sy - 24.0, qw - 24.0, 44.0, 16.0);
 cairo_fill(cairo);
 
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_MEDIUM,
-9.2, style->quick_title_text, 0.76, qx + 38.0, sy - 13.0,
+10.8, style->quick_title_text, 0.82, qx + 58.0, sy - 15.0,
 (int)qw - 80, PANGO_ALIGN_LEFT, slider_labels[i]);
 
-double track_x = floor(qx + 38.0);
-double track_y = floor(sy + 3.0);
-double track_w = floor(qw - 64.0);
+double track_x = floor(qx + 58.0);
+double track_y = floor(sy + 6.0);
+double track_w = floor(qw - 110.0);
 if (track_w < 1.0) {
 track_w = 1.0;
 }
@@ -4641,14 +5401,14 @@ cairo_arc(cairo, track_x + fill_w, track_y + 3.5, 5.2, 0, 2.0 * 3.14159265358979
 cairo_fill(cairo);
 
 if (i == 0) {
-draw_quick_header_icon(cairo, 1, qx + 25.0, sy, style->quick_title_text, 0.84);
+draw_quick_header_icon(cairo, 1, qx + 28.0, sy + 1.0, style->quick_title_text, 0.84);
+draw_quick_header_icon(cairo, 1, qx + qw - 30.0, sy + 1.0, style->quick_title_text, 0.48);
 } else {
-draw_speaker_icon(cairo, qx + 25.0, sy, 10.0, style->quick_title_text, 0.86);
+draw_speaker_icon(cairo, qx + 28.0, sy + 1.0, 10.0, style->quick_title_text, 0.86);
+draw_speaker_icon(cairo, qx + qw - 30.0, sy + 1.0, 10.0, style->quick_title_text, 0.50);
 }
 }
 
-const double tile_w = (qw - 34.0) / 2.0;
-const double tile_h = 44.0;
 bool tile_active[4] = {
 panel->app->quick_wifi_enabled,
 panel->app->quick_bluetooth_enabled,
@@ -4662,22 +5422,21 @@ theme_mode_label(style->theme_mode),
 panel->app->dnd_enabled ? _("Do not disturb: On") : _("Do not disturb: Off"),
 };
 for (int i = 0; i < 4; i++) {
+double rx, ry, rw, rh;
+quick_tile_rect(panel, i, &rx, &ry, &rw, &rh);
 int row = i / 2;
-int col = i % 2;
-double rx = qx + 12.0 + col * (tile_w + 10.0);
-double ry = qy + 158.0 + row * (tile_h + 8.0);
 
 set_source_hex_a(cairo, i == 2 ? style->side_launcher_bg : style->quick_tile_bg,
 tile_active[i] ? (dark ? 0.78 : 0.68) : 0.94);
-rounded_rect(cairo, rx, ry, tile_w, tile_h, 16.0);
+rounded_rect(cairo, rx, ry, rw, rh, 16.0);
 cairo_fill(cairo);
 
 set_source_hex_a(cairo, dark ? 0xffffff : 0xffffff, dark ? 0.08 : 0.34);
-rounded_rect(cairo, rx + 4.0, ry + 4.0, tile_w - 8.0, 18.0, 10.0);
+rounded_rect(cairo, rx + 4.0, ry + 4.0, rw - 8.0, 18.0, 10.0);
 cairo_fill(cairo);
 
 set_source_hex_a(cairo, dark ? 0xffffff : 0x1f3352, dark ? 0.08 : 0.08);
-rounded_rect(cairo, rx + 0.5, ry + 0.5, tile_w - 1.0, tile_h - 1.0, 15.5);
+rounded_rect(cairo, rx + 0.5, ry + 0.5, rw - 1.0, rh - 1.0, 15.5);
 cairo_set_line_width(cairo, 1.0);
 cairo_stroke(cairo);
 
@@ -4686,13 +5445,44 @@ karton_symbol_color(i), 0.96);
 
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_MEDIUM,
 10.0, dark ? 0xf2f6ff : 0x2a3b56, 0.98,
-rx + 32.0, ry + 12.0, (int)tile_w - 42, PANGO_ALIGN_LEFT, labels[i]);
+rx + 32.0, ry + 11.0, (int)rw - 68, PANGO_ALIGN_LEFT, labels[i]);
 
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
 8.8, dark ? 0xc9d5ec : 0x6a7f9f, 0.86,
-rx + 12.0, ry + 29.0, (int)tile_w - 24, PANGO_ALIGN_LEFT,
+rx + 32.0, ry + 31.0, (int)rw - 68, PANGO_ALIGN_LEFT,
 (panel->app->quick_hover_tile == i && i == 0 ? panel->app->quick_wifi_name :
 (i == 0 ? _("Open network settings") : (i == 1 ? _("Open Bluetooth settings") : (i == 2 ? _("Switch theme mode") : _("Toggle quiet mode"))))));
+
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_BOLD,
+11.0, dark ? 0xf2f6ff : 0x2a3b56, 0.78,
+rx + rw - 28.0, ry + rh * 0.5 - 8.0, 16, PANGO_ALIGN_CENTER,
+row == 0 ? "›" : "⌄");
+}
+
+if (panel->app->top_popup_mode == TOP_POPUP_QUICK && panel->app->quick_menu_tile >= 0) {
+double mx, my, mw, mh;
+if (quick_tile_menu_rect(panel, panel->app, panel->app->quick_menu_tile, &mx, &my, &mw, &mh)) {
+set_source_hex_a(cairo, dark ? 0x1b2434 : 0xffffff, 0.98);
+rounded_rect(cairo, mx, my, mw, mh, 12.0);
+cairo_fill(cairo);
+set_source_hex_a(cairo, dark ? 0xffffff : 0x1f3352, dark ? 0.08 : 0.10);
+rounded_rect(cairo, mx + 0.5, my + 0.5, mw - 1.0, mh - 1.0, 11.5);
+cairo_set_line_width(cairo, 1.0);
+cairo_stroke(cairo);
+
+for (int i = 0; i < quick_tile_menu_item_count(panel->app->quick_menu_tile); i++) {
+double item_y = my + 5.0 + i * 28.0;
+if (i == panel->app->quick_menu_hover_item) {
+set_source_hex_a(cairo, style->side_launcher_bg, dark ? 0.42 : 0.22);
+rounded_rect(cairo, mx + 4.0, item_y, mw - 8.0, 24.0, 8.0);
+cairo_fill(cairo);
+}
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+9.6, style->quick_title_text, 0.95, mx + 10.0, item_y + 7.0,
+(int)mw - 20, PANGO_ALIGN_LEFT,
+quick_tile_menu_item_label(panel->app, panel->app->quick_menu_tile, i));
+}
+}
 }
 
 }
@@ -4730,13 +5520,6 @@ dock_radius > 0.5 ? dock_radius - 0.5 : 0.0);
 cairo_set_line_width(cairo, 1.0);
 cairo_stroke(cairo);
 
-if (panel->width > style->side_width) {
-set_source_hex_a(cairo, style->side_popup_bg, 0.98);
-cairo_rectangle(cairo, style->side_width, 0,
-panel->width - style->side_width, panel->height);
-cairo_fill(cairo);
-}
-
 double cx = style->side_width / 2.0;
 double y = 40.0;
 double launcher_y = panel->height - 34.0;
@@ -4747,6 +5530,14 @@ break;
 }
 
 const struct app_group *group = &app->groups[i];
+bool all_minimized = true;
+for (size_t group_item = 0; group_item < group->count; group_item++) {
+const struct toplevel_entry *group_entry = &app->toplevels[group->indices[group_item]];
+if (!group_entry->minimized) {
+all_minimized = false;
+break;
+}
+}
 
 double slot_x = dock_x + 6.0;
 double slot_y = y - 20.0;
@@ -4771,7 +5562,17 @@ cairo_fill(cairo);
 
 if (!draw_group_app_icon(cairo, app, group, cx, y, 24.0)) {
 draw_karton_symbol(cairo, 7, cx, y, 24.0,
-group->any_active ? 0xffb84d : karton_symbol_color(7), 0.98);
+group->any_active ? 0xffb84d : karton_symbol_color(7), all_minimized ? 0.58 : 0.98);
+} else if (all_minimized) {
+set_source_hex_a(cairo, dark ? 0x10192a : 0xffffff, dark ? 0.26 : 0.36);
+rounded_rect(cairo, cx - 12.0, y - 12.0, 24.0, 24.0, 8.0);
+cairo_fill(cairo);
+}
+
+if (all_minimized) {
+set_source_hex_a(cairo, dark ? 0xffffff : 0x24395c, dark ? 0.28 : 0.34);
+cairo_rectangle(cairo, slot_x + 10.0, slot_y + slot_h - 7.0, slot_w - 20.0, 2.0);
+cairo_fill(cairo);
 }
 
 char badge[16] = { 0 };
@@ -4825,27 +5626,41 @@ rounded_rect(cairo, lx + 0.5, ly + 0.5, lw - 1.0, lh - 1.0, style->popup_radius 
 cairo_set_line_width(cairo, 1.0);
 cairo_stroke(cairo);
 
-set_source_hex_a(cairo, dark ? 0x141b27 : 0xf6f8fd, 0.98);
-rounded_rect(cairo, lx + 8.0, ly + 10.0, 54.0, lh - 20.0, 18.0);
-cairo_fill(cairo);
-
-set_source_hex_a(cairo, style->side_launcher_bg, 0.16);
-cairo_arc(cairo, lx + 35.0, ly + 34.0, 15.0, 0, 2.0 * 3.14159265358979323846);
-cairo_fill(cairo);
-draw_karton_symbol(cairo, 6, lx + 35.0, ly + 34.0, 21.0, karton_symbol_color(6), 0.98);
-
-draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
-12.6, style->quick_title_text, 0.98, lx + 78.0, ly + 18.0,
-(int)lw - 96, PANGO_ALIGN_LEFT, _("Programs"));
-
-draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
-9.8, launcher_subtle, 0.90, lx + 78.0, ly + 38.0,
-(int)lw - 96, PANGO_ALIGN_LEFT, _("Fast access to favorites and all applications"));
-
 int power_hover = -1;
 if (app->pointer_surface == panel->surface) {
 power_hover = launcher_power_action_hit(panel, app->pointer_x, app->pointer_y);
 }
+
+double power_row_x = 0.0;
+double power_row_y = 0.0;
+double power_row_w = 0.0;
+double power_row_h = 0.0;
+double first_action_x, first_action_y, first_action_w, first_action_h;
+double last_action_x, last_action_y, last_action_w, last_action_h;
+if (launcher_power_action_rect(panel, 0,
+&first_action_x, &first_action_y, &first_action_w, &first_action_h)
+&& launcher_power_action_rect(panel,
+(int)(sizeof(launcher_power_actions) / sizeof(launcher_power_actions[0])) - 1,
+&last_action_x, &last_action_y, &last_action_w, &last_action_h)) {
+power_row_x = first_action_x - 10.0;
+power_row_y = first_action_y - 9.0;
+power_row_w = (last_action_x + last_action_w) - first_action_x + 24.0;
+power_row_h = first_action_h + 18.0;
+
+set_source_hex_a(cairo, dark ? 0x0f1724 : 0xf7faff, dark ? 0.46 : 0.78);
+rounded_rect(cairo, power_row_x, power_row_y, power_row_w, power_row_h, 18.0);
+cairo_fill(cairo);
+
+set_source_hex_a(cairo, dark ? 0xffffff : 0x22385d, dark ? 0.06 : 0.08);
+rounded_rect(cairo, power_row_x + 0.5, power_row_y + 0.5, power_row_w - 1.0, power_row_h - 1.0, 17.5);
+cairo_set_line_width(cairo, 1.0);
+cairo_stroke(cairo);
+
+set_source_hex_a(cairo, dark ? 0xffffff : 0xffffff, dark ? 0.05 : 0.20);
+rounded_rect(cairo, power_row_x + 10.0, power_row_y + 7.0, power_row_w - 20.0, 9.0, 7.0);
+cairo_fill(cairo);
+}
+
 for (int i = 0; i < (int)(sizeof(launcher_power_actions) / sizeof(launcher_power_actions[0])); i++) {
 double px_action, py_action, pw_action, ph_action;
 if (!launcher_power_action_rect(panel, i,
@@ -4854,71 +5669,90 @@ continue;
 }
 
 set_source_hex_a(cairo, power_hover == i ? style->side_launcher_bg : (dark ? 0xffffff : 0x22385d),
-power_hover == i ? 0.18 : 0.08);
-rounded_rect(cairo, px_action - 4.0, py_action - 4.0, pw_action + 8.0, ph_action + 8.0, 8.0);
+power_hover == i ? 0.22 : (dark ? 0.09 : 0.06));
+rounded_rect(cairo, px_action, py_action, pw_action, ph_action, 15.0);
 cairo_fill(cairo);
 
-if (i == power_hover) {
-set_source_hex_a(cairo, style->side_launcher_bg, 0.90);
-cairo_rectangle(cairo, px_action - 1.0, py_action + ph_action + 5.0, pw_action + 2.0, 2.0);
-cairo_fill(cairo);
-}
-
-draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_BOLD,
-11.4, launcher_text, i == power_hover ? 0.98 : 0.78, px_action, py_action + 2.0,
-(int)pw_action, PANGO_ALIGN_CENTER, launcher_power_actions[i].icon);
-}
-
-double content_x = lx + 72.0;
-double content_w = lw - 86.0;
-
-set_source_hex_a(cairo, dark ? 0x10192a : 0xffffff, dark ? 0.46 : 0.70);
-rounded_rect(cairo, content_x, search_y, content_w, 36.0, 12.0);
-cairo_fill(cairo);
-set_source_hex_a(cairo, dark ? 0xffffff : 0x24395c, dark ? 0.07 : 0.10);
-rounded_rect(cairo, content_x + 0.5, search_y + 0.5, content_w - 1.0, 35.0, 11.5);
+set_source_hex_a(cairo, dark ? 0xffffff : 0x22385d, power_hover == i ? 0.14 : 0.07);
+rounded_rect(cairo, px_action + 0.5, py_action + 0.5, pw_action - 1.0, ph_action - 1.0, 14.5);
 cairo_set_line_width(cairo, 1.0);
 cairo_stroke(cairo);
 
+bool have_power_icon = draw_named_icon(cairo, app, launcher_power_actions[i].icon_name,
+px_action + pw_action * 0.5, py_action + ph_action * 0.5, 20.0);
+if (!have_power_icon) {
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_BOLD,
-11.6, launcher_subtle, 0.90, content_x + 16.0, search_y + 10.0,
+11.8, launcher_text, i == power_hover ? 0.98 : 0.78, px_action, py_action + 11.0,
+(int)pw_action, PANGO_ALIGN_CENTER, launcher_power_actions[i].fallback_icon);
+}
+}
+
+if (power_hover >= 0) {
+double px_action, py_action, pw_action, ph_action;
+if (launcher_power_action_rect(panel, power_hover,
+&px_action, &py_action, &pw_action, &ph_action)) {
+const char *tooltip = launcher_power_action_label(power_hover);
+int tooltip_w = 0;
+int tooltip_h = 0;
+measure_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_MEDIUM,
+10.2, tooltip, &tooltip_w, &tooltip_h);
+
+double bubble_w = tooltip_w + 24.0;
+double bubble_h = tooltip_h + 14.0;
+double bubble_x = px_action + pw_action * 0.5 - bubble_w * 0.5;
+double bubble_y = power_row_y - bubble_h - 10.0;
+if (bubble_x < lx + 16.0) {
+bubble_x = lx + 16.0;
+}
+if (bubble_x + bubble_w > lx + lw - 16.0) {
+bubble_x = lx + lw - 16.0 - bubble_w;
+}
+
+set_source_hex_a(cairo, dark ? 0x111a29 : 0x22385d, dark ? 0.92 : 0.94);
+rounded_rect(cairo, bubble_x, bubble_y, bubble_w, bubble_h, 12.0);
+cairo_fill(cairo);
+
+set_source_hex_a(cairo, 0xffffff, dark ? 0.10 : 0.14);
+rounded_rect(cairo, bubble_x + 0.5, bubble_y + 0.5, bubble_w - 1.0, bubble_h - 1.0, 11.5);
+cairo_set_line_width(cairo, 1.0);
+cairo_stroke(cairo);
+
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_MEDIUM,
+10.2, 0xffffff, 0.98, bubble_x + 12.0, bubble_y + 7.0,
+(int)bubble_w - 24, PANGO_ALIGN_CENTER, tooltip);
+}
+}
+
+double content_x, content_y, content_w, content_h;
+launcher_content_rect(panel, &content_x, &content_y, &content_w, &content_h);
+
+set_source_hex_a(cairo, dark ? 0x10192a : 0xffffff, dark ? 0.46 : 0.70);
+rounded_rect(cairo, content_x, search_y, content_w, 38.0, 14.0);
+cairo_fill(cairo);
+set_source_hex_a(cairo, dark ? 0xffffff : 0x24395c, dark ? 0.07 : 0.10);
+rounded_rect(cairo, content_x + 0.5, search_y + 0.5, content_w - 1.0, 37.0, 13.5);
+cairo_set_line_width(cairo, 1.0);
+cairo_stroke(cairo);
+
+bool have_search_icon = draw_named_icon(cairo, app, "search",
+content_x + 18.0, search_y + 19.0, 18.0);
+if (!have_search_icon) {
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_BOLD,
+11.6, launcher_subtle, 0.90, content_x + 16.0, search_y + 11.0,
 16, PANGO_ALIGN_CENTER, "⌕");
+}
 
 const char *search_text = app->launcher_query;
 if (!search_text[0] && !app->launcher_search_active) {
-search_text = _("Type to filter applications");
+search_text = _("Search applications...");
 }
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
 11.1, launcher_text, search_text == app->launcher_query ? 0.96 : 0.58,
-content_x + 34.0, search_y + 11.0,
+content_x + 34.0, search_y + 12.0,
 (int)content_w - 48, PANGO_ALIGN_LEFT,
 search_text);
 
-for (int cat = 0; cat < LCAT_COUNT; cat++) {
-double cx_chip, cy_chip, cw_chip, ch_chip;
-if (!launcher_category_rect(panel, cat, &cx_chip, &cy_chip, &cw_chip, &ch_chip)) {
-continue;
-}
-
-set_source_hex_a(cairo,
-cat == app->launcher_category ? style->side_launcher_bg : (dark ? 0xffffff : 0x24395c),
-cat == app->launcher_category ? 0.18 : 0.07);
-rounded_rect(cairo, cx_chip, cy_chip, cw_chip, ch_chip, 12.0);
-cairo_fill(cairo);
-
-draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_BOLD,
-14.0, cat == app->launcher_category ? style->side_launcher_bg : launcher_text,
-cat == app->launcher_category ? 1.0 : 0.78, cx_chip, cy_chip + 7.0,
-(int)cw_chip, PANGO_ALIGN_CENTER, launcher_category_icon(cat));
-
-if (cat == app->launcher_category) {
-set_source_hex_a(cairo, style->side_launcher_bg, 0.90);
-cairo_rectangle(cairo, cx_chip + 10.0, cy_chip + ch_chip - 3.0, cw_chip - 20.0, 2.0);
-cairo_fill(cairo);
-}
-}
-
-size_t preview[4] = { 0 };
+size_t preview[8] = { 0 };
 size_t preview_count = launcher_collect_favorite_preview(app, preview, G_N_ELEMENTS(preview));
 if (preview_count > 0) {
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
@@ -4931,43 +5765,72 @@ if (!launcher_favorite_tile_rect(panel, app, i, &fx, &fy, &fw, &fh)) {
 continue;
 }
 
-set_source_hex_a(cairo,
-i == app->launcher_hover_favorite ? style->side_launcher_bg : (dark ? 0xffffff : 0x22385d),
-i == app->launcher_hover_favorite ? 0.14 : 0.06);
-rounded_rect(cairo, fx, fy, fw, fh, 14.0);
-cairo_fill(cairo);
-
-set_source_hex_a(cairo, dark ? 0xffffff : 0x22385d, dark ? 0.05 : 0.08);
-rounded_rect(cairo, fx + 0.5, fy + 0.5, fw - 1.0, fh - 1.0, 13.5);
-cairo_set_line_width(cairo, 1.0);
-cairo_stroke(cairo);
+if (i == app->launcher_hover_favorite) {
+    set_source_hex_a(cairo, style->side_launcher_bg, 0.20);
+    rounded_rect(cairo, fx, fy, fw, fh, 12.0);
+    cairo_fill(cairo);
+}
 
 const struct launcher_entry *fav = &app->launcher_entries[preview[i]];
 bool have_icon = false;
+double icon_size = 42.0;
+double icon_y = fy + 6.0 + icon_size/2.0;
 if (fav->icon_name[0]) {
-have_icon = draw_named_icon(cairo, app, fav->icon_name, fx + 18.0, fy + 18.0, 22.0);
+have_icon = draw_named_icon(cairo, app, fav->icon_name, fx + fw/2.0, icon_y, icon_size);
 }
 if (!have_icon) {
-draw_karton_symbol(cairo, 7, fx + 18.0, fy + 18.0, 18.0, karton_symbol_color(7), 0.92);
+draw_karton_symbol(cairo, 7, fx + fw/2.0, icon_y, 24.0, karton_symbol_color(7), 0.92);
 }
 
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_MEDIUM,
-10.0, launcher_text, 0.96, fx + 34.0, fy + 11.0,
-(int)fw - 44, PANGO_ALIGN_LEFT, fav->name);
-draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
-8.8, launcher_subtle, 0.88, fx + 34.0, fy + 27.0,
-(int)fw - 44, PANGO_ALIGN_LEFT, launcher_category_label(launcher_effective_category(fav)));
+10.0, launcher_text, 0.96, fx - 4.0, fy + 58.0,
+(int)fw + 8, PANGO_ALIGN_CENTER, fav->name);
 }
 }
 
-draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
-10.0, launcher_subtle, 0.90, content_x, list_y - 14.0,
-(int)content_w, PANGO_ALIGN_LEFT, launcher_category_label(app->launcher_category));
+double nav_x, nav_y, nav_w, nav_h;
+double apps_x, apps_y, apps_w, apps_h;
+launcher_category_panel_rect(panel, &nav_x, &nav_y, &nav_w, &nav_h);
+launcher_apps_panel_rect(panel, &apps_x, &apps_y, &apps_w, &apps_h);
+
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+10.0, launcher_subtle, 0.92, nav_x, list_y - 18.0,
+(int)nav_w, PANGO_ALIGN_LEFT, _("Categories"));
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+10.0, launcher_subtle, 0.92, apps_x, list_y - 18.0,
+(int)apps_w, PANGO_ALIGN_LEFT, _("All applications"));
+
+for (int cat = 0; cat < LCAT_COUNT; cat++) {
+double cx_chip, cy_chip, cw_chip, ch_chip;
+if (!launcher_category_rect(panel, cat, &cx_chip, &cy_chip, &cw_chip, &ch_chip)) {
+continue;
+}
+
+bool selected = cat == app->launcher_category;
+set_source_hex_a(cairo,
+selected ? style->side_launcher_bg : (dark ? 0xffffff : 0x24395c),
+selected ? (dark ? 0.18 : 0.15) : (dark ? 0.05 : 0.04));
+rounded_rect(cairo, cx_chip, cy_chip, cw_chip, ch_chip, 11.0);
+cairo_fill(cairo);
+
+bool have_cat_icon = draw_named_icon(cairo, app, launcher_category_icon_name(cat),
+cx_chip + 15.0, cy_chip + ch_chip * 0.5, 16.0);
+if (!have_cat_icon) {
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_BOLD,
+11.5, selected ? style->side_launcher_bg : launcher_text,
+selected ? 0.98 : 0.78, cx_chip + 4.0, cy_chip + 8.0,
+22, PANGO_ALIGN_CENTER, launcher_category_icon(cat));
+}
+
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_MEDIUM,
+10.0, launcher_text, selected ? 0.98 : 0.88, cx_chip + 28.0, cy_chip + 8.0,
+(int)cw_chip - 34, PANGO_ALIGN_LEFT, launcher_category_label(cat));
+}
 
 if (app->launcher_filtered_count == 0) {
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
-10.5, launcher_text, 0.90, content_x, list_y + 4.0,
-(int)content_w, PANGO_ALIGN_LEFT, _("No applications found"));
+10.5, launcher_text, 0.90, apps_x, list_y + 4.0,
+(int)apps_w, PANGO_ALIGN_LEFT, _("No applications found"));
 } else {
 size_t start = (size_t)app->launcher_scroll_offset;
 if (start > app->launcher_filtered_count) {
@@ -4985,11 +5848,11 @@ double row_y = list_y + i * row_h;
 if (filtered_idx == app->launcher_hover_item || filtered_idx == app->launcher_selected) {
 set_source_hex_a(cairo, style->side_launcher_bg,
 filtered_idx == app->launcher_selected ? 0.16 : 0.10);
-rounded_rect(cairo, content_x, row_y + 2.0, content_w, row_h - 4.0, 14.0);
+rounded_rect(cairo, apps_x, row_y + 2.0, apps_w, row_h - 4.0, 14.0);
 cairo_fill(cairo);
 
 set_source_hex_a(cairo, style->side_launcher_bg, 0.90);
-rounded_rect(cairo, content_x + 6.0, row_y + 8.0,
+rounded_rect(cairo, apps_x + 6.0, row_y + 8.0,
 3.0, row_h - 16.0, 1.5);
 cairo_fill(cairo);
 }
@@ -4997,30 +5860,26 @@ cairo_fill(cairo);
 bool have_icon = false;
 if (entry->icon_name[0]) {
 have_icon = draw_named_icon(cairo, app, entry->icon_name,
-content_x + 18.0, row_y + row_h * 0.5, 24.0);
+apps_x + 18.0, row_y + row_h * 0.5, 24.0);
 }
 
 if (!have_icon) {
-draw_karton_symbol(cairo, 7, content_x + 18.0, row_y + row_h * 0.5, 20.0,
+draw_karton_symbol(cairo, 7, apps_x + 18.0, row_y + row_h * 0.5, 20.0,
 karton_symbol_color(7), 0.92);
 }
 
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_MEDIUM,
-11.3, launcher_text, 0.96, content_x + 36.0, row_y + 10.0,
-(int)content_w - 72, PANGO_ALIGN_LEFT, entry->name);
-
-draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
-8.8, launcher_subtle, 0.84, content_x + 36.0, row_y + 26.0,
-(int)content_w - 72, PANGO_ALIGN_LEFT, launcher_category_label(launcher_effective_category(entry)));
+11.0, launcher_text, 0.96, apps_x + 36.0, row_y + 13.0,
+(int)apps_w - 72, PANGO_ALIGN_LEFT, entry->name);
 
 if (entry->favorite) {
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_BOLD,
-12.0, 0xf4b400, 0.95, content_x + content_w - 26.0, row_y + 13.0,
+12.0, 0xf4b400, 0.95, apps_x + apps_w - 26.0, row_y + 13.0,
 18, PANGO_ALIGN_CENTER, "★");
 }
 
 set_source_hex_a(cairo, dark ? 0xffffff : 0x1f3352, dark ? 0.06 : 0.10);
-cairo_rectangle(cairo, content_x, row_y + row_h - 1.0, content_w, 1.0);
+cairo_rectangle(cairo, apps_x, row_y + row_h - 1.0, apps_w, 1.0);
 cairo_fill(cairo);
 }
 
@@ -5029,8 +5888,8 @@ if (remaining_below > 0) {
 char more[64] = { 0 };
 snprintf(more, sizeof(more), _("and %zu more..."), remaining_below);
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
-10.0, launcher_subtle, 0.92, content_x, ly + lh - 18.0,
-(int)content_w, PANGO_ALIGN_LEFT, more);
+10.0, launcher_subtle, 0.92, apps_x, ly + lh - 82.0,
+(int)apps_w, PANGO_ALIGN_LEFT, more);
 }
 }
 
@@ -5039,7 +5898,7 @@ const double menu_w = 230.0;
 const double row_h_menu = 28.0;
 const int item_count = 8;
 const char *menu_items[8] = {
-_("Toggle favorite"),
+launcher_menu_favorite_label(app),
 _("Category: Internet"),
 _("Category: Office"),
 _("Category: Media"),
@@ -5075,32 +5934,85 @@ return;
 if (app->popup_group >= 0) {
 double px, py, pw, ph;
 if (popup_geometry(panel, app, app->popup_group, &px, &py, &pw, &ph)) {
-set_source_hex_a(cairo, style->side_popup_bg, 0.98);
-rounded_rect(cairo, px, py, pw, ph, style->popup_radius);
+set_source_hex_a(cairo, style->side_popup_bg, dark ? 0.97 : 0.985);
+rounded_rect(cairo, px, py, pw, ph, 18.0);
 cairo_fill(cairo);
-set_source_hex_a(cairo, dark ? 0xffffff : 0x2b4368, dark ? 0.10 : 0.12);
-cairo_rectangle(cairo, px, py, pw, 1);
-cairo_fill(cairo);
+set_source_hex_a(cairo, dark ? 0xffffff : 0x24395c, dark ? 0.08 : 0.10);
+rounded_rect(cairo, px + 0.5, py + 0.5, pw - 1.0, ph - 1.0, 17.5);
+cairo_set_line_width(cairo, 1.0);
+cairo_stroke(cairo);
 
 const struct app_group *group = &app->groups[app->popup_group];
-draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
-11.0, popup_header, 0.96, px + 8.0, py + 8.0,
-(int)pw - 16, PANGO_ALIGN_LEFT, group->app_id);
+char group_label[96] = { 0 };
+popup_group_label(group->app_id, group_label, sizeof(group_label));
 
-double row_h = 32.0;
-double ry = py + 34.0;
-for (size_t i = 0; i < group->count; i++) {
-if ((int)i == app->popup_hover_item) {
-set_source_hex_a(cairo, 0x3a73d8, dark ? 0.55 : 0.36);
-rounded_rect(cairo, px + 6.0, ry + i * row_h,
-pw - 12.0, row_h - 2.0, 8.0);
+set_source_hex_a(cairo, dark ? 0xffffff : 0xffffff, dark ? 0.06 : 0.24);
+rounded_rect(cairo, px + 10.0, py + 10.0, 30.0, 30.0, 10.0);
 cairo_fill(cairo);
+
+if (!draw_group_app_icon(cairo, app, group, px + 25.0, py + 25.0, 18.0)) {
+draw_karton_symbol(cairo, 7, px + 25.0, py + 25.0, 18.0, karton_symbol_color(7), 0.94);
 }
+
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+11.4, popup_header, 0.97, px + 48.0, py + 13.0,
+(int)pw - 78, PANGO_ALIGN_LEFT, group_label);
+
+bool have_scroll_icon = draw_named_icon(cairo, app, "scroll",
+px + 52.0, py + 34.0, 14.0);
+if (!have_scroll_icon) {
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_BOLD,
+8.6, popup_header, 0.68, px + 44.0, py + 28.0,
+16, PANGO_ALIGN_CENTER, "↕");
+}
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+8.8, popup_text, 0.62, px + 64.0, py + 28.0,
+(int)pw - 124, PANGO_ALIGN_LEFT, _("Mouse wheel"));
+
+char count_label[16] = { 0 };
+snprintf(count_label, sizeof(count_label), "%zu", group->count);
+set_source_hex_a(cairo, style->side_launcher_bg, dark ? 0.34 : 0.18);
+rounded_rect(cairo, px + pw - 30.0, py + 14.0, 16.0, 14.0, 7.0);
+cairo_fill(cairo);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_BOLD,
+8.4, popup_header, 0.88, px + pw - 30.0, py + 16.0,
+16, PANGO_ALIGN_CENTER, count_label);
+
+double row_h = 36.0;
+double ry = py + 58.0;
+for (size_t i = 0; i < group->count; i++) {
+bool hovered = (int)i == app->popup_hover_item;
+bool selected = (int)i == app->popup_selected_item;
 const struct toplevel_entry *entry = &app->toplevels[group->indices[i]];
 const char *title = entry->title[0] ? entry->title : app_id_base(entry->app_id);
+if (hovered || selected) {
+set_source_hex_a(cairo, 0x3a73d8,
+hovered ? (dark ? 0.55 : 0.36) : (dark ? 0.36 : 0.24));
+rounded_rect(cairo, px + 8.0, ry + i * row_h + 2.0,
+pw - 16.0, row_h - 4.0, 10.0);
+cairo_fill(cairo);
+}
+if (entry->minimized && !hovered && !selected) {
+set_source_hex_a(cairo, dark ? 0xffffff : 0x24395c, dark ? 0.10 : 0.08);
+rounded_rect(cairo, px + 8.0, ry + i * row_h + 2.0,
+pw - 16.0, row_h - 4.0, 10.0);
+cairo_fill(cairo);
+}
+
+set_source_hex_a(cairo,
+entry->active && !entry->minimized ? style->side_launcher_bg : (dark ? 0xffffff : 0x24395c),
+entry->active && !entry->minimized ? 0.90 : (entry->minimized ? 0.24 : 0.14));
+cairo_arc(cairo, px + 20.0, ry + i * row_h + 18.0, 4.0, 0, 2.0 * 3.14159265358979323846);
+cairo_fill(cairo);
+
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
-10.5, popup_text, 0.96, px + 12.0, ry + i * row_h + 8.0,
-(int)pw - 24, PANGO_ALIGN_LEFT, title);
+10.4, popup_text, entry->minimized ? 0.68 : 0.96, px + 30.0, ry + i * row_h + 9.0,
+(int)pw - 62, PANGO_ALIGN_LEFT, title);
+if (entry->minimized) {
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+8.4, popup_text, 0.56, px + pw - 28.0, ry + i * row_h + 10.0,
+16, PANGO_ALIGN_CENTER, "-");
+}
 }
 }
 }
@@ -5153,17 +6065,19 @@ update_side_hover(struct app *app)
 int old_hovered = app->hovered_group;
 int old_popup = app->popup_group;
 int old_popup_item = app->popup_hover_item;
+int old_popup_selected = app->popup_selected_item;
 int old_launcher_hover = app->launcher_hover_item;
 int old_launcher_favorite = app->launcher_hover_favorite;
 int old_menu_hover = app->launcher_menu_hover;
 
 app->hovered_group = -1;
-app->popup_hover_item = -1;
 app->launcher_hover_item = -1;
 app->launcher_hover_favorite = -1;
 
 if (app->pointer_surface != app->side.surface) {
 app->popup_group = -1;
+app->popup_hover_item = -1;
+app->popup_selected_item = -1;
 app->launcher_menu_hover = -1;
 if (old_popup != app->popup_group || old_launcher_hover != app->launcher_hover_item
 || old_launcher_favorite != app->launcher_hover_favorite) {
@@ -5171,6 +6085,7 @@ request_side_panel_size(app);
 }
 if (old_hovered != app->hovered_group
 || old_popup_item != app->popup_hover_item
+|| old_popup_selected != app->popup_selected_item
 || old_launcher_hover != app->launcher_hover_item
 || old_launcher_favorite != app->launcher_hover_favorite
 || old_menu_hover != app->launcher_menu_hover) {
@@ -5181,6 +6096,8 @@ return;
 
 if (app->launcher_open) {
 app->popup_group = -1;
+app->popup_hover_item = -1;
+app->popup_selected_item = -1;
 app->launcher_hover_item = launcher_item_hit(&app->side, app,
 app->pointer_x, app->pointer_y);
 app->launcher_hover_favorite = launcher_favorite_tile_hit(&app->side, app,
@@ -5195,6 +6112,7 @@ if (old_launcher_hover != app->launcher_hover_item
 || old_launcher_favorite != app->launcher_hover_favorite
 || old_popup != app->popup_group
 || old_hovered != app->hovered_group
+|| old_popup_selected != app->popup_selected_item
 || old_menu_hover != app->launcher_menu_hover) {
 panel_draw(&app->side);
 }
@@ -5202,24 +6120,48 @@ return;
 }
 
 app->launcher_menu_hover = -1;
+app->popup_hover_item = -1;
 
 int slot = side_slot_hit(&app->side, app->pointer_x, app->pointer_y);
+bool in_existing_popup = false;
+int popup_item = -1;
+if (old_popup >= 0) {
+double px, py, pw, ph;
+if (popup_geometry(&app->side, app, old_popup, &px, &py, &pw, &ph)
+&& point_in_rect(app->pointer_x, app->pointer_y, px, py, pw, ph)) {
+in_existing_popup = true;
+popup_item = popup_item_hit(&app->side, app, old_popup,
+app->pointer_x, app->pointer_y);
+}
+}
+
 if (slot > 0) {
 int group_idx = slot - 1;
 if (group_idx >= 0 && group_idx < (int)app->group_count) {
 app->hovered_group = group_idx;
 if (app->groups[group_idx].count > 1) {
 app->popup_group = group_idx;
-app->popup_hover_item = popup_item_hit(&app->side, app,
-app->popup_group, app->pointer_x, app->pointer_y);
-} else {
-app->popup_group = -1;
+popup_clamp_selection(app);
+if (old_popup != group_idx || app->popup_selected_item < 0) {
+app->popup_selected_item = popup_preferred_item(app, group_idx);
 }
 } else {
 app->popup_group = -1;
+app->popup_selected_item = -1;
 }
 } else {
 app->popup_group = -1;
+app->popup_selected_item = -1;
+}
+} else if (in_existing_popup && old_popup >= 0 && old_popup < (int)app->group_count
+&& app->groups[old_popup].count > 1) {
+app->hovered_group = old_popup;
+app->popup_group = old_popup;
+popup_clamp_selection(app);
+app->popup_hover_item = popup_item;
+} else {
+app->popup_group = -1;
+app->popup_selected_item = -1;
 }
 
 if (old_popup != app->popup_group) {
@@ -5229,6 +6171,7 @@ request_side_panel_size(app);
 if (old_hovered != app->hovered_group
 || old_popup != app->popup_group
 || old_popup_item != app->popup_hover_item
+|| old_popup_selected != app->popup_selected_item
 || old_launcher_hover != app->launcher_hover_item
 || old_launcher_favorite != app->launcher_hover_favorite
 || old_menu_hover != app->launcher_menu_hover) {
@@ -5242,6 +6185,8 @@ top_popup_close(struct app *app)
 app->quick_open = false;
 app->top_popup_mode = TOP_POPUP_NONE;
 app->clock_picker_open = false;
+app->quick_menu_tile = -1;
+app->quick_menu_hover_item = -1;
 request_top_panel_size(app);
 panel_draw(&app->top);
 }
@@ -5265,6 +6210,8 @@ load_system_notifications(app);
 
 app->quick_open = true;
 app->top_popup_mode = mode;
+app->quick_menu_tile = -1;
+app->quick_menu_hover_item = -1;
 request_top_panel_size(app);
 panel_draw(&app->top);
 }
@@ -5413,23 +6360,7 @@ return;
 
 if (app->top_popup_mode == TOP_POPUP_QUICK || app->top_popup_mode == TOP_POPUP_NOTIFICATIONS) {
 int header_icon = quick_header_icon_hit(&app->top, app->pointer_x, app->pointer_y);
-if (header_icon == 0) {
-lock_current_session();
-return;
-}
-if (header_icon == 1) {
-quick_cycle_theme_mode(app);
-panel_draw(&app->top);
-if (app->side_enabled) {
-panel_draw(&app->side);
-}
-return;
-}
-if (header_icon == 2) {
-open_settings_page("power");
-return;
-}
-if (header_icon == 3) {
+if (app->top_popup_mode == TOP_POPUP_NOTIFICATIONS && header_icon == 3) {
 if (app->top_popup_mode == TOP_POPUP_NOTIFICATIONS) {
 top_popup_open(app, TOP_POPUP_QUICK);
 } else {
@@ -5456,6 +6387,25 @@ return;
 }
 
 if (app->top_popup_mode == TOP_POPUP_QUICK) {
+
+int menu_item = quick_tile_menu_item_hit(&app->top, app, app->pointer_x, app->pointer_y);
+if (app->quick_menu_tile >= 0 && menu_item >= 0) {
+quick_apply_tile_menu_action(app, app->quick_menu_tile, menu_item);
+return;
+}
+
+int arrow_tile = quick_tile_arrow_hit(&app->top, app->pointer_x, app->pointer_y);
+if (arrow_tile >= 0) {
+if (app->quick_menu_tile == arrow_tile) {
+app->quick_menu_tile = -1;
+app->quick_menu_hover_item = -1;
+} else {
+app->quick_menu_tile = arrow_tile;
+app->quick_menu_hover_item = -1;
+}
+panel_draw(&app->top);
+return;
+}
 
 double slider_pct = 0.0;
 int slider = quick_slider_hit(&app->top, app->pointer_x, app->pointer_y, &slider_pct);
@@ -5487,6 +6437,8 @@ return;
 
 int tile = quick_tile_hit(&app->top, app->pointer_x, app->pointer_y);
 if (tile >= 0 && tile < 4) {
+app->quick_menu_tile = -1;
+app->quick_menu_hover_item = -1;
 if (tile == 0) {
 open_settings_page("network");
 } else if (tile == 1) {
@@ -5584,12 +6536,18 @@ app->global_menu_open_top = -1;
 panel_draw(&app->top);
 }
 }
+
+app->quick_menu_tile = -1;
+app->quick_menu_hover_item = -1;
 }
 
 static void
 launcher_close(struct app *app)
 {
 app->launcher_open = false;
+app->popup_group = -1;
+app->popup_hover_item = -1;
+app->popup_selected_item = -1;
 app->launcher_hover_item = -1;
 app->launcher_hover_favorite = -1;
 app->launcher_search_active = false;
@@ -5730,7 +6688,7 @@ return;
 }
 
 if (button == BTN_LEFT) {
-size_t preview[4] = { 0 };
+size_t preview[8] = { 0 };
 size_t preview_count = launcher_collect_favorite_preview(app, preview, G_N_ELEMENTS(preview));
 int favorite_tile = launcher_favorite_tile_hit(&app->side, app,
 app->pointer_x, app->pointer_y);
@@ -5813,8 +6771,12 @@ app->pointer_x, app->pointer_y);
 if (app->popup_group >= 0 && popup_item >= 0) {
 struct app_group *group = &app->groups[app->popup_group];
 struct toplevel_entry *entry = &app->toplevels[group->indices[popup_item]];
-activate_entry(app, entry);
+toggle_entry(app, entry);
 app->quick_open = false;
+app->popup_group = -1;
+app->popup_hover_item = -1;
+app->popup_selected_item = -1;
+request_side_panel_size(app);
 panel_draw(&app->top);
 panel_draw(&app->side);
 return;
@@ -5824,6 +6786,7 @@ if (slot == 0) {
 app->launcher_open = true;
 app->popup_group = -1;
 app->popup_hover_item = -1;
+app->popup_selected_item = -1;
 app->launcher_query[0] = '\0';
 app->launcher_search_active = false;
 app->launcher_category = LCAT_ALL;
@@ -5859,10 +6822,23 @@ return;
 }
 
 if (app->popup_group == group_idx) {
-struct toplevel_entry *entry = &app->toplevels[group->indices[0]];
-activate_entry(app, entry);
+int target_item = app->popup_hover_item >= 0
+? app->popup_hover_item
+: app->popup_selected_item;
+if (target_item < 0 || target_item >= (int)group->count) {
+target_item = popup_preferred_item(app, group_idx);
+}
+struct toplevel_entry *entry = &app->toplevels[group->indices[target_item]];
+toggle_entry(app, entry);
+app->popup_group = -1;
+app->popup_hover_item = -1;
+app->popup_selected_item = -1;
+request_side_panel_size(app);
+panel_draw(&app->side);
 } else {
 app->popup_group = group_idx;
+app->popup_hover_item = -1;
+app->popup_selected_item = popup_preferred_item(app, group_idx);
 request_side_panel_size(app);
 panel_draw(&app->side);
 }
@@ -5935,12 +6911,19 @@ static void
 output_mode(void *data, struct wl_output *output, uint32_t flags,
 int32_t width, int32_t height, int32_t refresh)
 {
-(void)data;
 (void)output;
-(void)flags;
-(void)width;
-(void)height;
 (void)refresh;
+struct app *app = data;
+(void)output;
+(void)width;
+
+if (!app) {
+return;
+}
+
+if ((flags & WL_OUTPUT_MODE_CURRENT) && height > 0) {
+app->output_height = (uint32_t)height;
+}
 }
 
 static void
@@ -6001,6 +6984,7 @@ app->pointer_x = wl_fixed_to_double(sx);
 app->pointer_y = wl_fixed_to_double(sy);
 if (surface == app->top.surface && app->quick_open && app->top_popup_mode == TOP_POPUP_QUICK) {
 app->quick_hover_tile = quick_tile_hit(&app->top, app->pointer_x, app->pointer_y);
+app->quick_menu_hover_item = quick_tile_menu_item_hit(&app->top, app, app->pointer_x, app->pointer_y);
 panel_draw(&app->top);
 }
 update_side_hover(app);
@@ -6018,10 +7002,12 @@ app->pointer_surface = NULL;
 app->hovered_group = -1;
 app->popup_group = -1;
 app->popup_hover_item = -1;
+app->popup_selected_item = -1;
 app->launcher_hover_item = -1;
 app->launcher_hover_favorite = -1;
 app->launcher_menu_hover = -1;
 app->quick_hover_tile = -1;
+app->quick_menu_hover_item = -1;
 if (app->launcher_open) {
 launcher_close(app);
 return;
@@ -6041,8 +7027,10 @@ app->pointer_x = wl_fixed_to_double(sx);
 app->pointer_y = wl_fixed_to_double(sy);
 if (app->pointer_surface == app->top.surface && app->quick_open && app->top_popup_mode == TOP_POPUP_QUICK) {
 int old_hover = app->quick_hover_tile;
+int old_menu_hover = app->quick_menu_hover_item;
 app->quick_hover_tile = quick_tile_hit(&app->top, app->pointer_x, app->pointer_y);
-if (old_hover != app->quick_hover_tile) {
+app->quick_menu_hover_item = quick_tile_menu_item_hit(&app->top, app, app->pointer_x, app->pointer_y);
+if (old_hover != app->quick_hover_tile || old_menu_hover != app->quick_menu_hover_item) {
 panel_draw(&app->top);
 }
 }
@@ -6090,9 +7078,40 @@ struct app *app = data;
 (void)time;
 
 if (axis != WL_POINTER_AXIS_VERTICAL_SCROLL
-|| !app->launcher_open
 || app->pointer_surface != app->side.surface
 || app->launcher_menu_open) {
+return;
+}
+
+if (!app->launcher_open) {
+int popup_group = app->popup_group;
+if (popup_group < 0) {
+int slot = side_slot_hit(&app->side, app->pointer_x, app->pointer_y);
+if (slot > 0) {
+int group_idx = slot - 1;
+if (group_idx >= 0 && group_idx < (int)app->group_count
+&& app->groups[group_idx].count > 1) {
+popup_group = group_idx;
+}
+}
+}
+
+if (popup_group >= 0 && popup_group < (int)app->group_count
+&& app->groups[popup_group].count > 1) {
+double px, py, pw, ph;
+bool over_popup = popup_geometry(&app->side, app, popup_group,
+&px, &py, &pw, &ph)
+&& point_in_rect(app->pointer_x, app->pointer_y, px, py, pw, ph);
+int slot = side_slot_hit(&app->side, app->pointer_x, app->pointer_y);
+bool over_group_slot = slot > 0 && (slot - 1) == popup_group;
+if (over_popup || over_group_slot) {
+app->popup_group = popup_group;
+popup_clamp_selection(app);
+popup_scroll_by(app, wl_fixed_to_double(value) > 0.0 ? 1 : -1);
+return;
+}
+}
+
 return;
 }
 
@@ -6740,6 +7759,7 @@ struct app app = {
 .hovered_group = -1,
 .popup_group = -1,
 .popup_hover_item = -1,
+.popup_selected_item = -1,
 .launcher_hover_item = -1,
 .launcher_hover_favorite = -1,
 .launcher_category = LCAT_ALL,
@@ -6747,6 +7767,8 @@ struct app app = {
 .launcher_menu_target = -1,
 .launcher_menu_hover = -1,
 .quick_hover_tile = -1,
+.quick_menu_tile = -1,
+.quick_menu_hover_item = -1,
 .global_menu_open_top = -1,
 };
 

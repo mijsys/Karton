@@ -1,0 +1,91 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+set -eu
+
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/karton"
+log_path="$cache_dir/notifications.log"
+
+mkdir -p "$cache_dir"
+: > "$log_path"
+
+if ! command -v dbus-monitor >/dev/null 2>&1; then
+	exit 0
+fi
+
+dbus-monitor --session "interface='org.freedesktop.Notifications',member='Notify'" 2>/dev/null |
+awk -v out_file="$log_path" '
+function trim(s) {
+	sub(/^[[:space:]]+/, "", s)
+	sub(/[[:space:]]+$/, "", s)
+	return s
+}
+function unescape(s) {
+	gsub(/\\"/, "\"", s)
+	gsub(/\\\\/, "\\", s)
+	return s
+}
+function flush(    msg, cmd) {
+	summary = trim(summary)
+	body = trim(body)
+	msg = summary
+	if (msg == "") {
+		msg = body
+	} else if (body != "") {
+		msg = msg " - " body
+	}
+	if (msg != "") {
+		print msg >> out_file
+		close(out_file)
+		cmd = "tail -n 64 \"" out_file "\" > \"" out_file ".tmp\" && mv \"" out_file ".tmp\" \"" out_file "\""
+		system(cmd)
+	}
+	in_msg = 0
+	string_idx = 0
+	summary = ""
+	body = ""
+}
+/^method call/ {
+	if (in_msg) {
+		flush()
+	}
+	in_msg = ($0 ~ /member=Notify/)
+	string_idx = 0
+	summary = ""
+	body = ""
+	next
+}
+!in_msg {
+	next
+}
+/^[[:space:]]*string "/ {
+	line = $0
+	sub(/^[[:space:]]*string "/, "", line)
+	sub(/"$/, "", line)
+	line = unescape(line)
+	string_idx++
+	if (string_idx == 3) {
+		summary = line
+	} else if (string_idx == 4) {
+		body = line
+	}
+	next
+}
+/^[[:space:]]*int32 / {
+	if (in_msg) {
+		flush()
+	}
+	next
+}
+/^[[:space:]]*$/ {
+	if (in_msg) {
+		flush()
+	}
+	next
+}
+END {
+	if (in_msg) {
+		flush()
+	}
+}
+'

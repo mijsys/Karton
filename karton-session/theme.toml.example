@@ -1,0 +1,89 @@
+[theme]
+mode = "auto"
+
+[layout]
+top_height = 42
+top_expanded_height = 392
+side_width = 74
+side_expanded_width = 362
+
+[radius]
+quick_button = 16
+quick_panel = 28
+quick_tile = 18
+popup = 24
+
+[dialog]
+radius = 16
+spacing = 10
+
+[gtk]
+font = "Inter 10"
+decoration_layout = "minimize,maximize,close"
+# Optional explicit themes/icons per mode (leave empty for auto-pick)
+gtk_theme_light = ""
+gtk_theme_dark = ""
+icon_theme_light = ""
+icon_theme_dark = ""
+
+[palette.light]
+top_bg = "#f7f4ff"
+top_text = "#2a2242"
+quick_button_bg = "#8b78f6"
+quick_button_fg = "#ffffff"
+quick_panel_bg = "#fffdff"
+quick_tile_bg = "#ebe6ff"
+quick_title_text = "#2d2550"
+side_bg = "#ece7ff"
+side_popup_bg = "#faf8ff"
+side_separator = "#b9addf"
+side_launcher_bg = "#8b78f6"
+side_slot_active = "#74c7c2"
+side_slot_inactive = "#8b84b7"
+
+deco_title_bg_active = "#FBF8FFF2"
+deco_title_bg_inactive = "#EFE8FFDF"
+deco_border_active = "#8E7AE9B8"
+deco_border_inactive = "#AE9FD39A"
+deco_label_active = "#2E2450"
+deco_label_inactive = "#5D4F87"
+deco_hover_bg = "#8B78F62A"
+deco_iconify_active = "#708CFF"
+deco_max_active = "#53C89A"
+deco_close_active = "#EA6C92"
+deco_iconify_inactive = "#96A7E2"
+deco_max_inactive = "#8EC4A7"
+deco_close_inactive = "#CC8FA8"
+deco_button_unpressed_active = "#5C4D8B"
+deco_button_unpressed_inactive = "#8E82B8"
+
+[palette.dark]
+top_bg = "#1f1b2b"
+top_text = "#ece8ff"
+quick_button_bg = "#8b78f6"
+quick_button_fg = "#ffffff"
+quick_panel_bg = "#231e33"
+quick_tile_bg = "#2d2640"
+quick_title_text = "#ece8ff"
+side_bg = "#2b2540"
+side_popup_bg = "#211b33"
+side_separator = "#6c6293"
+side_launcher_bg = "#9e8cf7"
+side_slot_active = "#74c7c2"
+side_slot_inactive = "#8b84b7"
+
+deco_title_bg_active = "#1C1540EE"
+deco_title_bg_inactive = "#27204BDE"
+deco_border_active = "#9E8CF7C0"
+deco_border_inactive = "#7568A39E"
+deco_label_active = "#F2EEFF"
+deco_label_inactive = "#C2B9E7"
+deco_hover_bg = "#D5CCFF2D"
+deco_iconify_active = "#A9B8FF"
+deco_max_active = "#77D5B2"
+deco_close_active = "#FF8CAE"
+deco_iconify_inactive = "#9FAFE0"
+deco_max_inactive = "#88BEA2"
+deco_close_inactive = "#C18AA6"
+deco_button_unpressed_active = "#DDD3FF"
+deco_button_unpressed_inactive = "#AA9FD5"

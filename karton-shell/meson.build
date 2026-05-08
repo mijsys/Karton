@@ -2,7 +2,7 @@
 project(
   'karton-shell',
   'c',
-  version: '0.2',
+  version: '0.2.3',
   meson_version: '>=0.59.0',
   default_options: ['c_std=c11', 'warning_level=2'],
 )
@@ -14,8 +14,10 @@ wayland_client = dependency('wayland-client')
 wayland_protos = dependency('wayland-protocols', version: '>=1.39')
 cairo = dependency('cairo')
 pangocairo = dependency('pangocairo')
+gdk_pixbuf = dependency('gdk-pixbuf-2.0')
 glib = dependency('glib-2.0')
 gio = dependency('gio-2.0')
+gtk4 = dependency('gtk4')
 xkbcommon = dependency('xkbcommon')
 
 wayland_scanner = find_program('wayland-scanner')
@@ -78,11 +80,33 @@ executable(
   dependencies: [
     cairo,
     pangocairo,
+    gdk_pixbuf,
     glib,
     gio,
     xkbcommon,
     wayland_client,
   ],
+  install: true,
+)
+
+executable(
+  'karton-system-status',
+  files('src/karton-system-status.c'),
+  dependencies: [glib, gio],
+  install: true,
+)
+
+executable(
+  'karton-dialogd',
+  files('src/karton-dialogd.c'),
+  dependencies: [glib, gio, gtk4],
+  install: true,
+)
+
+executable(
+  'karton-dialog',
+  files('src/karton-dialog.c'),
+  dependencies: [glib, gio],
   install: true,
 )
 

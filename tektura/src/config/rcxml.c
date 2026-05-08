@@ -1511,9 +1511,8 @@ rcxml_init(void)
 	rc.show_title = true;
 	rc.title_layout_loaded = false;
 	rc.ssd_keep_border = true;
-	rc.corner_radius = 8;
-	rc.shadows_enabled = false;
-	rc.shadows_on_tiled = false;
+        rc.corner_radius = 14;
+        rc.shadows_enabled = true;
 
 	rc.gap = 0;
 	rc.adaptive_sync = LAB_ADAPTIVE_SYNC_DISABLED;

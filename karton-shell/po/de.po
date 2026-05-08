@@ -23,39 +23,39 @@ msgstr "Nicht verbunden"
 
 #: src/karton-shell.c:1463
 msgid "All"
-msgstr ""
+msgstr "Alle"
 
 #: src/karton-shell.c:1465
 msgid "Favorites"
-msgstr ""
+msgstr "Favoriten"
 
 #: src/karton-shell.c:1467
 msgid "Internet"
-msgstr ""
+msgstr "Internet"
 
 #: src/karton-shell.c:1469
 msgid "Office"
-msgstr ""
+msgstr "Buro"
 
 #: src/karton-shell.c:1471
 msgid "Media"
-msgstr ""
+msgstr "Medien"
 
 #: src/karton-shell.c:1473
 msgid "Development"
-msgstr ""
+msgstr "Entwicklung"
 
 #: src/karton-shell.c:1475
 msgid "System"
-msgstr ""
+msgstr "System"
 
 #: src/karton-shell.c:1477
 msgid "Utility"
-msgstr ""
+msgstr "Werkzeuge"
 
 #: src/karton-shell.c:1479
 msgid "Other"
-msgstr ""
+msgstr "Andere"
 
 #: src/karton-shell.c:1561 src/karton-shell.c:1583 src/karton-shell.c:3095
 #, fuzzy, c-format
@@ -204,7 +204,7 @@ msgstr "Starter"
 
 #: src/karton-shell.c:4560
 msgid "Type to filter applications"
-msgstr ""
+msgstr "Zum Filtern von Anwendungen tippen"
 
 #: src/karton-shell.c:4593
 msgid "No applications found"
@@ -217,35 +217,35 @@ msgstr "und %zu weitere..."
 
 #: src/karton-shell.c:4659
 msgid "Toggle favorite"
-msgstr ""
+msgstr "Favorit umschalten"
 
 #: src/karton-shell.c:4660
 msgid "Category: Internet"
-msgstr ""
+msgstr "Kategorie: Internet"
 
 #: src/karton-shell.c:4661
 msgid "Category: Office"
-msgstr ""
+msgstr "Kategorie: Buro"
 
 #: src/karton-shell.c:4662
 msgid "Category: Media"
-msgstr ""
+msgstr "Kategorie: Medien"
 
 #: src/karton-shell.c:4663
 msgid "Category: Development"
-msgstr ""
+msgstr "Kategorie: Entwicklung"
 
 #: src/karton-shell.c:4664
 msgid "Category: System"
-msgstr ""
+msgstr "Kategorie: System"
 
 #: src/karton-shell.c:4665
 msgid "Category: Utility"
-msgstr ""
+msgstr "Kategorie: Werkzeuge"
 
 #: src/karton-shell.c:4666
 msgid "Uninstall local entry"
-msgstr ""
+msgstr "Lokalen Eintrag deinstallieren"
 
 #: src/karton-shell.c:5225
 #, fuzzy, c-format
@@ -263,6 +263,170 @@ msgstr "karton-shell: erforderliche Wayland-Globals fehlen"
 #: src/karton-shell.c:6356
 msgid "karton-shell: failed to create layer surfaces"
 msgstr "karton-shell: Layer-Surfaces konnten nicht erstellt werden"
+
+#: src/karton-shell.c:1987
+msgid "You already have 8 favorite applications"
+msgstr "Sie haben bereits 8 Favoritenanwendungen"
+
+#: src/karton-shell.c:1994
+msgid "Added to favorites"
+msgstr "Zu Favoriten hinzugefugt"
+
+#: src/karton-shell.c:2002
+msgid "Removed from favorites"
+msgstr "Aus Favoriten entfernt"
+
+#: src/karton-shell.c:5368
+msgid "Search applications..."
+msgstr "Anwendungen suchen..."
+
+#: src/karton-shell.c:5390
+msgid "max 8"
+msgstr "max. 8"
+
+#: src/karton-shell.c:5443
+msgid "Categories"
+msgstr "Kategorien"
+
+#: src/karton-shell.c:5451
+msgid "All applications"
+msgstr "Alle Anwendungen"
+
+#: src/karton-shell.c:5455
+msgid "grid"
+msgstr "Raster"
+
+#: src/karton-shell.c:5455
+msgid "list"
+msgstr "Liste"
+
+#: src/karton-shell.c:5702
+msgid "Add to favorites"
+msgstr "Zu Favoriten hinzufugen"
+
+#: src/karton-shell.c:5702
+msgid "Remove from favorites"
+msgstr "Aus Favoriten entfernen"
+
+#: src/karton-shell.c:320
+msgid "Logout"
+msgstr "Abmelden"
+
+#: src/karton-shell.c:3889
+msgid "Turn Wi-Fi off"
+msgstr "WLAN ausschalten"
+
+#: src/karton-shell.c:3889
+msgid "Turn Wi-Fi on"
+msgstr "WLAN einschalten"
+
+#: src/karton-shell.c:3892
+msgid "Turn Bluetooth off"
+msgstr "Bluetooth ausschalten"
+
+#: src/karton-shell.c:3892
+msgid "Turn Bluetooth on"
+msgstr "Bluetooth einschalten"
+
+#: src/karton-shell.c:5650
+msgid "Mouse wheel"
+msgstr "Mausrad"
+
+#: src/karton-shell.c:322
+msgid "Sleep"
+msgstr "Ruhezustand"
+
+#: src/karton-shell.c:324
+msgid "Restart"
+msgstr "Neustart"
+
+#: src/karton-shell.c:326
+msgid "Power off"
+msgstr "Ausschalten"
+
+#: src/karton-shell.c:5428
+msgid "New notification"
+msgstr "Neue Benachrichtigung"
+
+#: src/karton-shell.c:5680
+msgid "Connected via Wi-Fi"
+msgstr "Verbunden über WLAN"
+
+#: src/karton-shell.c:5681
+msgid "Connected via Ethernet"
+msgstr "Verbunden über Ethernet"
+
+#: src/karton-shell.c:5681
+msgid "No active connection"
+msgstr "Keine aktive Verbindung"
+
+#: src/karton-shell.c:5687
+msgid "Unknown network"
+msgstr "Unbekanntes Netzwerk"
+
+#: src/karton-shell.c:5691
+msgid "Down:"
+msgstr "Download:"
+
+#: src/karton-shell.c:5692
+msgid "Up:"
+msgstr "Upload:"
+
+#: src/karton-shell.c:5698
+msgid "Detected Wi-Fi networks"
+msgstr "Erkannte WLAN-Netzwerke"
+
+#: src/karton-shell.c:5744
+msgid "Add network"
+msgstr "Netzwerk hinzufügen"
+
+#: src/karton-shell.c:5751
+msgid "Open settings"
+msgstr "Einstellungen öffnen"
+
+#: src/karton-shell.c:5786
+msgid "Output devices"
+msgstr "Ausgabegeräte"
+
+#: src/karton-shell.c:5804
+msgid "Input devices"
+msgstr "Eingabegeräte"
+
+#: src/karton-shell.c:5822
+msgid "Open sound settings"
+msgstr "Audioeinstellungen öffnen"
+
+#: src/karton-shell.c:5832
+msgid "Battery:"
+msgstr "Akku:"
+
+#: src/karton-shell.c:5836
+msgid "No battery detected"
+msgstr "Kein Akku erkannt"
+
+#: src/karton-shell.c:5841
+msgid "Charging"
+msgstr "Lädt"
+
+#: src/karton-shell.c:5841
+msgid "Discharging"
+msgstr "Entlädt"
+
+#: src/karton-shell.c:5845
+msgid "Time to full:"
+msgstr "Zeit bis voll:"
+
+#: src/karton-shell.c:5847
+msgid "Time remaining:"
+msgstr "Verbleibende Zeit:"
+
+#: src/karton-shell.c:5849
+msgid "Time estimate unavailable"
+msgstr "Zeitschätzung nicht verfügbar"
+
+#: src/karton-shell.c:5858
+msgid "Open power settings"
+msgstr "Energieeinstellungen öffnen"
 
 #~ msgid "System update available"
 #~ msgstr "Systemaktualisierung verfügbar"

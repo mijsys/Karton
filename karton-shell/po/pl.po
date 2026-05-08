@@ -264,6 +264,170 @@ msgstr "karton-shell: brakuje wymaganych globalnych interfejsów Wayland"
 msgid "karton-shell: failed to create layer surfaces"
 msgstr "karton-shell: nie udało się utworzyć powierzchni warstwowych"
 
+#: src/karton-shell.c:1987
+msgid "You already have 8 favorite applications"
+msgstr "Masz juz maksymalnie 8 ulubionych aplikacji"
+
+#: src/karton-shell.c:1994
+msgid "Added to favorites"
+msgstr "Dodano do ulubionych"
+
+#: src/karton-shell.c:2002
+msgid "Removed from favorites"
+msgstr "Usunieto z ulubionych"
+
+#: src/karton-shell.c:5368
+msgid "Search applications..."
+msgstr "Wyszukaj aplikacje..."
+
+#: src/karton-shell.c:5390
+msgid "max 8"
+msgstr "maks. 8"
+
+#: src/karton-shell.c:5443
+msgid "Categories"
+msgstr "Kategorie"
+
+#: src/karton-shell.c:5451
+msgid "All applications"
+msgstr "Wszystkie aplikacje"
+
+#: src/karton-shell.c:5455
+msgid "grid"
+msgstr "siatka"
+
+#: src/karton-shell.c:5455
+msgid "list"
+msgstr "lista"
+
+#: src/karton-shell.c:5702
+msgid "Add to favorites"
+msgstr "Dodaj do ulubionych"
+
+#: src/karton-shell.c:5702
+msgid "Remove from favorites"
+msgstr "Usuń z ulubionych"
+
+#: src/karton-shell.c:320
+msgid "Logout"
+msgstr "Wyloguj"
+
+#: src/karton-shell.c:3889
+msgid "Turn Wi-Fi off"
+msgstr "Wyłącz Wi-Fi"
+
+#: src/karton-shell.c:3889
+msgid "Turn Wi-Fi on"
+msgstr "Włącz Wi-Fi"
+
+#: src/karton-shell.c:3892
+msgid "Turn Bluetooth off"
+msgstr "Wyłącz Bluetooth"
+
+#: src/karton-shell.c:3892
+msgid "Turn Bluetooth on"
+msgstr "Włącz Bluetooth"
+
+#: src/karton-shell.c:5650
+msgid "Mouse wheel"
+msgstr "Kółko myszy"
+
+#: src/karton-shell.c:322
+msgid "Sleep"
+msgstr "Uśpij"
+
+#: src/karton-shell.c:324
+msgid "Restart"
+msgstr "Uruchom ponownie"
+
+#: src/karton-shell.c:326
+msgid "Power off"
+msgstr "Wyłącz"
+
+#: src/karton-shell.c:5428
+msgid "New notification"
+msgstr "Nowe powiadomienie"
+
+#: src/karton-shell.c:5680
+msgid "Connected via Wi-Fi"
+msgstr "Połączono przez Wi-Fi"
+
+#: src/karton-shell.c:5681
+msgid "Connected via Ethernet"
+msgstr "Połączono przez Ethernet"
+
+#: src/karton-shell.c:5681
+msgid "No active connection"
+msgstr "Brak aktywnego połączenia"
+
+#: src/karton-shell.c:5687
+msgid "Unknown network"
+msgstr "Nieznana sieć"
+
+#: src/karton-shell.c:5691
+msgid "Down:"
+msgstr "Pobieranie:"
+
+#: src/karton-shell.c:5692
+msgid "Up:"
+msgstr "Wysyłanie:"
+
+#: src/karton-shell.c:5698
+msgid "Detected Wi-Fi networks"
+msgstr "Wykryte sieci Wi-Fi"
+
+#: src/karton-shell.c:5744
+msgid "Add network"
+msgstr "Dodaj sieć"
+
+#: src/karton-shell.c:5751
+msgid "Open settings"
+msgstr "Otwórz ustawienia"
+
+#: src/karton-shell.c:5786
+msgid "Output devices"
+msgstr "Urządzenia wyjściowe"
+
+#: src/karton-shell.c:5804
+msgid "Input devices"
+msgstr "Urządzenia wejściowe"
+
+#: src/karton-shell.c:5822
+msgid "Open sound settings"
+msgstr "Otwórz ustawienia dźwięku"
+
+#: src/karton-shell.c:5832
+msgid "Battery:"
+msgstr "Bateria:"
+
+#: src/karton-shell.c:5836
+msgid "No battery detected"
+msgstr "Nie wykryto baterii"
+
+#: src/karton-shell.c:5841
+msgid "Charging"
+msgstr "Ładowanie"
+
+#: src/karton-shell.c:5841
+msgid "Discharging"
+msgstr "Rozładowywanie"
+
+#: src/karton-shell.c:5845
+msgid "Time to full:"
+msgstr "Czas do pełna:"
+
+#: src/karton-shell.c:5847
+msgid "Time remaining:"
+msgstr "Pozostały czas:"
+
+#: src/karton-shell.c:5849
+msgid "Time estimate unavailable"
+msgstr "Szacowanie czasu niedostępne"
+
+#: src/karton-shell.c:5858
+msgid "Open power settings"
+msgstr "Otwórz ustawienia zasilania"
+
 #~ msgid "System update available"
 #~ msgstr "Dostępna aktualizacja systemu"
 

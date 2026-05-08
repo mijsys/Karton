@@ -1176,6 +1176,8 @@ cursor_process_button_press(struct seat *seat, uint32_t button, uint32_t time_ms
 		desktop_focus_view_or_surface(seat, NULL, ctx.surface,
 			/*raise*/ false);
 #endif
+        } else if (ctx.type == LAB_NODE_ROOT) {
+                seat_set_focus_layer(seat, NULL);
 	}
 
 	if (ctx.type != LAB_NODE_CLIENT && ctx.type != LAB_NODE_LAYER_SURFACE

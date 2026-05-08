@@ -20,12 +20,53 @@ _() {
 	fi
 }
 
+resolve_component_cmd() {
+	cmd="$1"
+	local_cmd="${HOME}/.local-karton/bin/${cmd}"
+	if [ -x "$local_cmd" ]; then
+		printf '%s\n' "$local_cmd"
+		return 0
+	fi
+
+	if command -v "$cmd" >/dev/null 2>&1; then
+		command -v "$cmd"
+		return 0
+	fi
+
+	return 1
+}
+
+capture_pid=""
+
+start_notification_capture() {
+	if ! cmd_path="$(resolve_component_cmd karton-notify-log 2>/dev/null || true)"; then
+		return 0
+	fi
+	if [ -z "$cmd_path" ]; then
+		return 0
+	fi
+	"$cmd_path" >/dev/null 2>&1 &
+	capture_pid=$!
+}
+
+cleanup() {
+	if [ -n "$capture_pid" ]; then
+		kill "$capture_pid" 2>/dev/null || true
+	fi
+}
+
+trap cleanup INT TERM EXIT
+
+start_notification_capture
+
 if command -v mako >/dev/null 2>&1; then
 	cfg="${XDG_CONFIG_HOME:-$HOME/.config}/karton/mako/config"
 	if [ -r "$cfg" ]; then
-		exec mako --config "$cfg"
+		mako --config "$cfg"
+		exit $?
 	fi
-	exec mako
+	mako
+	exit $?
 fi
 
 echo "$(_ "karton-notifyd: mako not found, running idle fallback")" >&2

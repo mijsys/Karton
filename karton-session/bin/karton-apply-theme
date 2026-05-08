@@ -6,6 +6,8 @@ set -eu
 config_root="${XDG_CONFIG_HOME:-$HOME/.config}/karton"
 mkdir -p "$config_root" "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0" "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0"
 
+theme_tokens="$config_root/theme.toml"
+
 read_mode_from_css() {
   css_file="$config_root/shell.css"
   [ -r "$css_file" ] || return 1
@@ -22,86 +24,223 @@ read_mode_from_file() {
   printf '%s\n' "$mode"
 }
 
-mode="${1:-}"
-if [ "$mode" = "--sync-from-css" ] || [ -z "$mode" ]; then
-  mode=""
-fi
-if [ -z "$mode" ]; then
-  mode="$(read_mode_from_file || true)"
-fi
-if [ -z "$mode" ]; then
-  mode="$(read_mode_from_css || true)"
-fi
-if [ -z "$mode" ]; then
-  mode="auto"
-fi
+toml_get() {
+  file="$1"
+  section="$2"
+  key="$3"
+  [ -r "$file" ] || return 1
+  awk -v sec="$section" -v key="$key" '
+    BEGIN { insec = 0 }
+    /^[[:space:]]*\[/ {
+      s = $0
+      gsub(/^[[:space:]]*\[/, "", s)
+      gsub(/\][[:space:]]*$/, "", s)
+      insec = (s == sec)
+      next
+    }
+    insec {
+      line = $0
+      sub(/^[[:space:]]+/, "", line)
+      if (line ~ /^#/ || line == "") next
+      eq = index(line, "=")
+      if (!eq) next
+      k = substr(line, 1, eq - 1)
+      gsub(/[[:space:]]/, "", k)
+      if (k != key) next
+      v = substr(line, eq + 1)
+      sub(/^[[:space:]]+/, "", v)
+      sub(/[[:space:]]+$/, "", v)
+      if (v ~ /^".*"$/) {
+        sub(/^"/, "", v)
+        sub(/"$/, "", v)
+      }
+      print v
+      exit
+    }
+  ' "$file"
+}
 
-case "$mode" in
-  light|dark|auto) ;;
-  *) mode="auto" ;;
-esac
-
-printf '%s\n' "$mode" > "$config_root/theme-mode"
-
-resolved="$mode"
-if [ "$mode" = "auto" ]; then
-  hour="$(date +%H)"
-  if [ "$hour" -ge 19 ] || [ "$hour" -lt 7 ]; then
-    resolved="dark"
-  else
-    resolved="light"
+token_or_default() {
+  file="$1"
+  section="$2"
+  key="$3"
+  default="$4"
+  value="$(toml_get "$file" "$section" "$key" 2>/dev/null || true)"
+  if [ -z "$value" ]; then
+    value="$default"
   fi
-fi
+  printf '%s\n' "$value"
+}
 
-have_dir() {
-  name="$1"
-  [ -d "/usr/share/$name" ] || [ -d "$HOME/.local/share/$name" ] || [ -d "$HOME/.$name" ]
+have_icon_theme() {
+  t="$1"
+  [ -d "/usr/share/icons/$t" ] || [ -d "$HOME/.icons/$t" ] || [ -d "$HOME/.local/share/icons/$t" ]
 }
 
 theme_exists() {
-  name="$1"
-  [ -d "/usr/share/themes/$name" ] || [ -d "$HOME/.themes/$name" ] || [ -d "$HOME/.local/share/themes/$name" ]
+  t="$1"
+  [ -d "/usr/share/themes/$t" ] || [ -d "$HOME/.themes/$t" ] || [ -d "$HOME/.local/share/themes/$t" ]
+}
+
+list_installed_names() {
+  kind="$1"
+  case "$kind" in
+    icons)
+      set -- "/usr/share/icons" "$HOME/.icons" "$HOME/.local/share/icons"
+      ;;
+    themes)
+      set -- "/usr/share/themes" "$HOME/.themes" "$HOME/.local/share/themes"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+
+  for base in "$@"; do
+    [ -d "$base" ] || continue
+    for d in "$base"/*; do
+      [ -d "$d" ] || continue
+      name="${d##*/}"
+      [ -n "$name" ] || continue
+      case "$name" in
+        "."|"..") continue ;;
+      esac
+      printf '%s\n' "$name"
+    done
+  done | awk 'BEGIN{IGNORECASE=1} !seen[tolower($0)]++ { print }'
+}
+
+name_is_dark() {
+  name_lc="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  case "$name_lc" in
+    *dark*|*black*|*night*|*noir*|*mocha*)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+name_is_light() {
+  name_lc="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  case "$name_lc" in
+    *light*|*white*|*day*|*latte*)
+      return 0
+      ;;
+  esac
+  return 1
 }
 
 pick_icon_theme() {
   mode="$1"
 
   if [ "$mode" = "dark" ]; then
-    for theme in Tela-dark Papirus-Dark breeze-dark Tela Papirus Adwaita hicolor; do
-      if [ -d "/usr/share/icons/$theme" ] || [ -d "$HOME/.icons/$theme" ] || [ -d "$HOME/.local/share/icons/$theme" ]; then
-        printf '%s\n' "$theme"
+    for t in Tela-dark Papirus-Dark breeze-dark Tela Papirus Adwaita hicolor; do
+      if have_icon_theme "$t"; then
+        printf '%s\n' "$t"
         return 0
       fi
     done
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      if name_is_dark "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done <<EOF
+$(list_installed_names icons)
+EOF
   else
-    for theme in Tela Papirus breeze Kora Adwaita hicolor; do
-      if [ -d "/usr/share/icons/$theme" ] || [ -d "$HOME/.icons/$theme" ] || [ -d "$HOME/.local/share/icons/$theme" ]; then
-        printf '%s\n' "$theme"
+    for t in Tela Papirus breeze Kora Adwaita hicolor; do
+      if have_icon_theme "$t"; then
+        printf '%s\n' "$t"
         return 0
       fi
     done
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      if name_is_light "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done <<EOF
+$(list_installed_names icons)
+EOF
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      if ! name_is_dark "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done <<EOF
+$(list_installed_names icons)
+EOF
   fi
+
+  while IFS= read -r t; do
+    [ -n "$t" ] || continue
+    printf '%s\n' "$t"
+    return 0
+  done <<EOF
+$(list_installed_names icons)
+EOF
 
   printf 'hicolor\n'
 }
 
 pick_gtk_theme() {
   mode="$1"
+
   if [ "$mode" = "dark" ]; then
-    for theme in Breeze-Dark Adwaita-dark Graphite-Dark GraphiteDark Catppuccin-Mocha-Standard-Blue-Dark Adwaita; do
-      if theme_exists "$theme"; then
-        printf '%s\n' "$theme"
+    for t in Breeze-Dark Adwaita-dark Graphite-Dark GraphiteDark Catppuccin-Mocha-Standard-Blue-Dark Adwaita; do
+      if theme_exists "$t"; then
+        printf '%s\n' "$t"
         return 0
       fi
     done
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      if name_is_dark "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done <<EOF
+$(list_installed_names themes)
+EOF
   else
-    for theme in Breeze Adwaita Graphite-Light GraphiteLight Catppuccin-Latte-Standard-Blue-Light Adwaita-dark; do
-      if theme_exists "$theme"; then
-        printf '%s\n' "$theme"
+    for t in Breeze Adwaita Graphite-Light GraphiteLight Catppuccin-Latte-Standard-Blue-Light Adwaita-dark; do
+      if theme_exists "$t"; then
+        printf '%s\n' "$t"
         return 0
       fi
     done
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      if name_is_light "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done <<EOF
+$(list_installed_names themes)
+EOF
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      if ! name_is_dark "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done <<EOF
+$(list_installed_names themes)
+EOF
   fi
+
+  while IFS= read -r t; do
+    [ -n "$t" ] || continue
+    printf '%s\n' "$t"
+    return 0
+  done <<EOF
+$(list_installed_names themes)
+EOF
+
   printf 'Adwaita\n'
 }
 
@@ -134,17 +273,141 @@ set_ini_key() {
       next
     }
     { print }
-    END {
-      if (!done) {
-        print k "=" v
-      }
-    }
+    END { if (!done) print k "=" v }
   ' "$file" > "$tmp_file"
   mv "$tmp_file" "$file"
 }
 
-icon_theme="$(pick_icon_theme "$resolved")"
-gtk_theme="$(pick_gtk_theme "$resolved")"
+mode_arg="${1:-}"
+if [ "$mode_arg" = "--sync-from-tokens" ] || [ "$mode_arg" = "--sync-from-css" ] || [ -z "$mode_arg" ]; then
+  mode_arg=""
+fi
+
+mode="$mode_arg"
+if [ -z "$mode" ]; then
+  mode="$(toml_get "$theme_tokens" "theme" "mode" 2>/dev/null || true)"
+fi
+if [ -z "$mode" ]; then
+  mode="$(read_mode_from_file || true)"
+fi
+if [ -z "$mode" ]; then
+  mode="$(read_mode_from_css || true)"
+fi
+if [ -z "$mode" ]; then
+  mode="auto"
+fi
+
+case "$mode" in
+  light|dark|auto) ;;
+  *) mode="auto" ;;
+esac
+
+printf '%s\n' "$mode" > "$config_root/theme-mode"
+
+resolved="$mode"
+if [ "$mode" = "auto" ]; then
+  hour="$(date +%H)"
+  if [ "$hour" -ge 19 ] || [ "$hour" -lt 7 ]; then
+    resolved="dark"
+  else
+    resolved="light"
+  fi
+fi
+
+layout_top_height="$(token_or_default "$theme_tokens" "layout" "top_height" "42")"
+layout_top_expanded_height="$(token_or_default "$theme_tokens" "layout" "top_expanded_height" "392")"
+layout_side_width="$(token_or_default "$theme_tokens" "layout" "side_width" "74")"
+layout_side_expanded_width="$(token_or_default "$theme_tokens" "layout" "side_expanded_width" "362")"
+
+radius_quick_button="$(token_or_default "$theme_tokens" "radius" "quick_button" "13")"
+radius_quick_panel="$(token_or_default "$theme_tokens" "radius" "quick_panel" "22")"
+radius_quick_tile="$(token_or_default "$theme_tokens" "radius" "quick_tile" "14")"
+radius_popup="$(token_or_default "$theme_tokens" "radius" "popup" "20")"
+
+dialog_radius="$(token_or_default "$theme_tokens" "dialog" "radius" "14")"
+dialog_spacing="$(token_or_default "$theme_tokens" "dialog" "spacing" "8")"
+
+palette_section="palette.$resolved"
+top_bg="$(token_or_default "$theme_tokens" "$palette_section" "top_bg" "#f7f4ff")"
+top_text="$(token_or_default "$theme_tokens" "$palette_section" "top_text" "#2a2242")"
+quick_button_bg="$(token_or_default "$theme_tokens" "$palette_section" "quick_button_bg" "#8b78f6")"
+quick_button_fg="$(token_or_default "$theme_tokens" "$palette_section" "quick_button_fg" "#ffffff")"
+quick_panel_bg="$(token_or_default "$theme_tokens" "$palette_section" "quick_panel_bg" "#fffdff")"
+quick_tile_bg="$(token_or_default "$theme_tokens" "$palette_section" "quick_tile_bg" "#ebe6ff")"
+quick_title_text="$(token_or_default "$theme_tokens" "$palette_section" "quick_title_text" "#2d2550")"
+side_bg="$(token_or_default "$theme_tokens" "$palette_section" "side_bg" "#ece7ff")"
+side_popup_bg="$(token_or_default "$theme_tokens" "$palette_section" "side_popup_bg" "#faf8ff")"
+side_separator="$(token_or_default "$theme_tokens" "$palette_section" "side_separator" "#b9addf")"
+side_launcher_bg="$(token_or_default "$theme_tokens" "$palette_section" "side_launcher_bg" "#8b78f6")"
+side_slot_active="$(token_or_default "$theme_tokens" "$palette_section" "side_slot_active" "#74c7c2")"
+side_slot_inactive="$(token_or_default "$theme_tokens" "$palette_section" "side_slot_inactive" "#8b84b7")"
+
+deco_title_bg_active="$(token_or_default "$theme_tokens" "$palette_section" "deco_title_bg_active" "#FBF8FFF2")"
+deco_title_bg_inactive="$(token_or_default "$theme_tokens" "$palette_section" "deco_title_bg_inactive" "#EFE8FFDF")"
+deco_border_active="$(token_or_default "$theme_tokens" "$palette_section" "deco_border_active" "#8E7AE9B8")"
+deco_border_inactive="$(token_or_default "$theme_tokens" "$palette_section" "deco_border_inactive" "#AE9FD39A")"
+deco_label_active="$(token_or_default "$theme_tokens" "$palette_section" "deco_label_active" "#2E2450")"
+deco_label_inactive="$(token_or_default "$theme_tokens" "$palette_section" "deco_label_inactive" "#5D4F87")"
+deco_hover_bg="$(token_or_default "$theme_tokens" "$palette_section" "deco_hover_bg" "#8B78F62A")"
+deco_iconify_active="$(token_or_default "$theme_tokens" "$palette_section" "deco_iconify_active" "#708CFF")"
+deco_max_active="$(token_or_default "$theme_tokens" "$palette_section" "deco_max_active" "#53C89A")"
+deco_close_active="$(token_or_default "$theme_tokens" "$palette_section" "deco_close_active" "#EA6C92")"
+deco_iconify_inactive="$(token_or_default "$theme_tokens" "$palette_section" "deco_iconify_inactive" "#96A7E2")"
+deco_max_inactive="$(token_or_default "$theme_tokens" "$palette_section" "deco_max_inactive" "#8EC4A7")"
+deco_close_inactive="$(token_or_default "$theme_tokens" "$palette_section" "deco_close_inactive" "#CC8FA8")"
+deco_button_unpressed_active="$(token_or_default "$theme_tokens" "$palette_section" "deco_button_unpressed_active" "#5C4D8B")"
+deco_button_unpressed_inactive="$(token_or_default "$theme_tokens" "$palette_section" "deco_button_unpressed_inactive" "#8E82B8")"
+
+shell_css="$config_root/shell.css"
+cat > "$shell_css" <<EOF
+:root {
+  --theme-mode: $mode;
+  --top-height: $layout_top_height;
+  --top-expanded-height: $layout_top_expanded_height;
+  --side-width: $layout_side_width;
+  --side-expanded-width: $layout_side_expanded_width;
+  --quick-button-radius: $radius_quick_button;
+  --quick-panel-radius: $radius_quick_panel;
+  --quick-tile-radius: $radius_quick_tile;
+  --popup-radius: $radius_popup;
+  --top-bg: $top_bg;
+  --top-text: $top_text;
+  --quick-button-bg: $quick_button_bg;
+  --quick-button-fg: $quick_button_fg;
+  --quick-panel-bg: $quick_panel_bg;
+  --quick-tile-bg: $quick_tile_bg;
+  --quick-title-text: $quick_title_text;
+  --side-bg: $side_bg;
+  --side-popup-bg: $side_popup_bg;
+  --side-separator: $side_separator;
+  --side-launcher-bg: $side_launcher_bg;
+  --side-slot-active: $side_slot_active;
+  --side-slot-inactive: $side_slot_inactive;
+}
+EOF
+
+gtk_font="$(token_or_default "$theme_tokens" "gtk" "font" "Inter 10")"
+deco_layout="$(token_or_default "$theme_tokens" "gtk" "decoration_layout" "minimize,maximize,close")"
+gtk_theme_light="$(token_or_default "$theme_tokens" "gtk" "gtk_theme_light" "")"
+gtk_theme_dark="$(token_or_default "$theme_tokens" "gtk" "gtk_theme_dark" "")"
+icon_theme_light="$(token_or_default "$theme_tokens" "gtk" "icon_theme_light" "")"
+icon_theme_dark="$(token_or_default "$theme_tokens" "gtk" "icon_theme_dark" "")"
+
+if [ "$resolved" = "dark" ]; then
+  gtk_theme="$gtk_theme_dark"
+  icon_theme="$icon_theme_dark"
+else
+  gtk_theme="$gtk_theme_light"
+  icon_theme="$icon_theme_light"
+fi
+
+if [ -z "$gtk_theme" ] || ! theme_exists "$gtk_theme"; then
+  gtk_theme="$(pick_gtk_theme "$resolved")"
+fi
+if [ -z "$icon_theme" ] || ! have_icon_theme "$icon_theme"; then
+  icon_theme="$(pick_icon_theme "$resolved")"
+fi
+
 prefer_dark="false"
 if [ "$resolved" = "dark" ]; then
   prefer_dark="true"
@@ -156,30 +419,49 @@ gtk4="${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/settings.ini"
 set_ini_key "$gtk3" "gtk-application-prefer-dark-theme" "$prefer_dark"
 set_ini_key "$gtk3" "gtk-theme-name" "$gtk_theme"
 set_ini_key "$gtk3" "gtk-icon-theme-name" "$icon_theme"
-set_ini_key "$gtk3" "gtk-font-name" "Inter 10"
-set_ini_key "$gtk3" "gtk-decoration-layout" "minimize,maximize,close"
+set_ini_key "$gtk3" "gtk-font-name" "$gtk_font"
+set_ini_key "$gtk3" "gtk-decoration-layout" "$deco_layout"
 
 set_ini_key "$gtk4" "gtk-application-prefer-dark-theme" "$prefer_dark"
 set_ini_key "$gtk4" "gtk-theme-name" "$gtk_theme"
 set_ini_key "$gtk4" "gtk-icon-theme-name" "$icon_theme"
-set_ini_key "$gtk4" "gtk-font-name" "Inter 10"
-set_ini_key "$gtk4" "gtk-decoration-layout" "minimize,maximize,close"
+set_ini_key "$gtk4" "gtk-font-name" "$gtk_font"
+set_ini_key "$gtk4" "gtk-decoration-layout" "$deco_layout"
 
-if [ "$resolved" = "dark" ]; then
-  cat > "$config_root/themerc-override" <<'EOF'
+gtk3_css="${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/gtk.css"
+gtk4_css="${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/gtk.css"
+
+cat > "$gtk3_css" <<EOF
+/* Generated by karton-apply-theme */
+window.csd decoration {
+  border-radius: 14px 14px 14px 14px;
+  box-shadow: 0 12px 42px rgba(0,0,0,0.3);
+}
+window.csd:backdrop decoration {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+EOF
+cp "$gtk3_css" "$gtk4_css"
+
+cat > "$config_root/themerc-override" <<EOF
 # KartonDE decorations override
-# Synced by karton-apply-theme (dark)
+# Synced by karton-apply-theme ($resolved)
 
 window.active.title.bg: Solid
 window.inactive.title.bg: Solid
-window.active.title.bg.color: #1C1540EE
-window.inactive.title.bg.color: #27204BDE
+window.active.title.bg.color: $deco_title_bg_active
+window.inactive.title.bg.color: $deco_title_bg_inactive
 
-window.active.border.color: #9E8CF7C0
-window.inactive.border.color: #7568A39E
+window.active.border.color: $deco_border_active
+window.inactive.border.color: $deco_border_inactive
 
-window.active.label.text.color: #F2EEFF
-window.inactive.label.text.color: #C2B9E7
+window.active.shadow.size: 64
+window.inactive.shadow.size: 40
+window.active.shadow.color: #00000045
+window.inactive.shadow.color: #0000002A
+
+window.active.label.text.color: $deco_label_active
+window.inactive.label.text.color: $deco_label_inactive
 window.label.text.justify: Left
 
 window.titlebar.padding.width: 8
@@ -190,58 +472,32 @@ window.button.width: 14
 window.button.height: 14
 window.button.spacing: 6
 window.button.hover.bg.corner-radius: 9
-window.button.hover.bg.color: #D5CCFF2D
+window.button.hover.bg.color: $deco_hover_bg
 
-window.active.button.unpressed.image.color: #DDD3FF
-window.inactive.button.unpressed.image.color: #AA9FD5
+window.active.button.unpressed.image.color: $deco_button_unpressed_active
+window.inactive.button.unpressed.image.color: $deco_button_unpressed_inactive
 
-window.active.button.iconify.unpressed.image.color: #A9B8FF
-window.active.button.max.unpressed.image.color: #77D5B2
-window.active.button.close.unpressed.image.color: #FF8CAE
+window.active.button.iconify.unpressed.image.color: $deco_iconify_active
+window.active.button.max.unpressed.image.color: $deco_max_active
+window.active.button.close.unpressed.image.color: $deco_close_active
 
-window.inactive.button.iconify.unpressed.image.color: #9FAFE0
-window.inactive.button.max.unpressed.image.color: #88BEA2
-window.inactive.button.close.unpressed.image.color: #C18AA6
+window.inactive.button.iconify.unpressed.image.color: $deco_iconify_inactive
+window.inactive.button.max.unpressed.image.color: $deco_max_inactive
+window.inactive.button.close.unpressed.image.color: $deco_close_inactive
 EOF
-else
-  cat > "$config_root/themerc-override" <<'EOF'
-# KartonDE decorations override
-# Synced by karton-apply-theme (light)
 
-window.active.title.bg: Solid
-window.inactive.title.bg: Solid
-window.active.title.bg.color: #FBF8FFF2
-window.inactive.title.bg.color: #EFE8FFDF
+cat > "$config_root/dialogd.conf" <<EOF
+# Generated by karton-apply-theme
+# Do not edit manually
 
-window.active.border.color: #8E7AE9B8
-window.inactive.border.color: #AE9FD39A
-
-window.active.label.text.color: #2E2450
-window.inactive.label.text.color: #5D4F87
-window.label.text.justify: Left
-
-window.titlebar.padding.width: 8
-window.titlebar.padding.height: 6
-window.title.separator.width: 0
-
-window.button.width: 14
-window.button.height: 14
-window.button.spacing: 6
-window.button.hover.bg.corner-radius: 9
-window.button.hover.bg.color: #8B78F62A
-
-window.active.button.unpressed.image.color: #5C4D8B
-window.inactive.button.unpressed.image.color: #8E82B8
-
-window.active.button.iconify.unpressed.image.color: #708CFF
-window.active.button.max.unpressed.image.color: #53C89A
-window.active.button.close.unpressed.image.color: #EA6C92
-
-window.inactive.button.iconify.unpressed.image.color: #96A7E2
-window.inactive.button.max.unpressed.image.color: #8EC4A7
-window.inactive.button.close.unpressed.image.color: #CC8FA8
+theme_mode=$mode
+effective_mode=$resolved
+panel_bg=$quick_panel_bg
+text_color=$quick_title_text
+accent_color=$side_launcher_bg
+dialog_radius=$dialog_radius
+dialog_spacing=$dialog_spacing
 EOF
-fi
 
 if command -v karton >/dev/null 2>&1; then
   karton --reconfigure >/dev/null 2>&1 || true

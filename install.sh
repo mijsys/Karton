@@ -12,6 +12,7 @@ PREFIX="${HOME}/.local-karton"
 USE_SUDO=0
 SYSTEM_MODE=0
 RESTART_SESSION=1
+DEV_SHELL_MODE=0
 CONFIG_NAME="karton"
 ACTION="install"
 CURRENT_SESSION_TYPE="${XDG_SESSION_TYPE:-}"
@@ -32,6 +33,7 @@ Commands:
 Options:
   --prefix <path>     Install prefix (default: ~/.local-karton)
   --system            Install system-wide to /usr/local (uses sudo)
+  --dev-shell         Point the running session to karton-shell/builddir-user
   --no-restart        Do not restart running karton session modules after install
   -h, --help          Show this help
 
@@ -40,6 +42,7 @@ Examples:
   ./install.sh build
   ./install.sh compile
   ./install.sh --prefix "$HOME/.local-karton"
+  ./install.sh --dev-shell
   ./install.sh --system
 EOF
 }
@@ -227,14 +230,42 @@ Current session environment detected:
 EOF
   fi
 
-  cat <<'EOF'
+  cat <<EOF
 
 If you installed Karton while another desktop environment or compositor was already running,
 log out to your display manager (or your current login/session manager), then start a fresh
 Karton session so the new session files, binaries, and environment are picked up cleanly.
+
+Note: ./install.sh restarts ${DEV_SHELL_MODE:+the development karton-shell from builddir-user and }the installed session components from the selected prefix
+(for example ~/.local-karton/bin via karton-sessiond). If you are testing by manually
+running a development binary such as karton-shell/builddir-user/karton-shell, restart that
+development binary yourself instead of expecting install.sh to keep the dev process active.
 EOF
 }
 
+switch_session_shell_to_dev() {
+  if [[ "$DEV_SHELL_MODE" -ne 1 ]]; then
+    return
+  fi
+
+  [[ "$ACTION" == "install" ]] || die "--dev-shell can only be used with install"
+  [[ "$SYSTEM_MODE" -eq 0 ]] || die "--dev-shell is only supported in user mode"
+
+  local dev_shell="$SCRIPT_DIR/karton-shell/builddir-user/karton-shell"
+  local target_bin="$PREFIX/bin/karton-shell"
+  local backup_bin="$PREFIX/bin/karton-shell.installed"
+
+  [[ -x "$dev_shell" ]] || die "Missing development binary: $dev_shell"
+
+  mkdir -p "$PREFIX/bin"
+  if [[ -e "$target_bin" && ! -L "$target_bin" && ! -e "$backup_bin" ]]; then
+    log "Saving installed karton-shell to $backup_bin"
+    mv "$target_bin" "$backup_bin"
+  fi
+
+  log "Linking session karton-shell to dev binary: $dev_shell"
+  ln -sfn "$dev_shell" "$target_bin"
+}
 restart_running_session() {
   if [[ "$RESTART_SESSION" -ne 1 ]]; then
     return
@@ -248,6 +279,11 @@ restart_running_session() {
   local autostart_file="${XDG_CONFIG_HOME:-$HOME/.config}/${CONFIG_NAME}/autostart"
 
   log "Restarting karton shell/session processes"
+  if [[ "$DEV_SHELL_MODE" -eq 1 ]]; then
+    log "Session restart uses karton-shell/builddir-user together with components from $PREFIX/bin via karton-sessiond"
+  else
+    log "Session restart uses installed components from $PREFIX/bin via karton-sessiond"
+  fi
   pkill -f 'karton-shell --top-only' 2>/dev/null || true
   pkill -f 'karton-shell --side-only' 2>/dev/null || true
   pkill -x karton-shell 2>/dev/null || true
@@ -278,6 +314,10 @@ while [[ $# -gt 0 ]]; do
       SYSTEM_MODE=1
       PREFIX="/usr/local"
       USE_SUDO=1
+      shift
+      ;;
+    --dev-shell)
+      DEV_SHELL_MODE=1
       shift
       ;;
     --no-restart)
@@ -329,6 +369,7 @@ if [[ "$ACTION" == "install" && "$SYSTEM_MODE" -eq 0 ]]; then
 fi
 
 if [[ "$ACTION" == "install" ]]; then
+  switch_session_shell_to_dev
   restart_running_session
 
   log "Done."

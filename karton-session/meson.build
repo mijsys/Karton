@@ -18,10 +18,16 @@ install_data(
   [
     'bin/karton-launcher',
     'bin/karton-notifyd',
+    'bin/karton-notify-log',
     'bin/karton-apply-theme',
     'bin/karton-settingsd',
     'bin/karton-sessiond',
   ],
   install_dir: get_option('bindir'),
   install_mode: 'rwxr-xr-x',
+)
+
+install_data(
+  ['theme.toml.example'],
+  install_dir: join_paths(get_option('datadir'), 'karton'),
 )
