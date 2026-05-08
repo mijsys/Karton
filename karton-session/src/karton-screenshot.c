@@ -227,6 +227,8 @@ notify_send(const char *title, const char *body)
 	}
 	char *const argv[] = {
 		"notify-send",
+		"-a",
+		"karton-screenshot",
 		(char *)title,
 		(char *)body,
 		NULL,

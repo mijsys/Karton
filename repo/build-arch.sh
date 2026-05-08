@@ -6,7 +6,7 @@ set -euo pipefail
 
 sudo pacman -S --needed --noconfirm \
     base-devel meson ninja pkgconf wayland wayland-protocols wlroots \
-    cairo pango glib2 gtk3 libxkbcommon libinput libxml2 pixman scdoc
+    cairo pango glib2 gtk3 gtk4 libpulse libxkbcommon libinput libxml2 pixman scdoc gdk-pixbuf2
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/build-common.sh"
 build_all_karton

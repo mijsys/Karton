@@ -19,6 +19,7 @@ glib = dependency('glib-2.0')
 gio = dependency('gio-2.0')
 gtk4 = dependency('gtk4')
 xkbcommon = dependency('xkbcommon')
+libpulse = dependency('libpulse')
 
 wayland_scanner = find_program('wayland-scanner')
 wl_protocol_dir = wayland_protos.get_variable('pkgdatadir')
@@ -92,7 +93,7 @@ executable(
 executable(
   'karton-system-status',
   files('src/karton-system-status.c'),
-  dependencies: [glib, gio],
+  dependencies: [glib, gio, libpulse],
   install: true,
 )
 

@@ -428,6 +428,82 @@ msgstr "Szacowanie czasu niedostępne"
 msgid "Open power settings"
 msgstr "Otwórz ustawienia zasilania"
 
+#: src/karton-shell.c
+msgid "Network"
+msgstr "Sieć"
+
+#: src/karton-shell.c
+msgid "Sound"
+msgstr "Dźwięk"
+
+#: src/karton-shell.c
+msgid "Power"
+msgstr "Zasilanie"
+
+#: src/karton-shell.c
+msgid "Connection and nearby devices"
+msgstr "Połączenie i pobliskie urządzenia"
+
+#: src/karton-shell.c
+msgid "Outputs, inputs and volume"
+msgstr "Wyjścia, wejścia i głośność"
+
+#: src/karton-shell.c
+msgid "Battery and session actions"
+msgstr "Bateria i akcje sesji"
+
+#: src/karton-shell.c
+msgid "Open screenshot folder"
+msgstr "Otwórz katalog zrzutu ekranu"
+
+#: src/karton-shell.c
+msgid "Open file location"
+msgstr "Otwórz lokalizację pliku"
+
+#: src/karton-shell.c
+msgid "Open app"
+msgstr "Otwórz aplikację"
+
+#: src/karton-shell.c
+msgid "No interface"
+msgstr "Brak interfejsu"
+
+#: src/karton-shell.c
+msgid "Wi-Fi enabled"
+msgstr "Wi-Fi włączone"
+
+#: src/karton-shell.c
+msgid "Wi-Fi disabled"
+msgstr "Wi-Fi wyłączone"
+
+#: src/karton-shell.c
+msgid "Speakers"
+msgstr "Głośniki"
+
+#: src/karton-shell.c
+msgid "Microphone"
+msgstr "Mikrofon"
+
+#: src/karton-shell.c
+msgid "Default output"
+msgstr "Domyślne wyjście"
+
+#: src/karton-shell.c
+msgid "Default input"
+msgstr "Domyślne wejście"
+
+#: src/karton-shell.c
+msgid "Default"
+msgstr "Domyślne"
+
+#: src/karton-shell.c
+msgid "Mounted devices"
+msgstr "Zamontowane urządzenia"
+
+#: src/karton-shell.c
+msgid "No removable devices"
+msgstr "Brak urządzeń wymiennych"
+
 #~ msgid "System update available"
 #~ msgstr "Dostępna aktualizacja systemu"
 

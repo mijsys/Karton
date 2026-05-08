@@ -1,4 +1,5 @@
 #include <gio/gio.h>
+#include <pulse/pulseaudio.h>
 #include <dirent.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -9,6 +10,25 @@
 #define MAX_SCAN_NETWORKS 8
 #define MAX_AUDIO_DEVICES 8
 #define MAX_REMOVABLE_DEVICES 8
+
+struct pulse_audio_state {
+	pa_mainloop *mainloop;
+	pa_context *context;
+	char default_sink_name[256];
+	char default_source_name[256];
+	char output_devices[MAX_AUDIO_DEVICES][96];
+	char input_devices[MAX_AUDIO_DEVICES][96];
+	size_t output_count;
+	size_t input_count;
+	int output_volume;
+	int input_volume;
+};
+
+struct pulse_volume_target {
+	bool found;
+	uint32_t index;
+	uint8_t channels;
+};
 
 static GVariant *
 get_property_value(GDBusConnection *conn, const char *bus_name,
@@ -130,6 +150,335 @@ count++;
 
 pclose(f);
 return count;
+}
+
+static int
+clamp_percent(int value)
+{
+	if (value < 0) {
+		return 0;
+	}
+	if (value > 100) {
+		return 100;
+	}
+	return value;
+}
+
+static bool
+pulse_connect(struct pulse_audio_state *state)
+{
+	if (!state) {
+		return false;
+	}
+
+	memset(state, 0, sizeof(*state));
+	state->mainloop = pa_mainloop_new();
+	if (!state->mainloop) {
+		return false;
+	}
+
+	pa_mainloop_api *api = pa_mainloop_get_api(state->mainloop);
+	state->context = pa_context_new(api, "karton-system-status");
+	if (!state->context) {
+		pa_mainloop_free(state->mainloop);
+		state->mainloop = NULL;
+		return false;
+	}
+
+	if (pa_context_connect(state->context, NULL, PA_CONTEXT_NOFLAGS, NULL) < 0) {
+		pa_context_unref(state->context);
+		pa_mainloop_free(state->mainloop);
+		state->context = NULL;
+		state->mainloop = NULL;
+		return false;
+	}
+
+	for (;;) {
+		pa_context_state_t ctx_state = pa_context_get_state(state->context);
+		if (ctx_state == PA_CONTEXT_READY) {
+			return true;
+		}
+		if (ctx_state == PA_CONTEXT_FAILED || ctx_state == PA_CONTEXT_TERMINATED) {
+			break;
+		}
+		if (pa_mainloop_iterate(state->mainloop, 1, NULL) < 0) {
+			break;
+		}
+	}
+
+	if (state->context) {
+		pa_context_disconnect(state->context);
+		pa_context_unref(state->context);
+		state->context = NULL;
+	}
+	if (state->mainloop) {
+		pa_mainloop_free(state->mainloop);
+		state->mainloop = NULL;
+	}
+	return false;
+}
+
+static void
+pulse_disconnect(struct pulse_audio_state *state)
+{
+	if (!state) {
+		return;
+	}
+
+	if (state->context) {
+		pa_context_disconnect(state->context);
+		pa_context_unref(state->context);
+		state->context = NULL;
+	}
+	if (state->mainloop) {
+		pa_mainloop_free(state->mainloop);
+		state->mainloop = NULL;
+	}
+}
+
+static bool
+pulse_wait_for_operation(struct pulse_audio_state *state, pa_operation *op)
+{
+	if (!state || !state->mainloop || !state->context || !op) {
+		return false;
+	}
+
+	while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
+		pa_context_state_t ctx_state = pa_context_get_state(state->context);
+		if (ctx_state == PA_CONTEXT_FAILED || ctx_state == PA_CONTEXT_TERMINATED) {
+			break;
+		}
+		if (pa_mainloop_iterate(state->mainloop, 1, NULL) < 0) {
+			break;
+		}
+	}
+
+	bool ok = pa_operation_get_state(op) == PA_OPERATION_DONE;
+	pa_operation_unref(op);
+	return ok;
+}
+
+static void
+pulse_server_info_cb(pa_context *context, const pa_server_info *info, void *userdata)
+{
+	(void)context;
+	struct pulse_audio_state *state = userdata;
+	if (!state || !info) {
+		return;
+	}
+
+	if (info->default_sink_name) {
+		snprintf(state->default_sink_name, sizeof(state->default_sink_name), "%s", info->default_sink_name);
+	}
+	if (info->default_source_name) {
+		snprintf(state->default_source_name, sizeof(state->default_source_name), "%s", info->default_source_name);
+	}
+}
+
+static void
+pulse_sink_info_cb(pa_context *context, const pa_sink_info *info, int eol, void *userdata)
+{
+	(void)context;
+	if (eol != 0 || !info) {
+		return;
+	}
+
+	struct pulse_audio_state *state = userdata;
+	if (!state || state->output_count >= MAX_AUDIO_DEVICES) {
+		return;
+	}
+
+	const char *label = info->description && info->description[0] ? info->description : info->name;
+	if (label && *label) {
+		snprintf(state->output_devices[state->output_count], sizeof(state->output_devices[0]), "%s", label);
+		state->output_count++;
+	}
+
+	if (info->name && state->default_sink_name[0] && strcmp(info->name, state->default_sink_name) == 0) {
+		int percent = (int)((double)pa_cvolume_avg(&info->volume) * 100.0 / (double)PA_VOLUME_NORM + 0.5);
+		state->output_volume = clamp_percent(percent);
+		if (label && *label) {
+			snprintf(state->default_sink_name, sizeof(state->default_sink_name), "%s", label);
+		}
+	}
+}
+
+static void
+pulse_source_info_cb(pa_context *context, const pa_source_info *info, int eol, void *userdata)
+{
+	(void)context;
+	if (eol != 0 || !info || info->monitor_of_sink != PA_INVALID_INDEX) {
+		return;
+	}
+
+	struct pulse_audio_state *state = userdata;
+	if (!state || state->input_count >= MAX_AUDIO_DEVICES) {
+		return;
+	}
+
+	const char *label = info->description && info->description[0] ? info->description : info->name;
+	if (label && *label) {
+		snprintf(state->input_devices[state->input_count], sizeof(state->input_devices[0]), "%s", label);
+		state->input_count++;
+	}
+
+	if (info->name && state->default_source_name[0] && strcmp(info->name, state->default_source_name) == 0) {
+		int percent = (int)((double)pa_cvolume_avg(&info->volume) * 100.0 / (double)PA_VOLUME_NORM + 0.5);
+		state->input_volume = clamp_percent(percent);
+		if (label && *label) {
+			snprintf(state->default_source_name, sizeof(state->default_source_name), "%s", label);
+		}
+	}
+}
+
+static void
+pulse_sink_lookup_cb(pa_context *context, const pa_sink_info *info, int eol, void *userdata)
+{
+	(void)context;
+	if (eol != 0 || !info) {
+		return;
+	}
+
+	struct pulse_volume_target *target = userdata;
+	if (!target) {
+		return;
+	}
+
+	target->found = true;
+	target->index = info->index;
+	target->channels = info->channel_map.channels > 0 ? info->channel_map.channels : 2;
+}
+
+static void
+pulse_source_lookup_cb(pa_context *context, const pa_source_info *info, int eol, void *userdata)
+{
+	(void)context;
+	if (eol != 0 || !info || info->monitor_of_sink != PA_INVALID_INDEX) {
+		return;
+	}
+
+	struct pulse_volume_target *target = userdata;
+	if (!target) {
+		return;
+	}
+
+	target->found = true;
+	target->index = info->index;
+	target->channels = info->channel_map.channels > 0 ? info->channel_map.channels : 1;
+}
+
+static bool
+pulse_load_audio_state(char output_devices[MAX_AUDIO_DEVICES][96], size_t *output_count,
+	char *default_output, size_t default_output_size, int *output_volume,
+	char input_devices[MAX_AUDIO_DEVICES][96], size_t *input_count,
+	char *default_input, size_t default_input_size, int *input_volume)
+{
+	struct pulse_audio_state state;
+	if (!pulse_connect(&state)) {
+		return false;
+	}
+
+	bool ok = false;
+	pa_operation *op = pa_context_get_server_info(state.context, pulse_server_info_cb, &state);
+	if (!pulse_wait_for_operation(&state, op)) {
+		goto cleanup;
+	}
+
+	op = pa_context_get_sink_info_list(state.context, pulse_sink_info_cb, &state);
+	if (!pulse_wait_for_operation(&state, op)) {
+		goto cleanup;
+	}
+
+	op = pa_context_get_source_info_list(state.context, pulse_source_info_cb, &state);
+	if (!pulse_wait_for_operation(&state, op)) {
+		goto cleanup;
+	}
+
+	if (output_devices) {
+		for (size_t i = 0; i < state.output_count; i++) {
+			snprintf(output_devices[i], 96, "%s", state.output_devices[i]);
+		}
+	}
+	if (output_count) {
+		*output_count = state.output_count;
+	}
+	if (default_output && default_output_size > 0) {
+		snprintf(default_output, default_output_size, "%s", state.default_sink_name);
+	}
+	if (output_volume) {
+		*output_volume = state.output_volume;
+	}
+
+	if (input_devices) {
+		for (size_t i = 0; i < state.input_count; i++) {
+			snprintf(input_devices[i], 96, "%s", state.input_devices[i]);
+		}
+	}
+	if (input_count) {
+		*input_count = state.input_count;
+	}
+	if (default_input && default_input_size > 0) {
+		snprintf(default_input, default_input_size, "%s", state.default_source_name);
+	}
+	if (input_volume) {
+		*input_volume = state.input_volume;
+	}
+
+	ok = true;
+
+cleanup:
+	pulse_disconnect(&state);
+	return ok;
+}
+
+static bool
+pulse_set_default_volume(bool input_device, int percent)
+{
+	struct pulse_audio_state state;
+	if (!pulse_connect(&state)) {
+		return false;
+	}
+
+	bool ok = false;
+	pa_operation *op = pa_context_get_server_info(state.context, pulse_server_info_cb, &state);
+	if (!pulse_wait_for_operation(&state, op)) {
+		goto cleanup;
+	}
+
+	const char *target_name = input_device ? state.default_source_name : state.default_sink_name;
+	if (!target_name[0]) {
+		goto cleanup;
+	}
+
+	struct pulse_volume_target target = { 0 };
+	if (input_device) {
+		op = pa_context_get_source_info_by_name(state.context, target_name, pulse_source_lookup_cb, &target);
+	} else {
+		op = pa_context_get_sink_info_by_name(state.context, target_name, pulse_sink_lookup_cb, &target);
+	}
+	if (!pulse_wait_for_operation(&state, op) || !target.found) {
+		goto cleanup;
+	}
+
+	pa_cvolume volume;
+	pa_cvolume_set(&volume,
+		target.channels > 0 ? target.channels : (input_device ? 1 : 2),
+		pa_sw_volume_from_linear((double)clamp_percent(percent) / 100.0));
+
+	if (input_device) {
+		op = pa_context_set_source_volume_by_index(state.context, target.index, &volume, NULL, NULL);
+	} else {
+		op = pa_context_set_sink_volume_by_index(state.context, target.index, &volume, NULL, NULL);
+	}
+	if (!pulse_wait_for_operation(&state, op)) {
+		goto cleanup;
+	}
+
+	ok = true;
+
+cleanup:
+	pulse_disconnect(&state);
+	return ok;
 }
 
 static bool
@@ -556,6 +905,10 @@ char networks[MAX_SCAN_NETWORKS][96] = {{ 0 }};
 size_t network_count = 0;
 char output_devices[MAX_AUDIO_DEVICES][96] = {{ 0 }};
 char input_devices[MAX_AUDIO_DEVICES][96] = {{ 0 }};
+	char default_output[96] = { 0 };
+	char default_input[96] = { 0 };
+	int output_volume = 0;
+	int input_volume = 0;
 char removable_paths[MAX_REMOVABLE_DEVICES][96] = {{ 0 }};
 char removable_names[MAX_REMOVABLE_DEVICES][96] = {{ 0 }};
 size_t output_count = 0;
@@ -590,12 +943,10 @@ int bat_min_empty = -1;
 int bat_min_full = -1;
 battery_info(&bat_present, &bat_percent, &bat_charging, &bat_min_empty, &bat_min_full);
 
-output_count = read_command_lines(
-"sh -lc 'command -v pactl >/dev/null 2>&1 && pactl list short sinks 2>/dev/null | cut -f2 | sed -n 1,8p'",
-output_devices, MAX_AUDIO_DEVICES);
-input_count = read_command_lines(
-"sh -lc 'command -v pactl >/dev/null 2>&1 && pactl list short sources 2>/dev/null | cut -f2 | sed -n 1,8p'",
-input_devices, MAX_AUDIO_DEVICES);
+	(void)pulse_load_audio_state(output_devices, &output_count,
+		default_output, sizeof(default_output), &output_volume,
+		input_devices, &input_count,
+		default_input, sizeof(default_input), &input_volume);
 
 char removable_rows[MAX_REMOVABLE_DEVICES][96] = {{ 0 }};
 removable_count = read_command_lines(
@@ -630,6 +981,10 @@ printf("output_%zu=%s\n", i, output_devices[i]);
 for (size_t i = 0; i < input_count; i++) {
 printf("input_%zu=%s\n", i, input_devices[i]);
 }
+	printf("default_output=%s\n", default_output);
+	printf("default_input=%s\n", default_input);
+	printf("output_volume=%d\n", output_volume);
+	printf("input_volume=%d\n", input_volume);
 for (size_t i = 0; i < removable_count; i++) {
 printf("removable_path_%zu=%s\n", i, removable_paths[i]);
 printf("removable_name_%zu=%s\n", i, removable_names[i]);
@@ -646,15 +1001,25 @@ return 0;
 int
 main(int argc, char **argv)
 {
-if (argc < 2) {
-fprintf(stderr, "usage: %s quick\n", argv[0]);
-return 1;
-}
+	if (argc < 2) {
+		fprintf(stderr, "usage: %s quick|set-output-volume <percent>|set-input-volume <percent>\n", argv[0]);
+		return 1;
+	}
 
-if (strcmp(argv[1], "quick") == 0) {
-return print_quick_status();
-}
+	if (strcmp(argv[1], "quick") == 0) {
+		return print_quick_status();
+	}
 
-fprintf(stderr, "unknown command: %s\n", argv[1]);
-return 1;
+	if ((strcmp(argv[1], "set-output-volume") == 0 || strcmp(argv[1], "set-input-volume") == 0) && argc >= 3) {
+		char *end = NULL;
+		long value = strtol(argv[2], &end, 10);
+		if (!end || *end != '\0') {
+			fprintf(stderr, "invalid volume: %s\n", argv[2]);
+			return 1;
+		}
+		return pulse_set_default_volume(strcmp(argv[1], "set-input-volume") == 0, (int)value) ? 0 : 1;
+	}
+
+	fprintf(stderr, "unknown command: %s\n", argv[1]);
+	return 1;
 }

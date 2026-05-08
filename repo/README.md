@@ -38,5 +38,22 @@ Dostępne skrypty:
 - `build-opensuse.sh`
 - `build-ubuntu.sh`
 - `build-debian.sh`
+- `install-arch.sh`
+- `install-opensuse.sh`
+- `install-ubuntu.sh`
+- `install-debian.sh`
 
 Każdy skrypt uruchamiaj z katalogu głównego projektu albo bezpośrednio z katalogu `repo` — sam wykrywa root projektu.
+
+## Uruchamianie z GitHuba
+
+Skrypty `install-*.sh` można uruchomić bezpośrednio z konsoli przez `curl`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/mijsys/Tektura-i-Karton/main/repo/install-arch.sh | bash
+curl -fsSL https://raw.githubusercontent.com/mijsys/Tektura-i-Karton/main/repo/install-opensuse.sh | bash
+curl -fsSL https://raw.githubusercontent.com/mijsys/Tektura-i-Karton/main/repo/install-debian.sh | bash
+curl -fsSL https://raw.githubusercontent.com/mijsys/Tektura-i-Karton/main/repo/install-ubuntu.sh | bash
+```
+
+Każdy z nich klonuje aktualne repozytorium do `~/.cache/karton-src` i uruchamia odpowiedni skrypt budowania dla danej dystrybucji.

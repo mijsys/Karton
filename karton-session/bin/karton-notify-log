@@ -7,7 +7,7 @@ cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/karton"
 log_path="$cache_dir/notifications.log"
 
 mkdir -p "$cache_dir"
-: > "$log_path"
+touch "$log_path"
 
 if ! command -v dbus-monitor >/dev/null 2>&1; then
 	exit 0
@@ -20,12 +20,18 @@ function trim(s) {
 	sub(/[[:space:]]+$/, "", s)
 	return s
 }
+function sanitize(s) {
+	gsub(/\t/, " ", s)
+	gsub(/[\r\n]+/, " ", s)
+	return s
+}
 function unescape(s) {
 	gsub(/\\"/, "\"", s)
 	gsub(/\\\\/, "\\", s)
 	return s
 }
 function flush(    msg, cmd) {
+	app = sanitize(trim(app))
 	summary = trim(summary)
 	body = trim(body)
 	msg = summary
@@ -35,13 +41,14 @@ function flush(    msg, cmd) {
 		msg = msg " - " body
 	}
 	if (msg != "") {
-		print msg >> out_file
+		print app "\t" sanitize(summary) "\t" sanitize(body) >> out_file
 		close(out_file)
 		cmd = "tail -n 64 \"" out_file "\" > \"" out_file ".tmp\" && mv \"" out_file ".tmp\" \"" out_file "\""
 		system(cmd)
 	}
 	in_msg = 0
 	string_idx = 0
+	app = ""
 	summary = ""
 	body = ""
 }
@@ -51,6 +58,7 @@ function flush(    msg, cmd) {
 	}
 	in_msg = ($0 ~ /member=Notify/)
 	string_idx = 0
+	app = ""
 	summary = ""
 	body = ""
 	next
@@ -64,7 +72,9 @@ function flush(    msg, cmd) {
 	sub(/"$/, "", line)
 	line = unescape(line)
 	string_idx++
-	if (string_idx == 3) {
+	if (string_idx == 1) {
+		app = line
+	} else if (string_idx == 3) {
 		summary = line
 	} else if (string_idx == 4) {
 		body = line

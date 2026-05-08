@@ -288,6 +288,9 @@ restart_running_session() {
   pkill -f 'karton-shell --side-only' 2>/dev/null || true
   pkill -x karton-shell 2>/dev/null || true
   pkill -f 'karton-sessiond' 2>/dev/null || true
+  pkill -f 'karton-notifyd' 2>/dev/null || true
+  pkill -f 'karton-notify-log' 2>/dev/null || true
+  pkill -f "dbus-monitor --session interface='org.freedesktop.Notifications',member='Notify'" 2>/dev/null || true
 
   if [[ -x "$autostart_file" ]]; then
     "$autostart_file" || true

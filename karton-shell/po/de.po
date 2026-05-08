@@ -428,6 +428,82 @@ msgstr "Zeitschätzung nicht verfügbar"
 msgid "Open power settings"
 msgstr "Energieeinstellungen öffnen"
 
+#: src/karton-shell.c
+msgid "Network"
+msgstr "Netzwerk"
+
+#: src/karton-shell.c
+msgid "Sound"
+msgstr "Ton"
+
+#: src/karton-shell.c
+msgid "Power"
+msgstr "Energie"
+
+#: src/karton-shell.c
+msgid "Connection and nearby devices"
+msgstr "Verbindung und Geräte in der Nähe"
+
+#: src/karton-shell.c
+msgid "Outputs, inputs and volume"
+msgstr "Ausgänge, Eingänge und Lautstärke"
+
+#: src/karton-shell.c
+msgid "Battery and session actions"
+msgstr "Akku und Sitzungsaktionen"
+
+#: src/karton-shell.c
+msgid "Open screenshot folder"
+msgstr "Screenshot-Ordner öffnen"
+
+#: src/karton-shell.c
+msgid "Open file location"
+msgstr "Dateispeicherort öffnen"
+
+#: src/karton-shell.c
+msgid "Open app"
+msgstr "App öffnen"
+
+#: src/karton-shell.c
+msgid "No interface"
+msgstr "Keine Schnittstelle"
+
+#: src/karton-shell.c
+msgid "Wi-Fi enabled"
+msgstr "WLAN aktiviert"
+
+#: src/karton-shell.c
+msgid "Wi-Fi disabled"
+msgstr "WLAN deaktiviert"
+
+#: src/karton-shell.c
+msgid "Speakers"
+msgstr "Lautsprecher"
+
+#: src/karton-shell.c
+msgid "Microphone"
+msgstr "Mikrofon"
+
+#: src/karton-shell.c
+msgid "Default output"
+msgstr "Standardausgabe"
+
+#: src/karton-shell.c
+msgid "Default input"
+msgstr "Standardeingang"
+
+#: src/karton-shell.c
+msgid "Default"
+msgstr "Standard"
+
+#: src/karton-shell.c
+msgid "Mounted devices"
+msgstr "Eingebundene Geräte"
+
+#: src/karton-shell.c
+msgid "No removable devices"
+msgstr "Keine Wechselmedien"
+
 #~ msgid "System update available"
 #~ msgstr "Systemaktualisierung verfügbar"
 

@@ -54,6 +54,9 @@
 #define MAX_GLOBAL_MENU_TOP 16
 #define MAX_GLOBAL_MENU_ITEMS 48
 #define MAX_NOTIFICATIONS 8
+#define MAX_STATUS_NETWORKS 8
+#define MAX_STATUS_AUDIO_DEVICES 8
+#define MAX_STATUS_REMOVABLE_DEVICES 8
 
 enum panel_type {
 PANEL_TOP,
@@ -76,6 +79,9 @@ enum top_popup_mode {
 TOP_POPUP_NONE,
 TOP_POPUP_QUICK,
 TOP_POPUP_NOTIFICATIONS,
+TOP_POPUP_NETWORK,
+TOP_POPUP_AUDIO,
+TOP_POPUP_POWER,
 TOP_POPUP_CALENDAR,
 TOP_POPUP_CLOCK,
 };
@@ -161,8 +167,19 @@ bool task;
 char text[160];
 };
 
+enum notification_target_kind {
+NOTIFICATION_TARGET_NONE,
+NOTIFICATION_TARGET_OPEN_LOCATION,
+NOTIFICATION_TARGET_LAUNCH_APP,
+};
+
 struct notification_entry {
+char app_name[96];
 char text[160];
+char detail[192];
+char action_label[96];
+char action_target[PATH_MAX];
+int target_kind;
 };
 
 struct icon_cache_entry {
@@ -239,10 +256,32 @@ int quick_menu_hover_item;
 bool quick_wifi_enabled;
 bool quick_bluetooth_enabled;
 char quick_wifi_name[96];
+char quick_connection_type[16];
+char quick_connection_name[96];
+char quick_iface[32];
+unsigned long long quick_rx_bytes;
+unsigned long long quick_tx_bytes;
+char quick_networks[MAX_STATUS_NETWORKS][96];
+size_t quick_network_count;
+char quick_outputs[MAX_STATUS_AUDIO_DEVICES][96];
+size_t quick_output_count;
+char quick_inputs[MAX_STATUS_AUDIO_DEVICES][96];
+size_t quick_input_count;
+char quick_default_output[96];
+char quick_default_input[96];
+char quick_removable_paths[MAX_STATUS_REMOVABLE_DEVICES][96];
+char quick_removable_names[MAX_STATUS_REMOVABLE_DEVICES][96];
+size_t quick_removable_count;
+bool quick_battery_present;
+bool quick_battery_charging;
+int quick_battery_percent;
+int quick_battery_minutes_to_empty;
+int quick_battery_minutes_to_full;
 time_t quick_status_updated;
 time_t notifications_updated;
 int quick_brightness;
 int quick_volume;
+int quick_input_volume;
 int calendar_year;
 int calendar_month;
 int calendar_selected_day;
@@ -347,9 +386,18 @@ static const char *clock_timezone_candidates[] = {
 
 static void panel_draw(struct panel *panel);
 static bool point_in_rect(double px, double py, double x, double y, double w, double h);
+static bool contains_nocase(const char *haystack, const char *needle);
+static bool str_ends_with(const char *s, const char *suffix);
+static void notification_prepare_entry(struct app *app, struct notification_entry *entry,
+const char *app_name, const char *summary, const char *body);
+static void notification_activate(struct app *app, const struct notification_entry *entry);
 static void measure_pango_text(cairo_t *cairo, const char *family, PangoWeight weight,
 double size, const char *text, int *width, int *height);
 static bool top_quick_panel_rect(const struct panel *panel, double *x, double *y, double *w, double *h);
+static bool top_calendar_panel_rect(const struct panel *panel, double *x, double *y, double *w, double *h);
+static bool top_clock_panel_rect(const struct panel *panel, double *x, double *y, double *w, double *h);
+static bool top_popup_rect_for_mode(const struct panel *panel, int mode,
+double *x, double *y, double *w, double *h);
 static void launcher_close(struct app *app);
 static void launcher_activate_filtered(struct app *app, int filtered_idx);
 static void shell_style_apply_theme(struct shell_style *style);
@@ -872,7 +920,7 @@ return read_command_first_line(command, line, sizeof(line))
 }
 
 static void
-quick_status_command(char *command, size_t command_size)
+status_helper_command(char *command, size_t command_size, const char *args)
 {
 if (!command || command_size == 0) {
 return;
@@ -895,14 +943,35 @@ memcpy(helper_path, exe_path, exe_dir_len);
 memcpy(helper_path + exe_dir_len, helper_suffix, sizeof(helper_suffix));
 }
 if (helper_path[0] && access(helper_path, X_OK) == 0) {
-snprintf(command, command_size, "'%s' quick", helper_path);
+            snprintf(command, command_size, "'%s' %s", helper_path, args && *args ? args : "quick");
 return;
 }
 }
 }
 
 snprintf(command, command_size,
-"sh -lc 'if command -v karton-system-status >/dev/null 2>&1; then karton-system-status quick; elif [ -x \"$HOME/.local-karton/bin/karton-system-status\" ]; then \"$HOME/.local-karton/bin/karton-system-status\" quick; fi'");
+"sh -lc 'if command -v karton-system-status >/dev/null 2>&1; then karton-system-status %s; elif [ -x \"$HOME/.local-karton/bin/karton-system-status\" ]; then \"$HOME/.local-karton/bin/karton-system-status\" %s; fi'",
+args && *args ? args : "quick",
+args && *args ? args : "quick");
+}
+
+static void
+quick_status_command(char *command, size_t command_size)
+{
+status_helper_command(command, command_size, "quick");
+}
+
+static void
+audio_set_volume(bool input_device, int value)
+{
+char command[PATH_MAX + 96] = { 0 };
+char args[48] = { 0 };
+snprintf(args, sizeof(args), "%s %d",
+input_device ? "set-input-volume" : "set-output-volume", value);
+status_helper_command(command, sizeof(command), args);
+if (command[0]) {
+    spawn_command(command);
+}
 }
 
 static bool
@@ -911,6 +980,24 @@ load_quick_status_from_helper(struct app *app)
 if (!app) {
 return false;
 }
+
+app->quick_connection_type[0] = '\0';
+app->quick_connection_name[0] = '\0';
+app->quick_iface[0] = '\0';
+app->quick_rx_bytes = 0;
+app->quick_tx_bytes = 0;
+app->quick_network_count = 0;
+app->quick_output_count = 0;
+app->quick_input_count = 0;
+app->quick_default_output[0] = '\0';
+app->quick_default_input[0] = '\0';
+app->quick_removable_count = 0;
+app->quick_battery_present = false;
+app->quick_battery_charging = false;
+app->quick_battery_percent = 0;
+app->quick_battery_minutes_to_empty = -1;
+app->quick_battery_minutes_to_full = -1;
+app->quick_input_volume = 0;
 
 char command[PATH_MAX + 96] = { 0 };
 quick_status_command(command, sizeof(command));
@@ -950,6 +1037,74 @@ app->quick_wifi_enabled = !strcasecmp(value, "yes") || !strcasecmp(value, "true"
 app->quick_bluetooth_enabled = !strcasecmp(value, "yes") || !strcasecmp(value, "true") || !strcmp(value, "1");
 } else if (!strcmp(key, "wifi_name")) {
 snprintf(app->quick_wifi_name, sizeof(app->quick_wifi_name), "%s", value[0] ? value : _("Not connected"));
+} else if (!strcmp(key, "connection_type")) {
+snprintf(app->quick_connection_type, sizeof(app->quick_connection_type), "%s", value);
+} else if (!strcmp(key, "connection_name")) {
+snprintf(app->quick_connection_name, sizeof(app->quick_connection_name), "%s", value);
+} else if (!strcmp(key, "iface")) {
+snprintf(app->quick_iface, sizeof(app->quick_iface), "%s", value);
+} else if (!strcmp(key, "rx_bytes")) {
+app->quick_rx_bytes = strtoull(value, NULL, 10);
+} else if (!strcmp(key, "tx_bytes")) {
+app->quick_tx_bytes = strtoull(value, NULL, 10);
+} else if (!strcmp(key, "battery_present")) {
+app->quick_battery_present = !strcasecmp(value, "yes") || !strcasecmp(value, "true") || !strcmp(value, "1");
+} else if (!strcmp(key, "battery_charging")) {
+app->quick_battery_charging = !strcasecmp(value, "yes") || !strcasecmp(value, "true") || !strcmp(value, "1");
+} else if (!strcmp(key, "battery_percent")) {
+app->quick_battery_percent = (int)strtol(value, NULL, 10);
+} else if (!strcmp(key, "battery_minutes_to_empty")) {
+app->quick_battery_minutes_to_empty = (int)strtol(value, NULL, 10);
+} else if (!strcmp(key, "battery_minutes_to_full")) {
+app->quick_battery_minutes_to_full = (int)strtol(value, NULL, 10);
+} else if (!strcmp(key, "default_output")) {
+snprintf(app->quick_default_output, sizeof(app->quick_default_output), "%s", value);
+} else if (!strcmp(key, "default_input")) {
+snprintf(app->quick_default_input, sizeof(app->quick_default_input), "%s", value);
+} else if (!strcmp(key, "output_volume")) {
+app->quick_volume = (int)strtol(value, NULL, 10);
+} else if (!strcmp(key, "input_volume")) {
+app->quick_input_volume = (int)strtol(value, NULL, 10);
+} else if (!strncmp(key, "network_", 8)) {
+int idx = (int)strtol(key + 8, NULL, 10);
+if (idx >= 0 && idx < MAX_STATUS_NETWORKS) {
+snprintf(app->quick_networks[idx], sizeof(app->quick_networks[idx]), "%s", value);
+if ((size_t)(idx + 1) > app->quick_network_count) {
+app->quick_network_count = (size_t)(idx + 1);
+}
+}
+} else if (!strncmp(key, "output_", 7)) {
+int idx = (int)strtol(key + 7, NULL, 10);
+if (idx >= 0 && idx < MAX_STATUS_AUDIO_DEVICES) {
+snprintf(app->quick_outputs[idx], sizeof(app->quick_outputs[idx]), "%s", value);
+if ((size_t)(idx + 1) > app->quick_output_count) {
+app->quick_output_count = (size_t)(idx + 1);
+}
+}
+} else if (!strncmp(key, "input_", 6)) {
+int idx = (int)strtol(key + 6, NULL, 10);
+if (idx >= 0 && idx < MAX_STATUS_AUDIO_DEVICES) {
+snprintf(app->quick_inputs[idx], sizeof(app->quick_inputs[idx]), "%s", value);
+if ((size_t)(idx + 1) > app->quick_input_count) {
+app->quick_input_count = (size_t)(idx + 1);
+}
+}
+} else if (!strncmp(key, "removable_path_", 15)) {
+int idx = (int)strtol(key + 15, NULL, 10);
+if (idx >= 0 && idx < MAX_STATUS_REMOVABLE_DEVICES) {
+snprintf(app->quick_removable_paths[idx], sizeof(app->quick_removable_paths[idx]), "%s", value);
+if ((size_t)(idx + 1) > app->quick_removable_count) {
+app->quick_removable_count = (size_t)(idx + 1);
+}
+}
+} else if (!strncmp(key, "removable_name_", 15)) {
+int idx = (int)strtol(key + 15, NULL, 10);
+if (idx >= 0 && idx < MAX_STATUS_REMOVABLE_DEVICES) {
+snprintf(app->quick_removable_names[idx], sizeof(app->quick_removable_names[idx]), "%s", value);
+if ((size_t)(idx + 1) > app->quick_removable_count) {
+app->quick_removable_count = (size_t)(idx + 1);
+}
+}
 }
 }
 
@@ -985,9 +1140,32 @@ snprintf(out, out_size, "%s", _("Not connected"));
 }
 
 static void
+clear_notifications_cache(void)
+{
+    const char *cache_home = getenv("XDG_CACHE_HOME");
+    const char *home = getenv("HOME");
+    char path[PATH_MAX] = { 0 };
+
+    if (cache_home && *cache_home) {
+        snprintf(path, sizeof(path), "%s/karton/notifications.log", cache_home);
+    } else if (home && *home) {
+        snprintf(path, sizeof(path), "%s/.cache/karton/notifications.log", home);
+    }
+
+    if (!path[0]) {
+        return;
+    }
+
+    FILE *f = fopen(path, "w");
+    if (f) {
+        fclose(f);
+    }
+}
+
+static void
 load_system_notifications(struct app *app)
 {
-if (!app || app->notifications_cleared) {
+if (!app) {
 return;
 }
 
@@ -999,7 +1177,7 @@ return;
 }
 
 app->notification_count = 0;
-FILE *f = popen("sh -lc 'if command -v timeout >/dev/null 2>&1 && command -v makoctl >/dev/null 2>&1; then timeout 1s makoctl list 2>/dev/null | sed -n \"s/^[[:space:]]*summary: //p;s/^[[:space:]]*Summary: //p\"; elif [ -r \"${XDG_CACHE_HOME:-$HOME/.cache}/karton/notifications.log\" ]; then tail -n 8 \"${XDG_CACHE_HOME:-$HOME/.cache}/karton/notifications.log\"; fi'", "r");
+FILE *f = popen("sh -lc 'log=\"${XDG_CACHE_HOME:-$HOME/.cache}/karton/notifications.log\"; if [ -s \"$log\" ]; then tail -n 8 \"$log\"; elif command -v timeout >/dev/null 2>&1 && command -v makoctl >/dev/null 2>&1; then timeout 1s makoctl list 2>/dev/null | sed -n \"s/^[[:space:]]*summary: //p;s/^[[:space:]]*Summary: //p\"; fi'", "r");
 if (!f) {
 return;
 }
@@ -1010,10 +1188,28 @@ char *text = trim_in_place(line);
 if (!text[0]) {
 continue;
 }
-snprintf(app->notifications[app->notification_count++].text,
-sizeof(app->notifications[0].text), "%s", text);
+char *app_name = "";
+char *summary = text;
+char *body = "";
+char *sep = strchr(text, '\t');
+if (sep) {
+*sep = '\0';
+app_name = trim_in_place(text);
+summary = trim_in_place(sep + 1);
+sep = strchr(summary, '\t');
+if (sep) {
+*sep = '\0';
+body = trim_in_place(sep + 1);
+}
+}
+notification_prepare_entry(app,
+&app->notifications[app->notification_count++],
+app_name, summary, body);
 }
 pclose(f);
+if (app->notification_count > 0) {
+    app->notifications_cleared = false;
+}
 app->notifications_updated = now;
 }
 
@@ -1037,6 +1233,48 @@ app->quick_bluetooth_enabled = bluetooth_enabled();
 wifi_network_name(app->quick_wifi_name, sizeof(app->quick_wifi_name));
 }
 app->quick_status_updated = now;
+}
+
+static void
+format_status_bytes(unsigned long long value, char *out, size_t out_size)
+{
+if (!out || out_size == 0) {
+return;
+}
+
+const char *units[] = { "B", "KB", "MB", "GB", "TB" };
+double scaled = (double)value;
+size_t unit = 0;
+while (scaled >= 1024.0 && unit + 1 < sizeof(units) / sizeof(units[0])) {
+scaled /= 1024.0;
+unit++;
+}
+
+if (unit == 0) {
+snprintf(out, out_size, "%llu %s", value, units[unit]);
+} else {
+snprintf(out, out_size, "%.1f %s", scaled, units[unit]);
+}
+}
+
+static void
+format_status_minutes(int minutes, char *out, size_t out_size)
+{
+if (!out || out_size == 0) {
+return;
+}
+if (minutes < 0) {
+out[0] = '\0';
+return;
+}
+
+int hours = minutes / 60;
+int mins = minutes % 60;
+if (hours > 0) {
+snprintf(out, out_size, "%dh %02dm", hours, mins);
+} else {
+snprintf(out, out_size, "%dm", mins);
+}
 }
 
 static void
@@ -1093,6 +1331,132 @@ pid_t pid = fork();
 if (pid == 0) {
 execlp("gtk-launch", "gtk-launch", desktop_id, (char *)NULL);
 _exit(127);
+}
+}
+
+static bool
+notification_find_desktop_id(const struct app *app, const char *app_name,
+char *out, size_t out_size)
+{
+if (!app || !app_name || !*app_name || !out || out_size == 0) {
+return false;
+}
+
+out[0] = '\0';
+for (size_t i = 0; i < app->launcher_count; i++) {
+const struct launcher_entry *entry = &app->launcher_entries[i];
+if (!entry->desktop_id[0]) {
+continue;
+}
+if ((entry->name[0] && (contains_nocase(entry->name, app_name)
+|| contains_nocase(app_name, entry->name)))
+|| contains_nocase(entry->desktop_id, app_name)
+|| contains_nocase(app_name, entry->desktop_id)) {
+snprintf(out, out_size, "%s", entry->desktop_id);
+return true;
+}
+}
+
+return false;
+}
+
+static void
+open_path_location(const char *path)
+{
+if (!path || !*path) {
+return;
+}
+
+char target[PATH_MAX] = { 0 };
+struct stat st = { 0 };
+if (stat(path, &st) == 0 && S_ISDIR(st.st_mode)) {
+snprintf(target, sizeof(target), "%s", path);
+} else {
+snprintf(target, sizeof(target), "%s", path);
+char *slash = strrchr(target, '/');
+if (slash && slash != target) {
+*slash = '\0';
+} else if (slash == target) {
+target[1] = '\0';
+} else {
+snprintf(target, sizeof(target), ".");
+}
+}
+
+pid_t pid = fork();
+if (pid == 0) {
+execlp("xdg-open", "xdg-open", target, (char *)NULL);
+_exit(127);
+}
+}
+
+static void
+notification_prepare_entry(struct app *app, struct notification_entry *entry,
+const char *app_name, const char *summary, const char *body)
+{
+if (!entry) {
+return;
+}
+
+memset(entry, 0, sizeof(*entry));
+if (app_name && *app_name) {
+snprintf(entry->app_name, sizeof(entry->app_name), "%s", app_name);
+}
+
+const char *title = summary && *summary ? summary : body;
+if (title && *title) {
+snprintf(entry->text, sizeof(entry->text), "%s", title);
+}
+
+if (body && *body && (!title || strcmp(body, title))) {
+const char *detail = body;
+if (strchr(body, '/')) {
+const char *base = strrchr(body, '/');
+if (base && *(base + 1)) {
+detail = base + 1;
+}
+}
+snprintf(entry->detail, sizeof(entry->detail), "%s", detail);
+} else if (entry->app_name[0]) {
+snprintf(entry->detail, sizeof(entry->detail), "%s", entry->app_name);
+}
+
+if (body && *body && access(body, F_OK) == 0) {
+entry->target_kind = NOTIFICATION_TARGET_OPEN_LOCATION;
+snprintf(entry->action_target, sizeof(entry->action_target), "%s", body);
+snprintf(entry->action_label, sizeof(entry->action_label), "%s",
+((summary && contains_nocase(summary, "screenshot"))
+|| contains_nocase(entry->app_name, "screenshot")
+|| str_ends_with(body, ".png")
+|| str_ends_with(body, ".jpg")
+|| str_ends_with(body, ".jpeg")
+|| str_ends_with(body, ".webp"))
+? _("Open screenshot folder")
+: _("Open file location"));
+return;
+}
+
+if (notification_find_desktop_id(app, entry->app_name,
+entry->action_target, sizeof(entry->action_target))) {
+entry->target_kind = NOTIFICATION_TARGET_LAUNCH_APP;
+snprintf(entry->action_label, sizeof(entry->action_label), "%s", _("Open app"));
+}
+}
+
+static void
+notification_activate(struct app *app, const struct notification_entry *entry)
+{
+if (!app || !entry) {
+return;
+}
+
+if (entry->target_kind == NOTIFICATION_TARGET_OPEN_LOCATION) {
+open_path_location(entry->action_target);
+return;
+}
+
+if (entry->target_kind == NOTIFICATION_TARGET_LAUNCH_APP) {
+launch_desktop_id(entry->action_target);
 }
 }
 
@@ -3649,7 +4013,12 @@ return;
 uint32_t h = app->style.top_height;
 if (app->quick_open) {
 h = app->style.top_expanded_height;
-if (app->top_popup_mode == TOP_POPUP_QUICK && app->output_height > app->style.top_height) {
+if ((app->top_popup_mode == TOP_POPUP_QUICK
+|| app->top_popup_mode == TOP_POPUP_NOTIFICATIONS
+|| app->top_popup_mode == TOP_POPUP_NETWORK
+|| app->top_popup_mode == TOP_POPUP_AUDIO
+|| app->top_popup_mode == TOP_POPUP_POWER)
+&& app->output_height > app->style.top_height) {
 h = app->output_height;
 }
 }
@@ -3940,13 +4309,13 @@ return false;
 }
 
 const double tile_w = (qw - 34.0) / 2.0;
-const double tile_h = 52.0;
-const double base_y = qy + 170.0;
+const double tile_h = 88.0;
+const double base_y = qy + 314.0;
 int row = tile / 2;
 int col = tile % 2;
 
-*x = qx + 12.0 + col * (tile_w + 10.0);
-*y = base_y + row * (tile_h + 10.0);
+*x = qx + 16.0 + col * (tile_w + 12.0);
+*y = base_y + row * (tile_h + 16.0);
 *w = tile_w;
 *h = tile_h;
 return true;
@@ -4269,6 +4638,137 @@ return -1;
 return row;
 }
 
+static double
+clamp_double(double value, double min_value, double max_value)
+{
+    if (value < min_value) {
+        return min_value;
+    }
+    if (value > max_value) {
+        return max_value;
+    }
+    return value;
+}
+
+static size_t
+bounded_text_len(const char *text, size_t limit)
+{
+    size_t len = 0;
+
+    if (!text) {
+        return 0;
+    }
+
+    while (len < limit && text[len] != '\0') {
+        len++;
+    }
+    return len;
+}
+
+static double
+top_quick_panel_content_width(const struct panel *panel, double avail_w)
+{
+    struct app *app = panel->app;
+    double min_w = 340.0;
+    double max_w = 620.0;
+    double base_w = panel->width * 0.30;
+    size_t longest = 0;
+
+    if (app->top_popup_mode == TOP_POPUP_NOTIFICATIONS) {
+        min_w = 340.0;
+        max_w = 440.0;
+        base_w = panel->width * 0.30;
+    } else if (app->top_popup_mode == TOP_POPUP_NETWORK) {
+        min_w = 360.0;
+        max_w = 500.0;
+        base_w = panel->width * 0.28;
+        longest = bounded_text_len(app->quick_connection_name, sizeof(app->quick_connection_name));
+        for (size_t i = 0; i < app->quick_network_count && i < 4; i++) {
+            size_t len = bounded_text_len(app->quick_networks[i], sizeof(app->quick_networks[i]));
+            if (len > longest) {
+                longest = len;
+            }
+        }
+        base_w += (double)longest * 3.4;
+    } else if (app->top_popup_mode == TOP_POPUP_AUDIO) {
+        min_w = 380.0;
+        max_w = 540.0;
+        base_w = panel->width * 0.30;
+        for (size_t i = 0; i < app->quick_output_count && i < 3; i++) {
+            size_t len = bounded_text_len(app->quick_outputs[i], sizeof(app->quick_outputs[i]));
+            if (len > longest) {
+                longest = len;
+            }
+        }
+        for (size_t i = 0; i < app->quick_input_count && i < 3; i++) {
+            size_t len = bounded_text_len(app->quick_inputs[i], sizeof(app->quick_inputs[i]));
+            if (len > longest) {
+                longest = len;
+            }
+        }
+        base_w += (double)longest * 3.2;
+    } else if (app->top_popup_mode == TOP_POPUP_POWER) {
+        min_w = 360.0;
+        max_w = 450.0;
+        base_w = panel->width * 0.29;
+    } else {
+        min_w = 460.0;
+        max_w = 620.0;
+        base_w = panel->width * 0.38;
+    }
+
+    if (avail_w < min_w) {
+        return avail_w;
+    }
+
+    return clamp_double(base_w, min_w, max_w < avail_w ? max_w : avail_w);
+}
+
+static double
+top_quick_panel_content_height(const struct panel *panel, double avail_h)
+{
+    struct app *app = panel->app;
+    double desired_h = 320.0;
+
+    if (app->top_popup_mode == TOP_POPUP_NOTIFICATIONS) {
+        size_t shown = app->notification_count < 4 ? app->notification_count : 4;
+        desired_h = shown == 0 ? 238.0 : 146.0 + (double)shown * 72.0;
+        desired_h = clamp_double(desired_h, 250.0, avail_h);
+        return desired_h;
+    }
+
+    if (app->top_popup_mode == TOP_POPUP_NETWORK) {
+        size_t shown = app->quick_network_count < 4 ? app->quick_network_count : 4;
+        desired_h = 310.0 + (double)shown * 26.0;
+        desired_h = clamp_double(desired_h, 304.0, avail_h);
+        return desired_h;
+    }
+
+    if (app->top_popup_mode == TOP_POPUP_AUDIO) {
+        size_t shown_outputs = app->quick_output_count < 3 ? app->quick_output_count : 3;
+        size_t shown_inputs = app->quick_input_count < 3 ? app->quick_input_count : 3;
+                desired_h = 396.0 + (double)(shown_outputs + shown_inputs) * 24.0;
+                desired_h = clamp_double(desired_h, 430.0, avail_h);
+        return desired_h;
+    }
+
+    if (app->top_popup_mode == TOP_POPUP_POWER) {
+		size_t shown = app->quick_removable_count < 3 ? app->quick_removable_count : 3;
+		desired_h = (app->quick_battery_present ? 408.0 : 388.0) + (double)shown * 24.0;
+		desired_h = clamp_double(desired_h, 360.0, avail_h);
+        return desired_h;
+    }
+
+    if (app->top_popup_mode == TOP_POPUP_QUICK) {
+        desired_h = 528.0;
+        desired_h = clamp_double(desired_h, 528.0, avail_h);
+        return desired_h;
+    }
+
+    desired_h = clamp_double(desired_h, 280.0, avail_h);
+    return desired_h;
+}
+
 static bool
 top_quick_panel_rect(const struct panel *panel, double *x, double *y, double *w, double *h)
 {
@@ -4277,33 +4777,36 @@ return false;
 }
 
 double avail_w = panel->width - 20.0;
-double responsive_w = panel->width * 0.30;
-if (responsive_w < 320.0) {
-responsive_w = 320.0;
-}
-if (responsive_w > 420.0) {
-responsive_w = 420.0;
-}
-if (responsive_w > avail_w) {
-responsive_w = avail_w;
-}
-*w = responsive_w;
+    *w = top_quick_panel_content_width(panel, avail_w);
 
 double avail_h = panel->height - panel->app->style.top_height - 16.0;
-double desired_h = panel->app->top_popup_mode == TOP_POPUP_NOTIFICATIONS ? 300.0 : 332.0;
-if (desired_h > avail_h) {
-desired_h = avail_h;
+    *h = top_quick_panel_content_height(panel, avail_h);
+*x = panel->width - *w - 18.0;
+if (*x < 12.0) {
+*x = 12.0;
 }
-if (desired_h < 250.0) {
-desired_h = 250.0;
-}
-*h = desired_h;
-*x = panel->width - *w - 10.0;
-if (*x < 10.0) {
-*x = 10.0;
-}
-*y = panel->app->style.top_height + 2.0;
+*y = panel->app->style.top_height + 12.0;
 return true;
+}
+
+static bool
+top_popup_rect_for_mode(const struct panel *panel, int mode,
+double *x, double *y, double *w, double *h)
+{
+switch (mode) {
+case TOP_POPUP_CALENDAR:
+return top_calendar_panel_rect(panel, x, y, w, h);
+case TOP_POPUP_CLOCK:
+return top_clock_panel_rect(panel, x, y, w, h);
+case TOP_POPUP_QUICK:
+case TOP_POPUP_NOTIFICATIONS:
+case TOP_POPUP_NETWORK:
+case TOP_POPUP_AUDIO:
+case TOP_POPUP_POWER:
+return top_quick_panel_rect(panel, x, y, w, h);
+default:
+return false;
+}
 }
 
 static bool
@@ -4457,14 +4960,14 @@ return -1;
 }
 
 for (int i = 0; i < 2; i++) {
-double sy = qy + 106.0 + i * 52.0;
-double tx = qx + 58.0;
-double tw = qw - 110.0;
+double sy = qy + 156.0 + i * 104.0;
+double tx = qx + 98.0;
+double tw = qw - 196.0;
 if (tw < 1.0) {
 continue;
 }
 
-if (point_in_rect(px, py, tx, sy - 10.0, tw, 28.0)) {
+if (point_in_rect(px, py, tx, sy - 12.0, tw, 32.0)) {
 double pct = (px - tx) / tw;
 if (pct < 0.0) {
 pct = 0.0;
@@ -4483,6 +4986,62 @@ return -1;
 }
 
 static int
+audio_popup_slider_hit(const struct panel *panel, double px, double py, double *pct_out)
+{
+    double qx, qy, qw, qh;
+    if (!top_quick_panel_rect(panel, &qx, &qy, &qw, &qh)) {
+        return -1;
+    }
+
+    for (int i = 0; i < 2; i++) {
+        double sy = qy + 108.0 + i * 72.0;
+        double tx = qx + 132.0;
+        double tw = qw - 186.0;
+        if (tw < 1.0) {
+            continue;
+        }
+        if (point_in_rect(px, py, tx, sy + 24.0, tw, 20.0)) {
+            double pct = (px - tx) / tw;
+            if (pct < 0.0) {
+                pct = 0.0;
+            }
+            if (pct > 1.0) {
+                pct = 1.0;
+            }
+            if (pct_out) {
+                *pct_out = pct;
+            }
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+static int
+power_removable_item_hit(const struct panel *panel, const struct app *app, double px, double py)
+{
+    if (!app || app->quick_removable_count == 0) {
+        return -1;
+    }
+
+    double qx, qy, qw, qh;
+    if (!top_quick_panel_rect(panel, &qx, &qy, &qw, &qh)) {
+        return -1;
+    }
+
+    size_t shown = app->quick_removable_count < 3 ? app->quick_removable_count : 3;
+    for (size_t i = 0; i < shown; i++) {
+        double row_y = qy + 330.0 + i * 24.0;
+        if (point_in_rect(px, py, qx + 16.0, row_y, qw - 32.0, 20.0)) {
+            return (int)i;
+        }
+    }
+
+    return -1;
+}
+
+static int
 notification_action_hit(const struct panel *panel, double px, double py)
 {
 double qx, qy, qw, qh;
@@ -4490,13 +5049,29 @@ if (!top_quick_panel_rect(panel, &qx, &qy, &qw, &qh)) {
 return -1;
 }
 
-double y = qy + 88.0;
-double button_w = (qw - 34.0) / 2.0;
-if (point_in_rect(px, py, qx + 12.0, y, button_w, 34.0)) {
-return 0;
+for (int i = 0; i < 2; i++) {
+double bx = qx + qw - 94.0 + i * 44.0;
+double by = qy + 22.0;
+if (point_in_rect(px, py, bx, by, 34.0, 34.0)) {
+return i;
 }
-if (point_in_rect(px, py, qx + 22.0 + button_w, y, button_w, 34.0)) {
-return 1;
+}
+return -1;
+}
+
+static int
+notification_item_hit(const struct panel *panel, double px, double py)
+{
+double qx, qy, qw, qh;
+if (!top_quick_panel_rect(panel, &qx, &qy, &qw, &qh)) {
+return -1;
+}
+
+for (int i = 0; i < 4; i++) {
+double row_y = qy + 128.0 + i * 72.0;
+if (point_in_rect(px, py, qx + 16.0, row_y, qw - 32.0, 62.0)) {
+return i;
+}
 }
 return -1;
 }
@@ -5286,8 +5861,8 @@ if (!top_quick_panel_rect(panel, &qx, &qy, &qw, &qh)) {
 return;
 }
 
-set_source_hex_a(cairo, 0x000000, dark ? 0.28 : 0.12);
-rounded_rect(cairo, qx + 3.0, qy + 5.0, qw, qh, style->quick_panel_radius + 2.0);
+set_source_hex_a(cairo, 0x000000, dark ? 0.30 : 0.16);
+rounded_rect(cairo, qx + 6.0, qy + 10.0, qw, qh, style->quick_panel_radius + 4.0);
 cairo_fill(cairo);
 
 set_source_hex_a(cairo, style->quick_panel_bg, dark ? 0.96 : 0.98);
@@ -5299,59 +5874,376 @@ rounded_rect(cairo, qx + 0.5, qy + 0.5, qw - 1.0, qh - 1.0, style->quick_panel_r
 cairo_set_line_width(cairo, 1.0);
 cairo_stroke(cairo);
 
-draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
-13.0, style->quick_title_text, 0.98, qx + 20.0, qy + 18.0,
-(int)qw - 40, PANGO_ALIGN_LEFT,
-panel->app->top_popup_mode == TOP_POPUP_NOTIFICATIONS ? _("Notifications") : _("Quick Settings"));
+const char *panel_title = panel->app->top_popup_mode == TOP_POPUP_NOTIFICATIONS ? _("Notifications")
+: panel->app->top_popup_mode == TOP_POPUP_NETWORK ? _("Network")
+: panel->app->top_popup_mode == TOP_POPUP_AUDIO ? _("Sound")
+: panel->app->top_popup_mode == TOP_POPUP_POWER ? _("Power")
+: _("Quick Settings");
+
+const char *panel_subtitle = panel->app->top_popup_mode == TOP_POPUP_NOTIFICATIONS ? _("Review recent notifications")
+: panel->app->top_popup_mode == TOP_POPUP_NETWORK ? _("Connection and nearby devices")
+: panel->app->top_popup_mode == TOP_POPUP_AUDIO ? _("Outputs, inputs and volume")
+: panel->app->top_popup_mode == TOP_POPUP_POWER ? _("Battery and session actions")
+: _("Network, sound and appearance");
+
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_BOLD,
+19.0, style->quick_title_text, 0.98, qx + 30.0, qy + 34.0,
+(int)qw - 60, PANGO_ALIGN_LEFT,
+panel_title);
 
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
-9.8, style->quick_title_text, 0.74, qx + 20.0, qy + 42.0,
-(int)qw - 40, PANGO_ALIGN_LEFT,
-panel->app->top_popup_mode == TOP_POPUP_NOTIFICATIONS ? _("Review recent notifications") : _("Network, sound and appearance"));
+12.8, style->quick_title_text, 0.70, qx + 30.0, qy + 72.0,
+(int)qw - 60, PANGO_ALIGN_LEFT,
+panel_subtitle);
 
 if (panel->app->top_popup_mode == TOP_POPUP_NOTIFICATIONS) {
-double button_w = (qw - 34.0) / 2.0;
-const char *actions[2] = { _("Mark all as read"), _("Clear all") };
 for (int i = 0; i < 2; i++) {
-double ax = qx + 12.0 + i * (button_w + 10.0);
-double ay = qy + 88.0;
-set_source_hex_a(cairo, i == 0 ? style->side_launcher_bg : (dark ? 0x253555 : 0xf3f7fd),
-i == 0 ? 0.78 : 0.92);
-rounded_rect(cairo, ax, ay, button_w, 34.0, 13.0);
+double ax = qx + qw - 94.0 + i * 44.0;
+double ay = qy + 22.0;
+set_source_hex_a(cairo,
+i == 0 ? style->side_launcher_bg : (dark ? 0x253555 : 0xf3f7fd),
+i == 0 ? 0.82 : 0.94);
+rounded_rect(cairo, ax, ay, 34.0, 34.0, 12.0);
 cairo_fill(cairo);
-draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
-9.4, i == 0 ? 0xffffff : style->quick_title_text, 0.96,
-ax + 10.0, ay + 10.0, (int)button_w - 20, PANGO_ALIGN_CENTER, actions[i]);
+bool have_icon = draw_named_icon(cairo, panel->app, i == 0 ? "check" : "clear",
+ax + 17.0, ay + 17.0, 15.0);
+if (!have_icon) {
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_BOLD,
+13.0, i == 0 ? 0xffffff : style->quick_title_text, 0.96,
+ax, ay + 9.0, 34, PANGO_ALIGN_CENTER, i == 0 ? "✓" : "×");
+}
 }
 
 if (panel->app->notifications_cleared || panel->app->notification_count == 0) {
 set_source_hex_a(cairo, dark ? 0x253555 : 0xf3f7fd, 0.88);
-rounded_rect(cairo, qx + 12.0, qy + 140.0, qw - 24.0, 72.0, 16.0);
+rounded_rect(cairo, qx + 16.0, qy + 128.0, qw - 32.0, 78.0, 18.0);
 cairo_fill(cairo);
+draw_named_icon(cairo, panel->app, "notifications", qx + qw * 0.5, qy + 152.0, 20.0);
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
 10.5, style->quick_title_text, 0.78,
-qx + 20.0, qy + 166.0, (int)qw - 40, PANGO_ALIGN_CENTER, _("No notifications"));
+qx + 20.0, qy + 172.0, (int)qw - 40, PANGO_ALIGN_CENTER, _("No notifications"));
 return;
 }
 
 size_t visible_notifications = panel->app->notification_count < 4 ? panel->app->notification_count : 4;
 for (size_t i = 0; i < visible_notifications; i++) {
-double ny = qy + 140.0 + i * 56.0;
+double ny = qy + 128.0 + i * 72.0;
 set_source_hex_a(cairo, dark ? 0x253555 : 0xf3f7fd, 0.90);
-rounded_rect(cairo, qx + 12.0, ny, qw - 24.0, 46.0, 15.0);
+rounded_rect(cairo, qx + 16.0, ny, qw - 32.0, 62.0, 17.0);
 cairo_fill(cairo);
 set_source_hex_a(cairo, panel->app->notifications_read ? style->side_slot_inactive : style->side_launcher_bg,
 panel->app->notifications_read ? 0.40 : 0.92);
-cairo_arc(cairo, qx + 28.0, ny + 23.0, 4.0, 0, 2.0 * 3.14159265358979323846);
+cairo_arc(cairo, qx + 32.0, ny + 18.0, 4.0, 0, 2.0 * 3.14159265358979323846);
 cairo_fill(cairo);
+draw_named_icon(cairo, panel->app, "notifications", qx + 44.0, ny + 31.0, 16.0);
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_MEDIUM,
-10.0, style->quick_title_text, 0.94,
-qx + 42.0, ny + 10.0, (int)qw - 66, PANGO_ALIGN_LEFT, panel->app->notifications[i].text);
+10.6, style->quick_title_text, 0.94,
+qx + 60.0, ny + 10.0, (int)qw - 156, PANGO_ALIGN_LEFT, panel->app->notifications[i].text);
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
-8.8, style->quick_title_text, 0.58,
-qx + 42.0, ny + 27.0, (int)qw - 66, PANGO_ALIGN_LEFT,
-panel->app->notifications_read ? _("Read") : _("Unread"));
+8.9, style->quick_title_text, 0.58,
+qx + 60.0, ny + 28.0, (int)qw - 156, PANGO_ALIGN_LEFT,
+panel->app->notifications[i].detail[0] ? panel->app->notifications[i].detail
+: (panel->app->notifications[i].app_name[0] ? panel->app->notifications[i].app_name : (panel->app->notifications_read ? _("Read") : _("Unread"))));
+if (panel->app->notifications[i].app_name[0]) {
+set_source_hex_a(cairo, dark ? 0x34435f : 0xe9f1fc, 0.84);
+rounded_rect(cairo, qx + 60.0, ny + 42.0, 114.0, 14.0, 7.0);
+cairo_fill(cairo);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+7.6, style->quick_title_text, 0.74,
+qx + 68.0, ny + 45.0, 98, PANGO_ALIGN_LEFT, panel->app->notifications[i].app_name);
 }
+if (panel->app->notifications[i].action_label[0]) {
+double pill_w = 124.0;
+set_source_hex_a(cairo, style->side_launcher_bg, dark ? 0.22 : 0.14);
+rounded_rect(cairo, qx + qw - pill_w - 24.0, ny + 39.0, pill_w, 17.0, 8.5);
+cairo_fill(cairo);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+7.8, style->quick_title_text, 0.84,
+qx + qw - pill_w - 18.0, ny + 42.0, (int)pill_w - 12, PANGO_ALIGN_CENTER,
+panel->app->notifications[i].action_label);
+}
+}
+return;
+}
+
+if (panel->app->top_popup_mode == TOP_POPUP_NETWORK) {
+const char *connection_label = !strcmp(panel->app->quick_connection_type, "wifi") ? _("Connected via Wi-Fi")
+: !strcmp(panel->app->quick_connection_type, "ethernet") ? _("Connected via Ethernet")
+: _("No active connection");
+const char *connection_name = panel->app->quick_connection_name[0] ? panel->app->quick_connection_name : _("Unknown network");
+char down_text[96] = { 0 };
+char up_text[96] = { 0 };
+char down_value[48] = { 0 };
+char up_value[48] = { 0 };
+format_status_bytes(panel->app->quick_rx_bytes, down_value, sizeof(down_value));
+format_status_bytes(panel->app->quick_tx_bytes, up_value, sizeof(up_value));
+snprintf(down_text, sizeof(down_text), "%s %s", _("Down:"), down_value);
+snprintf(up_text, sizeof(up_text), "%s %s", _("Up:"), up_value);
+
+set_source_hex_a(cairo, dark ? 0x253555 : 0xf4f7fc, 0.90);
+rounded_rect(cairo, qx + 16.0, qy + 108.0, qw - 32.0, 88.0, 20.0);
+cairo_fill(cairo);
+draw_wifi_icon(cairo, qx + 40.0, qy + 148.0, 22.0, karton_symbol_color(0), 0.96);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+12.8, style->quick_title_text, 0.96, qx + 66.0, qy + 124.0,
+(int)qw - 116, PANGO_ALIGN_LEFT, connection_label);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+11.2, style->quick_title_text, 0.78, qx + 66.0, qy + 146.0,
+(int)qw - 116, PANGO_ALIGN_LEFT, connection_name);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+10.0, style->quick_title_text, 0.66, qx + 66.0, qy + 167.0,
+(int)(qw - 120.0) / 2, PANGO_ALIGN_LEFT, down_text);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+10.0, style->quick_title_text, 0.66, qx + qw * 0.5, qy + 167.0,
+(int)(qw - 120.0) / 2, PANGO_ALIGN_LEFT, up_text);
+
+set_source_hex_a(cairo, dark ? 0x34435f : 0xe9f1fc, 0.82);
+rounded_rect(cairo, qx + 66.0, qy + 182.0, 108.0, 16.0, 8.0);
+cairo_fill(cairo);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+8.0, style->quick_title_text, 0.78, qx + 74.0, qy + 185.0,
+92, PANGO_ALIGN_LEFT, panel->app->quick_iface[0] ? panel->app->quick_iface : _("No interface"));
+
+set_source_hex_a(cairo, style->side_launcher_bg, dark ? 0.20 : 0.14);
+rounded_rect(cairo, qx + 182.0, qy + 182.0, 118.0, 16.0, 8.0);
+cairo_fill(cairo);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+8.0, style->quick_title_text, 0.78, qx + 190.0, qy + 185.0,
+102, PANGO_ALIGN_LEFT, panel->app->quick_wifi_enabled ? _("Wi-Fi enabled") : _("Wi-Fi disabled"));
+
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+11.2, style->quick_title_text, 0.86, qx + 18.0, qy + 220.0,
+(int)qw - 36, PANGO_ALIGN_LEFT, _("Detected Wi-Fi networks"));
+
+size_t shown = panel->app->quick_network_count < 4 ? panel->app->quick_network_count : 4;
+for (size_t i = 0; i < shown; i++) {
+double row_y = qy + 246.0 + i * 26.0;
+set_source_hex_a(cairo, dark ? 0x253555 : 0xf7f9fd, 0.86);
+rounded_rect(cairo, qx + 16.0, row_y, qw - 32.0, 22.0, 10.0);
+cairo_fill(cairo);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+10.0, style->quick_title_text, 0.90, qx + 26.0, row_y + 5.0,
+(int)qw - 52, PANGO_ALIGN_LEFT, panel->app->quick_networks[i]);
+}
+
+double button_y = qy + qh - 50.0;
+double button_w = (qw - 42.0) / 2.0;
+set_source_hex_a(cairo, style->side_launcher_bg, 0.18);
+rounded_rect(cairo, qx + 16.0, button_y, button_w, 34.0, 12.0);
+cairo_fill(cairo);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+10.0, style->quick_title_text, 0.94, qx + 16.0, button_y + 10.0,
+(int)button_w, PANGO_ALIGN_CENTER, _("Add network"));
+
+set_source_hex_a(cairo, dark ? 0x253555 : 0xf2f6fc, 0.94);
+rounded_rect(cairo, qx + 26.0 + button_w, button_y, button_w, 34.0, 12.0);
+cairo_fill(cairo);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+10.0, style->quick_title_text, 0.94, qx + 26.0 + button_w, button_y + 10.0,
+(int)button_w, PANGO_ALIGN_CENTER, _("Open settings"));
+return;
+}
+
+if (panel->app->top_popup_mode == TOP_POPUP_AUDIO) {
+const char *audio_labels[2] = { _("Speakers"), _("Microphone") };
+int audio_values[2] = { panel->app->quick_volume, panel->app->quick_input_volume };
+const char *audio_defaults[2] = {
+    panel->app->quick_default_output[0] ? panel->app->quick_default_output : _("Default output"),
+    panel->app->quick_default_input[0] ? panel->app->quick_default_input : _("Default input")
+};
+for (int i = 0; i < 2; i++) {
+    double sy = qy + 108.0 + i * 72.0;
+    set_source_hex_a(cairo, dark ? 0x253555 : 0xf4f7fc, 0.90);
+    rounded_rect(cairo, qx + 16.0, sy, qw - 32.0, 58.0, 18.0);
+    cairo_fill(cairo);
+    if (i == 0) {
+        draw_speaker_icon(cairo, qx + 38.0, sy + 29.0, 16.0, karton_symbol_color(2), 0.96);
+    } else {
+        bool have_mic_icon = draw_named_icon(cairo, panel->app, "sound", qx + 38.0, sy + 29.0, 16.0);
+        if (!have_mic_icon) {
+            draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_BOLD,
+            12.0, style->quick_title_text, 0.82, qx + 30.0, sy + 20.0,
+            20, PANGO_ALIGN_CENTER, "M");
+        }
+    }
+    draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+    12.0, style->quick_title_text, 0.96, qx + 62.0, sy + 12.0,
+    (int)qw - 130, PANGO_ALIGN_LEFT, audio_labels[i]);
+    char value_text[24] = { 0 };
+    snprintf(value_text, sizeof(value_text), "%d%%", audio_values[i]);
+    draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+    10.4, style->quick_title_text, 0.72, qx + qw - 70.0, sy + 12.0,
+    54, PANGO_ALIGN_RIGHT, value_text);
+    draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+    9.1, style->quick_title_text, 0.64, qx + 62.0, sy + 28.0,
+    (int)qw - 136, PANGO_ALIGN_LEFT, audio_defaults[i]);
+    double track_x = floor(qx + 132.0);
+    double track_y = floor(sy + 33.0);
+    double track_w = floor(qw - 186.0);
+    if (track_w < 1.0) {
+        track_w = 1.0;
+    }
+    set_source_hex_a(cairo, dark ? 0x34435f : 0xd6dfed, 0.70);
+    rounded_rect(cairo, track_x, track_y, track_w, 8.0, 4.0);
+    cairo_fill(cairo);
+    double pct = audio_values[i] / 100.0;
+    if (pct < 0.0) {
+        pct = 0.0;
+    }
+    if (pct > 1.0) {
+        pct = 1.0;
+    }
+    double fill_w = floor(track_w * pct);
+    set_source_hex_a(cairo, i == 0 ? 0x5d9cff : 0x60c2a4, 0.96);
+    if (fill_w > 0.0) {
+        rounded_rect(cairo, track_x, track_y, fill_w, 8.0, 4.0);
+        cairo_fill(cairo);
+    }
+    set_source_hex_a(cairo, 0xffffff, 0.96);
+    cairo_arc(cairo, track_x + fill_w, track_y + 4.0, 7.0, 0, 2.0 * 3.14159265358979323846);
+    cairo_fill(cairo);
+}
+
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+11.2, style->quick_title_text, 0.86, qx + 18.0, qy + 266.0,
+(int)qw - 36, PANGO_ALIGN_LEFT, _("Output devices"));
+size_t shown_outputs = panel->app->quick_output_count < 3 ? panel->app->quick_output_count : 3;
+for (size_t i = 0; i < shown_outputs; i++) {
+double row_y = qy + 290.0 + i * 24.0;
+set_source_hex_a(cairo, dark ? 0x253555 : 0xf7f9fd, 0.86);
+rounded_rect(cairo, qx + 16.0, row_y, qw - 32.0, 20.0, 9.0);
+cairo_fill(cairo);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+9.8, style->quick_title_text, 0.90, qx + 24.0, row_y + 4.0,
+(int)qw - 140, PANGO_ALIGN_LEFT, panel->app->quick_outputs[i]);
+    if (panel->app->quick_default_output[0] && !strcmp(panel->app->quick_outputs[i], panel->app->quick_default_output)) {
+        set_source_hex_a(cairo, style->side_launcher_bg, dark ? 0.22 : 0.14);
+        rounded_rect(cairo, qx + qw - 108.0, row_y + 2.0, 76.0, 16.0, 8.0);
+        cairo_fill(cairo);
+        draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+        7.6, style->quick_title_text, 0.78, qx + qw - 102.0, row_y + 5.0,
+        64, PANGO_ALIGN_CENTER, _("Default"));
+    }
+}
+
+double inputs_y = qy + 290.0 + shown_outputs * 24.0 + 18.0;
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+11.2, style->quick_title_text, 0.86, qx + 18.0, inputs_y,
+(int)qw - 36, PANGO_ALIGN_LEFT, _("Input devices"));
+size_t shown_inputs = panel->app->quick_input_count < 3 ? panel->app->quick_input_count : 3;
+for (size_t i = 0; i < shown_inputs; i++) {
+double row_y = inputs_y + 24.0 + i * 24.0;
+set_source_hex_a(cairo, dark ? 0x253555 : 0xf7f9fd, 0.86);
+rounded_rect(cairo, qx + 16.0, row_y, qw - 32.0, 20.0, 9.0);
+cairo_fill(cairo);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+9.8, style->quick_title_text, 0.90, qx + 24.0, row_y + 4.0,
+(int)qw - 140, PANGO_ALIGN_LEFT, panel->app->quick_inputs[i]);
+    if (panel->app->quick_default_input[0] && !strcmp(panel->app->quick_inputs[i], panel->app->quick_default_input)) {
+        set_source_hex_a(cairo, style->side_launcher_bg, dark ? 0.22 : 0.14);
+        rounded_rect(cairo, qx + qw - 108.0, row_y + 2.0, 76.0, 16.0, 8.0);
+        cairo_fill(cairo);
+        draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+        7.6, style->quick_title_text, 0.78, qx + qw - 102.0, row_y + 5.0,
+        64, PANGO_ALIGN_CENTER, _("Default"));
+    }
+}
+
+set_source_hex_a(cairo, dark ? 0x253555 : 0xf2f6fc, 0.94);
+rounded_rect(cairo, qx + 16.0, qy + qh - 50.0, qw - 32.0, 34.0, 12.0);
+cairo_fill(cairo);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+10.0, style->quick_title_text, 0.94, qx + 16.0, qy + qh - 40.0,
+(int)qw - 32, PANGO_ALIGN_CENTER, _("Open sound settings"));
+return;
+}
+
+if (panel->app->top_popup_mode == TOP_POPUP_POWER) {
+set_source_hex_a(cairo, dark ? 0x253555 : 0xf4f7fc, 0.90);
+rounded_rect(cairo, qx + 16.0, qy + 108.0, qw - 32.0, 68.0, 18.0);
+cairo_fill(cairo);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+11.2, style->quick_title_text, 0.86, qx + 26.0, qy + 122.0,
+110, PANGO_ALIGN_LEFT, _("Battery:"));
+if (panel->app->quick_battery_present) {
+draw_battery_icon(cairo, qx + qw - 90.0, qy + 120.0, 44.0, 18.0,
+panel->app->quick_battery_percent / 100.0, karton_symbol_color(3), 0.96);
+char battery_text[64] = { 0 };
+snprintf(battery_text, sizeof(battery_text), "%d%%", panel->app->quick_battery_percent);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_BOLD,
+18.0, style->quick_title_text, 0.98, qx + 26.0, qy + 140.0,
+120, PANGO_ALIGN_LEFT, battery_text);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+10.0, style->quick_title_text, 0.72, qx + 26.0, qy + 160.0,
+(int)qw - 140, PANGO_ALIGN_LEFT,
+panel->app->quick_battery_charging ? _("Charging") : _("Discharging"));
+char battery_time[48] = { 0 };
+format_status_minutes(panel->app->quick_battery_charging ? panel->app->quick_battery_minutes_to_full : panel->app->quick_battery_minutes_to_empty,
+battery_time, sizeof(battery_time));
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+9.8, style->quick_title_text, 0.66, qx + 140.0, qy + 122.0,
+(int)qw - 170, PANGO_ALIGN_LEFT,
+battery_time[0] ? (panel->app->quick_battery_charging ? _("Time to full:") : _("Time remaining:")) : _("Time estimate unavailable"));
+if (battery_time[0]) {
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+10.0, style->quick_title_text, 0.82, qx + 140.0, qy + 142.0,
+(int)qw - 170, PANGO_ALIGN_LEFT, battery_time);
+}
+} else {
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+10.4, style->quick_title_text, 0.78, qx + 26.0, qy + 146.0,
+(int)qw - 52, PANGO_ALIGN_LEFT, _("No battery detected"));
+}
+
+double action_w = (qw - 42.0) / 2.0;
+double action_h = 42.0;
+double action_y = qy + 196.0;
+for (int i = 0; i < 4; i++) {
+int row = i / 2;
+int col = i % 2;
+double rx = qx + 16.0 + col * (action_w + 10.0);
+double ry = action_y + row * (action_h + 10.0);
+set_source_hex_a(cairo, dark ? 0x253555 : 0xf7f9fd, 0.90);
+rounded_rect(cairo, rx, ry, action_w, action_h, 14.0);
+cairo_fill(cairo);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+10.0, style->quick_title_text, 0.94, rx, ry + 13.0,
+(int)action_w, PANGO_ALIGN_CENTER, launcher_power_action_label(i));
+}
+
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+10.8, style->quick_title_text, 0.84, qx + 18.0, qy + 314.0,
+(int)qw - 36, PANGO_ALIGN_LEFT, _("Mounted devices"));
+size_t shown_removable = panel->app->quick_removable_count < 3 ? panel->app->quick_removable_count : 3;
+if (shown_removable == 0) {
+    set_source_hex_a(cairo, dark ? 0x253555 : 0xf7f9fd, 0.82);
+    rounded_rect(cairo, qx + 16.0, qy + 330.0, qw - 32.0, 20.0, 9.0);
+    cairo_fill(cairo);
+    draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+    9.4, style->quick_title_text, 0.72, qx + 24.0, qy + 334.0,
+    (int)qw - 48, PANGO_ALIGN_LEFT, _("No removable devices"));
+} else {
+    for (size_t i = 0; i < shown_removable; i++) {
+        double row_y = qy + 330.0 + i * 24.0;
+        set_source_hex_a(cairo, dark ? 0x253555 : 0xf7f9fd, 0.86);
+        rounded_rect(cairo, qx + 16.0, row_y, qw - 32.0, 20.0, 9.0);
+        cairo_fill(cairo);
+        draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+        9.6, style->quick_title_text, 0.90, qx + 24.0, row_y + 4.0,
+        (int)qw - 150, PANGO_ALIGN_LEFT,
+        panel->app->quick_removable_names[i][0] ? panel->app->quick_removable_names[i] : panel->app->quick_removable_paths[i]);
+        draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+        8.0, style->quick_title_text, 0.62, qx + qw - 140.0, row_y + 6.0,
+        108, PANGO_ALIGN_RIGHT, panel->app->quick_removable_paths[i]);
+    }
+}
+
+set_source_hex_a(cairo, dark ? 0x253555 : 0xf2f6fc, 0.94);
+rounded_rect(cairo, qx + 16.0, qy + qh - 50.0, qw - 32.0, 34.0, 12.0);
+cairo_fill(cairo);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+10.0, style->quick_title_text, 0.94, qx + 16.0, qy + qh - 40.0,
+(int)qw - 32, PANGO_ALIGN_CENTER, _("Open power settings"));
 return;
 }
 
@@ -5361,25 +6253,25 @@ _("Volume"),
 };
 
 for (int i = 0; i < 2; i++) {
-double sy = qy + 112.0 + i * 52.0;
+double sy = qy + 156.0 + i * 104.0;
 
 set_source_hex_a(cairo, dark ? 0x253555 : 0xf4f7fc, 0.88);
-rounded_rect(cairo, qx + 12.0, sy - 24.0, qw - 24.0, 44.0, 16.0);
+rounded_rect(cairo, qx + 16.0, sy - 34.0, qw - 32.0, 74.0, 22.0);
 cairo_fill(cairo);
 
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_MEDIUM,
-10.8, style->quick_title_text, 0.82, qx + 58.0, sy - 15.0,
-(int)qw - 80, PANGO_ALIGN_LEFT, slider_labels[i]);
+14.0, style->quick_title_text, 0.82, qx + 98.0, sy - 18.0,
+(int)qw - 140, PANGO_ALIGN_LEFT, slider_labels[i]);
 
-double track_x = floor(qx + 58.0);
-double track_y = floor(sy + 6.0);
-double track_w = floor(qw - 110.0);
+double track_x = floor(qx + 98.0);
+double track_y = floor(sy + 12.0);
+double track_w = floor(qw - 196.0);
 if (track_w < 1.0) {
 track_w = 1.0;
 }
 
 set_source_hex_a(cairo, dark ? 0x34435f : 0xd6dfed, 0.70);
-rounded_rect(cairo, track_x, track_y, track_w, 7.0, 3.5);
+rounded_rect(cairo, track_x, track_y, track_w, 9.0, 4.5);
 cairo_fill(cairo);
 
 double pct = i == 0 ? panel->app->quick_brightness / 100.0 : panel->app->quick_volume / 100.0;
@@ -5392,20 +6284,20 @@ pct = 1.0;
 double fill_w = floor(track_w * pct);
 set_source_hex_a(cairo, i == 0 ? 0xffb84d : 0x5d9cff, 0.96);
 if (fill_w > 0.0) {
-rounded_rect(cairo, track_x, track_y, fill_w, 7.0, 3.5);
+rounded_rect(cairo, track_x, track_y, fill_w, 9.0, 4.5);
 cairo_fill(cairo);
 }
 
 set_source_hex_a(cairo, dark ? 0xffffff : 0xffffff, 0.96);
-cairo_arc(cairo, track_x + fill_w, track_y + 3.5, 5.2, 0, 2.0 * 3.14159265358979323846);
+cairo_arc(cairo, track_x + fill_w, track_y + 4.5, 8.0, 0, 2.0 * 3.14159265358979323846);
 cairo_fill(cairo);
 
 if (i == 0) {
-draw_quick_header_icon(cairo, 1, qx + 28.0, sy + 1.0, style->quick_title_text, 0.84);
-draw_quick_header_icon(cairo, 1, qx + qw - 30.0, sy + 1.0, style->quick_title_text, 0.48);
+draw_quick_header_icon(cairo, 1, qx + 54.0, sy + 3.0, style->quick_title_text, 0.84);
+draw_quick_header_icon(cairo, 1, qx + qw - 56.0, sy + 3.0, style->quick_title_text, 0.48);
 } else {
-draw_speaker_icon(cairo, qx + 28.0, sy + 1.0, 10.0, style->quick_title_text, 0.86);
-draw_speaker_icon(cairo, qx + qw - 30.0, sy + 1.0, 10.0, style->quick_title_text, 0.50);
+draw_speaker_icon(cairo, qx + 54.0, sy + 3.0, 12.0, style->quick_title_text, 0.86);
+draw_speaker_icon(cairo, qx + qw - 56.0, sy + 3.0, 12.0, style->quick_title_text, 0.50);
 }
 }
 
@@ -5414,6 +6306,12 @@ panel->app->quick_wifi_enabled,
 panel->app->quick_bluetooth_enabled,
 style->theme_mode == THEME_DARK,
 panel->app->dnd_enabled,
+};
+const char *icon_names[4] = {
+"network",
+"bluetooth",
+"theme",
+"dnd",
 };
 const char *labels[4] = {
 _("Wi-Fi"),
@@ -5426,36 +6324,36 @@ double rx, ry, rw, rh;
 quick_tile_rect(panel, i, &rx, &ry, &rw, &rh);
 int row = i / 2;
 
-set_source_hex_a(cairo, i == 2 ? style->side_launcher_bg : style->quick_tile_bg,
-tile_active[i] ? (dark ? 0.78 : 0.68) : 0.94);
-rounded_rect(cairo, rx, ry, rw, rh, 16.0);
+set_source_hex_a(cairo, style->quick_tile_bg, dark ? 0.94 : 0.97);
+rounded_rect(cairo, rx, ry, rw, rh, 22.0);
 cairo_fill(cairo);
 
-set_source_hex_a(cairo, dark ? 0xffffff : 0xffffff, dark ? 0.08 : 0.34);
-rounded_rect(cairo, rx + 4.0, ry + 4.0, rw - 8.0, 18.0, 10.0);
-cairo_fill(cairo);
-
-set_source_hex_a(cairo, dark ? 0xffffff : 0x1f3352, dark ? 0.08 : 0.08);
-rounded_rect(cairo, rx + 0.5, ry + 0.5, rw - 1.0, rh - 1.0, 15.5);
+set_source_hex_a(cairo,
+tile_active[i] ? style->side_launcher_bg : (dark ? 0xffffff : 0x1f3352),
+tile_active[i] ? (dark ? 0.26 : 0.16) : (dark ? 0.08 : 0.08));
+rounded_rect(cairo, rx + 0.5, ry + 0.5, rw - 1.0, rh - 1.0, 21.5);
 cairo_set_line_width(cairo, 1.0);
 cairo_stroke(cairo);
 
-draw_karton_symbol(cairo, i, rx + 19.0, ry + 18.0, 16.0,
+bool have_icon = draw_named_icon(cairo, panel->app, icon_names[i], rx + 26.0, ry + 29.0, 20.0);
+if (!have_icon) {
+draw_karton_symbol(cairo, i, rx + 26.0, ry + 29.0, 18.0,
 karton_symbol_color(i), 0.96);
+}
 
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_MEDIUM,
-10.0, dark ? 0xf2f6ff : 0x2a3b56, 0.98,
-rx + 32.0, ry + 11.0, (int)rw - 68, PANGO_ALIGN_LEFT, labels[i]);
+14.5, dark ? 0xf2f6ff : 0x2a3b56, 0.98,
+rx + 64.0, ry + 20.0, (int)rw - 112, PANGO_ALIGN_LEFT, labels[i]);
 
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
-8.8, dark ? 0xc9d5ec : 0x6a7f9f, 0.86,
-rx + 32.0, ry + 31.0, (int)rw - 68, PANGO_ALIGN_LEFT,
+11.4, dark ? 0xc9d5ec : 0x6a7f9f, 0.86,
+rx + 64.0, ry + 50.0, (int)rw - 112, PANGO_ALIGN_LEFT,
 (panel->app->quick_hover_tile == i && i == 0 ? panel->app->quick_wifi_name :
 (i == 0 ? _("Open network settings") : (i == 1 ? _("Open Bluetooth settings") : (i == 2 ? _("Switch theme mode") : _("Toggle quiet mode"))))));
 
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_BOLD,
-11.0, dark ? 0xf2f6ff : 0x2a3b56, 0.78,
-rx + rw - 28.0, ry + rh * 0.5 - 8.0, 16, PANGO_ALIGN_CENTER,
+13.0, dark ? 0xf2f6ff : 0x2a3b56, 0.78,
+rx + rw - 34.0, ry + rh * 0.5 - 10.0, 20, PANGO_ALIGN_CENTER,
 row == 0 ? "›" : "⌄");
 }
 
@@ -6201,7 +7099,10 @@ if (mode == TOP_POPUP_CLOCK) {
 clock_load_timezones(app);
 app->clock_picker_open = false;
 }
-if (mode == TOP_POPUP_QUICK) {
+if (mode == TOP_POPUP_QUICK
+|| mode == TOP_POPUP_NETWORK
+|| mode == TOP_POPUP_AUDIO
+|| mode == TOP_POPUP_POWER) {
 refresh_quick_status(app);
 }
 if (mode == TOP_POPUP_NOTIFICATIONS) {
@@ -6288,19 +7189,31 @@ return;
 if (status_icon == 1) {
 app->global_menu_open = false;
 app->global_menu_open_top = -1;
-open_settings_page("network");
+if (app->quick_open && app->top_popup_mode == TOP_POPUP_NETWORK) {
+top_popup_close(app);
+} else {
+top_popup_open(app, TOP_POPUP_NETWORK);
+}
 return;
 }
 if (status_icon == 2) {
 app->global_menu_open = false;
 app->global_menu_open_top = -1;
-open_settings_page("audio");
+if (app->quick_open && app->top_popup_mode == TOP_POPUP_AUDIO) {
+top_popup_close(app);
+} else {
+top_popup_open(app, TOP_POPUP_AUDIO);
+}
 return;
 }
 if (status_icon == 3) {
 app->global_menu_open = false;
 app->global_menu_open_top = -1;
-open_settings_page("power");
+if (app->quick_open && app->top_popup_mode == TOP_POPUP_POWER) {
+top_popup_close(app);
+} else {
+top_popup_open(app, TOP_POPUP_POWER);
+}
 return;
 }
 
@@ -6342,14 +7255,7 @@ return;
 }
 
 double qx, qy, qw, qh;
-bool have_rect = false;
-if (app->top_popup_mode == TOP_POPUP_CALENDAR) {
-have_rect = top_calendar_panel_rect(&app->top, &qx, &qy, &qw, &qh);
-} else if (app->top_popup_mode == TOP_POPUP_CLOCK) {
-have_rect = top_clock_panel_rect(&app->top, &qx, &qy, &qw, &qh);
-} else {
-have_rect = top_quick_panel_rect(&app->top, &qx, &qy, &qw, &qh);
-}
+bool have_rect = top_popup_rect_for_mode(&app->top, app->top_popup_mode, &qx, &qy, &qw, &qh);
 
 if (have_rect
 && app->pointer_y > app->style.top_height
@@ -6380,8 +7286,97 @@ return;
 if (action == 1) {
 app->notifications_cleared = true;
 app->notifications_read = true;
+app->notification_count = 0;
+app->notifications_updated = 0;
+clear_notifications_cache();
 panel_draw(&app->top);
 return;
+}
+int item = notification_item_hit(&app->top, app->pointer_x, app->pointer_y);
+if (item >= 0 && item < (int)app->notification_count) {
+app->notifications_read = true;
+notification_activate(app, &app->notifications[item]);
+if (app->notifications[item].target_kind != NOTIFICATION_TARGET_NONE) {
+top_popup_close(app);
+} else {
+panel_draw(&app->top);
+}
+return;
+}
+return;
+}
+
+if (app->top_popup_mode == TOP_POPUP_NETWORK) {
+double nx, ny, nw, nh;
+if (top_quick_panel_rect(&app->top, &nx, &ny, &nw, &nh)) {
+double button_y = ny + nh - 50.0;
+double button_w = (nw - 42.0) / 2.0;
+if (point_in_rect(app->pointer_x, app->pointer_y, nx + 16.0, button_y, button_w, 34.0)
+|| point_in_rect(app->pointer_x, app->pointer_y, nx + 26.0 + button_w, button_y, button_w, 34.0)) {
+open_settings_page("network");
+return;
+}
+}
+return;
+}
+
+if (app->top_popup_mode == TOP_POPUP_AUDIO) {
+double ax, ay, aw, ah;
+if (top_quick_panel_rect(&app->top, &ax, &ay, &aw, &ah)) {
+double slider_pct = 0.0;
+int slider = audio_popup_slider_hit(&app->top, app->pointer_x, app->pointer_y, &slider_pct);
+if (slider >= 0) {
+    int value = (int)(slider_pct * 100.0 + 0.5);
+    if (value < 0) {
+        value = 0;
+    }
+    if (value > 100) {
+        value = 100;
+    }
+    if (slider == 0) {
+        app->quick_volume = value;
+        audio_set_volume(false, value);
+    } else {
+        app->quick_input_volume = value;
+        audio_set_volume(true, value);
+    }
+    panel_draw(&app->top);
+    return;
+}
+    if (point_in_rect(app->pointer_x, app->pointer_y, ax + 16.0, ay + ah - 50.0, aw - 32.0, 34.0)) {
+        open_settings_page("audio");
+        return;
+    }
+}
+return;
+}
+
+if (app->top_popup_mode == TOP_POPUP_POWER) {
+double px, py, pw, ph;
+if (top_quick_panel_rect(&app->top, &px, &py, &pw, &ph)) {
+double action_w = (pw - 42.0) / 2.0;
+double action_h = 42.0;
+double action_y = py + 136.0;
+for (int i = 0; i < 4; i++) {
+int row = i / 2;
+int col = i % 2;
+double rx = px + 16.0 + col * (action_w + 10.0);
+double ry = action_y + row * (action_h + 10.0);
+if (point_in_rect(app->pointer_x, app->pointer_y, rx, ry, action_w, action_h)) {
+spawn_command(launcher_power_actions[i].command);
+top_popup_close(app);
+return;
+}
+}
+if (point_in_rect(app->pointer_x, app->pointer_y, px + 16.0, py + ph - 50.0, pw - 32.0, 34.0)) {
+open_settings_page("power");
+return;
+}
+        int removable = power_removable_item_hit(&app->top, app, app->pointer_x, app->pointer_y);
+        if (removable >= 0 && removable < (int)app->quick_removable_count) {
+            open_path_location(app->quick_removable_paths[removable]);
+            return;
+        }
 }
 return;
 }
@@ -6426,10 +7421,8 @@ snprintf(cmd, sizeof(cmd),
 value, value);
 spawn_command(cmd);
 } else {
-char cmd[128] = { 0 };
 app->quick_volume = value;
-snprintf(cmd, sizeof(cmd), "pactl set-sink-volume @DEFAULT_SINK@ %d%%", value);
-spawn_command(cmd);
+audio_set_volume(false, value);
 }
 panel_draw(&app->top);
 return;

@@ -8,8 +8,8 @@ sudo apt update
 sudo apt install -y \
     build-essential meson ninja-build pkg-config wayland-protocols \
     libwayland-dev libwlroots-dev libcairo2-dev libpango1.0-dev \
-    libglib2.0-dev libgtk-3-dev libxkbcommon-dev libinput-dev \
-    libxml2-dev libpixman-1-dev scdoc
+    libglib2.0-dev libgtk-3-dev libgtk-4-dev libgdk-pixbuf-2.0-dev \
+    libpulse-dev libxkbcommon-dev libinput-dev libxml2-dev libpixman-1-dev scdoc
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/build-common.sh"
 build_all_karton
