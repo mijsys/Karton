@@ -7264,18 +7264,6 @@ top_popup_close(app);
 return;
 }
 
-if (app->top_popup_mode == TOP_POPUP_QUICK || app->top_popup_mode == TOP_POPUP_NOTIFICATIONS) {
-int header_icon = quick_header_icon_hit(&app->top, app->pointer_x, app->pointer_y);
-if (app->top_popup_mode == TOP_POPUP_NOTIFICATIONS && header_icon == 3) {
-if (app->top_popup_mode == TOP_POPUP_NOTIFICATIONS) {
-top_popup_open(app, TOP_POPUP_QUICK);
-} else {
-top_popup_open(app, TOP_POPUP_NOTIFICATIONS);
-}
-return;
-}
-}
-
 if (app->top_popup_mode == TOP_POPUP_NOTIFICATIONS) {
 int action = notification_action_hit(&app->top, app->pointer_x, app->pointer_y);
 if (action == 0) {
@@ -7303,7 +7291,18 @@ panel_draw(&app->top);
 }
 return;
 }
+}
+
+if (app->top_popup_mode == TOP_POPUP_QUICK || app->top_popup_mode == TOP_POPUP_NOTIFICATIONS) {
+int header_icon = quick_header_icon_hit(&app->top, app->pointer_x, app->pointer_y);
+if (app->top_popup_mode == TOP_POPUP_NOTIFICATIONS && header_icon == 3) {
+if (app->top_popup_mode == TOP_POPUP_NOTIFICATIONS) {
+top_popup_open(app, TOP_POPUP_QUICK);
+} else {
+top_popup_open(app, TOP_POPUP_NOTIFICATIONS);
+}
 return;
+}
 }
 
 if (app->top_popup_mode == TOP_POPUP_NETWORK) {

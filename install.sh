@@ -276,30 +276,54 @@ restart_running_session() {
     return
   fi
 
-  local autostart_file="${XDG_CONFIG_HOME:-$HOME/.config}/${CONFIG_NAME}/autostart"
-
   log "Restarting karton shell/session processes"
   if [[ "$DEV_SHELL_MODE" -eq 1 ]]; then
-    log "Session restart uses karton-shell/builddir-user together with components from $PREFIX/bin via karton-sessiond"
+    log "Session restart uses karton-shell/builddir-user together with components from $PREFIX/bin"
   else
-    log "Session restart uses installed components from $PREFIX/bin via karton-sessiond"
+    log "Session restart uses installed components from $PREFIX/bin"
   fi
   pkill -f 'karton-shell --top-only' 2>/dev/null || true
   pkill -f 'karton-shell --side-only' 2>/dev/null || true
   pkill -x karton-shell 2>/dev/null || true
   pkill -f 'karton-sessiond' 2>/dev/null || true
+  pkill -f 'karton-screenshot --daemon' 2>/dev/null || true
+  pkill -f 'karton-settingsd' 2>/dev/null || true
   pkill -f 'karton-notifyd' 2>/dev/null || true
   pkill -f 'karton-notify-log' 2>/dev/null || true
   pkill -f "dbus-monitor --session interface='org.freedesktop.Notifications',member='Notify'" 2>/dev/null || true
 
-  if [[ -x "$autostart_file" ]]; then
-    "$autostart_file" || true
-  else
-    PATH="$PREFIX/bin:$PATH" karton-sessiond >/dev/null 2>&1 &
+  local attempts=30
+  while pgrep -fa 'karton-sessiond|karton-shell --top-only|karton-shell --side-only|karton-screenshot --daemon|karton-settingsd|karton-notifyd|karton-notify-log' >/dev/null 2>&1 \
+    && [[ "$attempts" -gt 0 ]]; do
+    attempts=$((attempts - 1))
+    sleep 0.1
+  done
+
+  if pgrep -fa 'karton-sessiond|karton-shell --top-only|karton-shell --side-only|karton-screenshot --daemon|karton-settingsd|karton-notifyd|karton-notify-log' >/dev/null 2>&1; then
+    log "Forcing shutdown of leftover karton session processes"
+    pkill -KILL -f 'karton-shell --top-only' 2>/dev/null || true
+    pkill -KILL -f 'karton-shell --side-only' 2>/dev/null || true
+    pkill -KILL -x karton-shell 2>/dev/null || true
+    pkill -KILL -f 'karton-sessiond' 2>/dev/null || true
+    pkill -KILL -f 'karton-screenshot --daemon' 2>/dev/null || true
+    pkill -KILL -f 'karton-settingsd' 2>/dev/null || true
+    pkill -KILL -f 'karton-notifyd' 2>/dev/null || true
+    pkill -KILL -f 'karton-notify-log' 2>/dev/null || true
   fi
 
+  PATH="$PREFIX/bin:$PATH"
+  karton-top-panel >/dev/null 2>&1 &
+  karton-side-dock >/dev/null 2>&1 &
+  karton-screenshot --daemon >/dev/null 2>&1 &
+  karton-settingsd >/dev/null 2>&1 &
+  karton-notifyd >/dev/null 2>&1 &
+
   sleep 1
-  pgrep -fa 'karton-sessiond|karton-shell --top-only|karton-shell --side-only' || true
+  pgrep -fa 'karton-shell --top-only' >/dev/null 2>&1 || karton-top-panel >/dev/null 2>&1 &
+  pgrep -fa 'karton-shell --side-only' >/dev/null 2>&1 || karton-side-dock >/dev/null 2>&1 &
+
+  sleep 1
+  pgrep -fa 'karton-shell --top-only|karton-shell --side-only|karton-screenshot --daemon|karton-settingsd|karton-notifyd' || true
 }
 
 while [[ $# -gt 0 ]]; do

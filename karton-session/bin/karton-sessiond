@@ -4,6 +4,7 @@
 set -eu
 pids=""
 sessiond_pidfile=""
+sessiond_lockfile=""
 
 sanitize_tag() {
 	printf '%s' "$1" | tr -c 'A-Za-z0-9._-' '_'
@@ -83,7 +84,21 @@ setup_single_instance() {
 	session_id_tag="$(sanitize_tag "${XDG_SESSION_ID:-nosession}")"
 	wayland_tag="$(sanitize_tag "${WAYLAND_DISPLAY:-nowayland}")"
 	sessiond_pidfile="${runtime_dir}/karton-sessiond.${uid}.${session_id_tag}.${wayland_tag}.pid"
+	sessiond_lockfile="${runtime_dir}/karton-sessiond.${uid}.${session_id_tag}.${wayland_tag}.lock"
 	legacy_pidfile="${runtime_dir}/karton-sessiond.${uid}.pid"
+
+	if command -v flock >/dev/null 2>&1; then
+		exec 9> "$sessiond_lockfile"
+		if ! flock -n 9; then
+			if [ -f "$sessiond_pidfile" ]; then
+				old_pid="$(cat "$sessiond_pidfile" 2>/dev/null || true)"
+				if is_own_sessiond_process "$old_pid" && is_same_session_context "$old_pid"; then
+					exit 0
+				fi
+			fi
+			exit 0
+		fi
+	fi
 
 	if [ -f "$legacy_pidfile" ]; then
 		legacy_pid="$(cat "$legacy_pidfile" 2>/dev/null || true)"
