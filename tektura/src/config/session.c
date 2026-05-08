@@ -32,6 +32,8 @@ static const char *const env_vars[] = {
 	"XCURSOR_SIZE",
 	"XCURSOR_THEME",
 	"XDG_SESSION_TYPE",
+	"GTK_CSD",
+	"GTK_THEME",
 	"KARTON_PID",
 	"KARTON_VER",
 	NULL

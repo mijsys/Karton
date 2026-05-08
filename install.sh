@@ -93,6 +93,62 @@ run_install() {
   fi
 }
 
+prepare_installed_shell_targets() {
+  if [[ "$ACTION" != "install" || "$SYSTEM_MODE" -ne 0 || "$DEV_SHELL_MODE" -eq 1 ]]; then
+    return
+  fi
+
+  mkdir -p "$PREFIX/bin"
+
+  local name target_bin backup_bin
+  for name in karton-shell karton-system-status karton-dialog karton-dialogd; do
+    target_bin="$PREFIX/bin/$name"
+    backup_bin="$PREFIX/bin/$name.installed"
+
+    if [[ -L "$target_bin" && ( -L "$backup_bin" || -e "$backup_bin" ) ]]; then
+      log "Removing stale dev symlink before install: $target_bin"
+      rm -f "$target_bin"
+    fi
+  done
+}
+
+cleanup_installed_shell_backups() {
+  if [[ "$ACTION" != "install" || "$SYSTEM_MODE" -ne 0 || "$DEV_SHELL_MODE" -eq 1 ]]; then
+    return
+  fi
+
+  local name target_bin backup_bin
+  for name in karton-shell karton-system-status karton-dialog karton-dialogd; do
+    target_bin="$PREFIX/bin/$name"
+    backup_bin="$PREFIX/bin/$name.installed"
+
+    if [[ ! -L "$target_bin" && ( -L "$backup_bin" || -e "$backup_bin" ) ]]; then
+      log "Removing stale installed backup: $backup_bin"
+      rm -f "$backup_bin"
+    fi
+  done
+}
+
+install_shell_icons() {
+  if [[ "$ACTION" != "install" ]]; then
+    return
+  fi
+
+  [[ -d "$SCRIPT_DIR/icons" ]] || return
+
+  local dest
+  for dest in "$PREFIX/icons" "$PREFIX/share/karton/icons"; do
+    log "Installing Karton icons to $dest"
+    if [[ "$USE_SUDO" -eq 1 ]]; then
+      sudo mkdir -p "$dest"
+      sudo cp "$SCRIPT_DIR"/icons/*.svg "$dest/"
+    else
+      mkdir -p "$dest"
+      cp "$SCRIPT_DIR"/icons/*.svg "$dest/"
+    fi
+  done
+}
+
 build_project() {
   local src_dir="$1"
   shift
@@ -120,8 +176,17 @@ build_project() {
   meson compile -C "$build_dir"
 
   if [[ "$ACTION" == "install" ]]; then
+    if [[ "$src_dir" == "$SHELL_DIR" ]]; then
+      prepare_installed_shell_targets
+    fi
+
     log "Installing $(basename "$src_dir")"
     run_install "$build_dir"
+
+    if [[ "$src_dir" == "$SHELL_DIR" ]]; then
+      cleanup_installed_shell_backups
+      install_shell_icons
+    fi
   fi
 }
 
@@ -129,8 +194,36 @@ ensure_user_config() {
   local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/${CONFIG_NAME}"
   local autostart_file="$config_dir/autostart"
   local style_file="$config_dir/shell.css"
+  local rcxml_file="$config_dir/rc.xml"
   local desktop_src="$PREFIX/share/applications/karton-settings.desktop"
   local desktop_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+
+  inject_ssd_block() {
+    local file="$1"
+    local tmp_file
+
+    tmp_file="$(mktemp)"
+    awk '
+      BEGIN { inserted = 0 }
+      /^<labwc_config>/ || /^<openbox_config>/ {
+        print
+        if (!inserted) {
+          print "  <!-- Managed by KartON installer: force server-side decorations -->"
+          print "  <core>"
+          print "    <decoration>server</decoration>"
+          print "  </core>"
+          print ""
+          print "  <windowRules>"
+          print "    <windowRule identifier=\"*\" serverDecoration=\"yes\" />"
+          print "  </windowRules>"
+          inserted = 1
+        }
+        next
+      }
+      { print }
+    ' "$file" > "$tmp_file"
+    mv "$tmp_file" "$file"
+  }
 
   mkdir -p "$config_dir"
 
@@ -162,6 +255,34 @@ EOF
   if [[ -f "$SHELL_DIR/shell.css.example" && ! -f "$style_file" ]]; then
     log "Creating default shell style: $style_file"
     cp "$SHELL_DIR/shell.css.example" "$style_file"
+  fi
+
+  if [[ ! -f "$rcxml_file" ]]; then
+    log "Creating default Tektura config: $rcxml_file"
+    cat > "$rcxml_file" <<EOF
+<?xml version="1.0"?>
+<labwc_config>
+  <core>
+    <decoration>server</decoration>
+  </core>
+
+  <theme>
+    <cornerRadius>14</cornerRadius>
+    <keepBorder>yes</keepBorder>
+    <titlebar>
+      <layout>icon:iconify,max,close</layout>
+      <showTitle>yes</showTitle>
+    </titlebar>
+  </theme>
+
+  <windowRules>
+    <windowRule identifier="*" serverDecoration="yes" />
+  </windowRules>
+</labwc_config>
+EOF
+  elif ! grep -q 'serverDecoration="yes"' "$rcxml_file" || ! grep -q '<decoration>server</decoration>' "$rcxml_file"; then
+    log "Patching existing Tektura config for server-side decorations: $rcxml_file"
+    inject_ssd_block "$rcxml_file"
   fi
 
   local theme_sync_bin="$PREFIX/bin/karton-apply-theme"
@@ -251,20 +372,28 @@ switch_session_shell_to_dev() {
   [[ "$ACTION" == "install" ]] || die "--dev-shell can only be used with install"
   [[ "$SYSTEM_MODE" -eq 0 ]] || die "--dev-shell is only supported in user mode"
 
-  local dev_shell="$SCRIPT_DIR/karton-shell/builddir-user/karton-shell"
-  local target_bin="$PREFIX/bin/karton-shell"
-  local backup_bin="$PREFIX/bin/karton-shell.installed"
-
-  [[ -x "$dev_shell" ]] || die "Missing development binary: $dev_shell"
-
   mkdir -p "$PREFIX/bin"
-  if [[ -e "$target_bin" && ! -L "$target_bin" && ! -e "$backup_bin" ]]; then
-    log "Saving installed karton-shell to $backup_bin"
-    mv "$target_bin" "$backup_bin"
-  fi
+  local name dev_bin target_bin backup_bin
+  local linked=0
 
-  log "Linking session karton-shell to dev binary: $dev_shell"
-  ln -sfn "$dev_shell" "$target_bin"
+  for name in karton-shell karton-system-status karton-dialog karton-dialogd; do
+    dev_bin="$SCRIPT_DIR/karton-shell/builddir-user/$name"
+    [[ -x "$dev_bin" ]] || die "Missing development binary: $dev_bin"
+
+    target_bin="$PREFIX/bin/$name"
+    backup_bin="$PREFIX/bin/$name.installed"
+
+    if [[ -e "$target_bin" && ! -L "$target_bin" && ! -e "$backup_bin" ]]; then
+      log "Saving installed $name to $backup_bin"
+      mv "$target_bin" "$backup_bin"
+    fi
+
+    log "Linking session $name to dev binary: $dev_bin"
+    ln -sfn "$dev_bin" "$target_bin"
+    linked=1
+  done
+
+  [[ "$linked" -eq 1 ]] || die "No development shell binaries were linked"
 }
 restart_running_session() {
   if [[ "$RESTART_SESSION" -ne 1 ]]; then
@@ -290,16 +419,17 @@ restart_running_session() {
   pkill -f 'karton-settingsd' 2>/dev/null || true
   pkill -f 'karton-notifyd' 2>/dev/null || true
   pkill -f 'karton-notify-log' 2>/dev/null || true
+  pkill -x karton-dialogd 2>/dev/null || true
   pkill -f "dbus-monitor --session interface='org.freedesktop.Notifications',member='Notify'" 2>/dev/null || true
 
   local attempts=30
-  while pgrep -fa 'karton-sessiond|karton-shell --top-only|karton-shell --side-only|karton-screenshot --daemon|karton-settingsd|karton-notifyd|karton-notify-log' >/dev/null 2>&1 \
+  while pgrep -fa 'karton-sessiond|karton-shell --top-only|karton-shell --side-only|karton-screenshot --daemon|karton-settingsd|karton-notifyd|karton-notify-log|karton-dialogd' >/dev/null 2>&1 \
     && [[ "$attempts" -gt 0 ]]; do
     attempts=$((attempts - 1))
     sleep 0.1
   done
 
-  if pgrep -fa 'karton-sessiond|karton-shell --top-only|karton-shell --side-only|karton-screenshot --daemon|karton-settingsd|karton-notifyd|karton-notify-log' >/dev/null 2>&1; then
+  if pgrep -fa 'karton-sessiond|karton-shell --top-only|karton-shell --side-only|karton-screenshot --daemon|karton-settingsd|karton-notifyd|karton-notify-log|karton-dialogd' >/dev/null 2>&1; then
     log "Forcing shutdown of leftover karton session processes"
     pkill -KILL -f 'karton-shell --top-only' 2>/dev/null || true
     pkill -KILL -f 'karton-shell --side-only' 2>/dev/null || true
@@ -309,6 +439,7 @@ restart_running_session() {
     pkill -KILL -f 'karton-settingsd' 2>/dev/null || true
     pkill -KILL -f 'karton-notifyd' 2>/dev/null || true
     pkill -KILL -f 'karton-notify-log' 2>/dev/null || true
+    pkill -KILL -x karton-dialogd 2>/dev/null || true
   fi
 
   PATH="$PREFIX/bin:$PATH"
