@@ -1,11 +1,14 @@
 #include <gio/gio.h>
 #include <pulse/pulseaudio.h>
 #include <dirent.h>
+#include <errno.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <unistd.h>
 
 #define MAX_SCAN_NETWORKS 8
 #define MAX_AUDIO_DEVICES 8
@@ -16,7 +19,9 @@ struct pulse_audio_state {
 	pa_context *context;
 	char default_sink_name[256];
 	char default_source_name[256];
+	char output_names[MAX_AUDIO_DEVICES][256];
 	char output_devices[MAX_AUDIO_DEVICES][96];
+	char input_names[MAX_AUDIO_DEVICES][256];
 	char input_devices[MAX_AUDIO_DEVICES][96];
 	size_t output_count;
 	size_t input_count;
@@ -28,6 +33,14 @@ struct pulse_volume_target {
 	bool found;
 	uint32_t index;
 	uint8_t channels;
+};
+
+struct pulse_device_target {
+	bool input_device;
+	size_t desired_index;
+	size_t current_index;
+	bool found;
+	char device_name[256];
 };
 
 static GVariant *
@@ -290,6 +303,7 @@ pulse_sink_info_cb(pa_context *context, const pa_sink_info *info, int eol, void 
 
 	const char *label = info->description && info->description[0] ? info->description : info->name;
 	if (label && *label) {
+		snprintf(state->output_names[state->output_count], sizeof(state->output_names[0]), "%s", info->name ? info->name : "");
 		snprintf(state->output_devices[state->output_count], sizeof(state->output_devices[0]), "%s", label);
 		state->output_count++;
 	}
@@ -318,6 +332,7 @@ pulse_source_info_cb(pa_context *context, const pa_source_info *info, int eol, v
 
 	const char *label = info->description && info->description[0] ? info->description : info->name;
 	if (label && *label) {
+		snprintf(state->input_names[state->input_count], sizeof(state->input_names[0]), "%s", info->name ? info->name : "");
 		snprintf(state->input_devices[state->input_count], sizeof(state->input_devices[0]), "%s", label);
 		state->input_count++;
 	}
@@ -365,6 +380,50 @@ pulse_source_lookup_cb(pa_context *context, const pa_source_info *info, int eol,
 	target->found = true;
 	target->index = info->index;
 	target->channels = info->channel_map.channels > 0 ? info->channel_map.channels : 1;
+}
+
+static void
+pulse_device_list_pick_cb(pa_context *context, const pa_sink_info *info, int eol, void *userdata)
+{
+	(void)context;
+	if (eol != 0 || !info) {
+		return;
+	}
+
+	struct pulse_device_target *target = userdata;
+	if (!target || target->input_device) {
+		return;
+	}
+
+	if (target->current_index == target->desired_index && info->name && info->name[0]) {
+		target->found = true;
+		snprintf(target->device_name, sizeof(target->device_name), "%s", info->name);
+		return;
+	}
+
+	target->current_index++;
+}
+
+static void
+pulse_source_list_pick_cb(pa_context *context, const pa_source_info *info, int eol, void *userdata)
+{
+	(void)context;
+	if (eol != 0 || !info || info->monitor_of_sink != PA_INVALID_INDEX) {
+		return;
+	}
+
+	struct pulse_device_target *target = userdata;
+	if (!target || !target->input_device) {
+		return;
+	}
+
+	if (target->current_index == target->desired_index && info->name && info->name[0]) {
+		target->found = true;
+		snprintf(target->device_name, sizeof(target->device_name), "%s", info->name);
+		return;
+	}
+
+	target->current_index++;
 }
 
 static bool
@@ -479,6 +538,167 @@ pulse_set_default_volume(bool input_device, int percent)
 cleanup:
 	pulse_disconnect(&state);
 	return ok;
+}
+
+static bool
+pulse_set_default_device(bool input_device, size_t index)
+{
+	struct pulse_audio_state state;
+	if (!pulse_connect(&state)) {
+		return false;
+	}
+
+	bool ok = false;
+	struct pulse_device_target target = {
+		.input_device = input_device,
+		.desired_index = index,
+	};
+	pa_operation *op = NULL;
+
+	if (input_device) {
+		op = pa_context_get_source_info_list(state.context, pulse_source_list_pick_cb, &target);
+	} else {
+		op = pa_context_get_sink_info_list(state.context, pulse_device_list_pick_cb, &target);
+	}
+	if (!pulse_wait_for_operation(&state, op) || !target.found || !target.device_name[0]) {
+		goto cleanup;
+	}
+
+	if (input_device) {
+		op = pa_context_set_default_source(state.context, target.device_name, NULL, NULL);
+	} else {
+		op = pa_context_set_default_sink(state.context, target.device_name, NULL, NULL);
+	}
+	if (!pulse_wait_for_operation(&state, op)) {
+		goto cleanup;
+	}
+
+	ok = true;
+
+cleanup:
+	pulse_disconnect(&state);
+	return ok;
+}
+
+static bool
+backlight_find_device(char *device_path, size_t device_path_size)
+{
+	if (!device_path || device_path_size == 0) {
+		return false;
+	}
+
+	device_path[0] = '\0';
+	DIR *dir = opendir("/sys/class/backlight");
+	if (!dir) {
+		return false;
+	}
+
+	struct dirent *entry = NULL;
+	while ((entry = readdir(dir)) != NULL) {
+		if (entry->d_name[0] == '.') {
+			continue;
+		}
+		snprintf(device_path, device_path_size, "/sys/class/backlight/%s", entry->d_name);
+		closedir(dir);
+		return true;
+	}
+
+	closedir(dir);
+	return false;
+}
+
+static bool join_path(char *out, size_t out_size, const char *base, const char *suffix);
+
+static bool
+backlight_get_percent(int *percent_out)
+{
+	if (!percent_out) {
+		return false;
+	}
+
+	char device_path[PATH_MAX] = { 0 };
+	if (!backlight_find_device(device_path, sizeof(device_path))) {
+		return false;
+	}
+
+	char brightness_path[PATH_MAX] = { 0 };
+	char max_path[PATH_MAX] = { 0 };
+	unsigned long long current = 0;
+	unsigned long long max = 0;
+
+	if (!join_path(brightness_path, sizeof(brightness_path), device_path, "brightness")
+	|| !join_path(max_path, sizeof(max_path), device_path, "max_brightness")) {
+		return false;
+	}
+	if (!read_ull_file(brightness_path, &current) || !read_ull_file(max_path, &max) || max == 0) {
+		return false;
+	}
+
+	int percent = (int)((double)current * 100.0 / (double)max + 0.5);
+	*percent_out = clamp_percent(percent);
+	return true;
+}
+
+static bool
+write_unsigned_value(const char *path, unsigned long long value)
+{
+	if (!path || !path[0]) {
+		return false;
+	}
+
+	FILE *file = fopen(path, "w");
+	if (!file) {
+		return false;
+	}
+
+	bool ok = fprintf(file, "%llu\n", value) > 0;
+	if (fclose(file) != 0) {
+		ok = false;
+	}
+	return ok;
+}
+
+static bool
+join_path(char *out, size_t out_size, const char *base, const char *suffix)
+{
+	if (!out || out_size == 0 || !base || !suffix) {
+		return false;
+	}
+
+	int written = snprintf(out, out_size, "%s/%s", base, suffix);
+	return written >= 0 && (size_t)written < out_size;
+}
+
+static bool
+backlight_set_percent(int percent)
+{
+	char device_path[PATH_MAX] = { 0 };
+	if (!backlight_find_device(device_path, sizeof(device_path))) {
+		return false;
+	}
+
+	char brightness_path[PATH_MAX] = { 0 };
+	char max_path[PATH_MAX] = { 0 };
+	unsigned long long max = 0;
+	int clamped = clamp_percent(percent);
+
+	if (!join_path(brightness_path, sizeof(brightness_path), device_path, "brightness")
+	|| !join_path(max_path, sizeof(max_path), device_path, "max_brightness")) {
+		return false;
+	}
+	if (!read_ull_file(max_path, &max) || max == 0) {
+		return false;
+	}
+
+	unsigned long long raw_value = (unsigned long long)((double)clamped * (double)max / 100.0 + 0.5);
+	if (raw_value > max) {
+		raw_value = max;
+	}
+	if (raw_value == 0 && clamped > 0) {
+		raw_value = 1;
+	}
+
+	return write_unsigned_value(brightness_path, raw_value);
 }
 
 static bool
@@ -914,6 +1134,7 @@ char removable_names[MAX_REMOVABLE_DEVICES][96] = {{ 0 }};
 size_t output_count = 0;
 size_t input_count = 0;
 size_t removable_count = 0;
+	int brightness = -1;
 
 GError *error = NULL;
 GDBusConnection *conn = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
@@ -947,6 +1168,7 @@ battery_info(&bat_present, &bat_percent, &bat_charging, &bat_min_empty, &bat_min
 		default_output, sizeof(default_output), &output_volume,
 		input_devices, &input_count,
 		default_input, sizeof(default_input), &input_volume);
+	(void)backlight_get_percent(&brightness);
 
 char removable_rows[MAX_REMOVABLE_DEVICES][96] = {{ 0 }};
 removable_count = read_command_lines(
@@ -985,6 +1207,7 @@ printf("input_%zu=%s\n", i, input_devices[i]);
 	printf("default_input=%s\n", default_input);
 	printf("output_volume=%d\n", output_volume);
 	printf("input_volume=%d\n", input_volume);
+	printf("brightness=%d\n", brightness);
 for (size_t i = 0; i < removable_count; i++) {
 printf("removable_path_%zu=%s\n", i, removable_paths[i]);
 printf("removable_name_%zu=%s\n", i, removable_names[i]);
@@ -1002,7 +1225,7 @@ int
 main(int argc, char **argv)
 {
 	if (argc < 2) {
-		fprintf(stderr, "usage: %s quick|set-output-volume <percent>|set-input-volume <percent>\n", argv[0]);
+		fprintf(stderr, "usage: %s quick|set-output-volume <percent>|set-input-volume <percent>|set-brightness <percent>|set-default-output <index>|set-default-input <index>\n", argv[0]);
 		return 1;
 	}
 
@@ -1018,6 +1241,26 @@ main(int argc, char **argv)
 			return 1;
 		}
 		return pulse_set_default_volume(strcmp(argv[1], "set-input-volume") == 0, (int)value) ? 0 : 1;
+	}
+
+	if ((strcmp(argv[1], "set-default-output") == 0 || strcmp(argv[1], "set-default-input") == 0) && argc >= 3) {
+		char *end = NULL;
+		unsigned long value = strtoul(argv[2], &end, 10);
+		if (!end || *end != '\0') {
+			fprintf(stderr, "invalid device index: %s\n", argv[2]);
+			return 1;
+		}
+		return pulse_set_default_device(strcmp(argv[1], "set-default-input") == 0, (size_t)value) ? 0 : 1;
+	}
+
+	if (strcmp(argv[1], "set-brightness") == 0 && argc >= 3) {
+		char *end = NULL;
+		long value = strtol(argv[2], &end, 10);
+		if (!end || *end != '\0') {
+			fprintf(stderr, "invalid brightness: %s\n", argv[2]);
+			return 1;
+		}
+		return backlight_set_percent((int)value) ? 0 : 1;
 	}
 
 	fprintf(stderr, "unknown command: %s\n", argv[1]);

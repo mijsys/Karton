@@ -86,6 +86,14 @@ TOP_POPUP_CALENDAR,
 TOP_POPUP_CLOCK,
 };
 
+enum top_slider_drag_target {
+TOP_SLIDER_DRAG_NONE,
+TOP_SLIDER_DRAG_QUICK_BRIGHTNESS,
+TOP_SLIDER_DRAG_QUICK_VOLUME,
+TOP_SLIDER_DRAG_AUDIO_OUTPUT,
+TOP_SLIDER_DRAG_AUDIO_INPUT,
+};
+
 enum launcher_category {
 LCAT_ALL,
 LCAT_FAVORITES,
@@ -282,6 +290,7 @@ time_t notifications_updated;
 int quick_brightness;
 int quick_volume;
 int quick_input_volume;
+int top_slider_drag_target;
 int calendar_year;
 int calendar_month;
 int calendar_selected_day;
@@ -919,6 +928,20 @@ return read_command_first_line(command, line, sizeof(line))
 && (!strcasecmp(line, "yes") || !strcasecmp(line, "true") || !strcmp(line, "1"));
 }
 
+static void refresh_quick_status(struct app *app);
+
+static int
+clamp_percent_value(int value)
+{
+if (value < 0) {
+return 0;
+}
+if (value > 100) {
+return 100;
+}
+return value;
+}
+
 static void
 status_helper_command(char *command, size_t command_size, const char *args)
 {
@@ -962,16 +985,151 @@ status_helper_command(command, command_size, "quick");
 }
 
 static void
-audio_set_volume(bool input_device, int value)
+status_helper_spawn(const char *args)
 {
 char command[PATH_MAX + 96] = { 0 };
+status_helper_command(command, sizeof(command), args);
+if (command[0]) {
+spawn_command(command);
+}
+}
+
+static bool
+run_command_line_sync(const char *command,
+char *stdout_out, size_t stdout_size,
+char *stderr_out, size_t stderr_size)
+{
+if (!command || !command[0]) {
+return false;
+}
+
+if (stdout_out && stdout_size > 0) {
+stdout_out[0] = '\0';
+}
+if (stderr_out && stderr_size > 0) {
+stderr_out[0] = '\0';
+}
+
+gchar *raw_stdout = NULL;
+gchar *raw_stderr = NULL;
+gint wait_status = 0;
+GError *error = NULL;
+gboolean spawned = g_spawn_command_line_sync(command,
+&raw_stdout, &raw_stderr, &wait_status, &error);
+bool ok = false;
+if (spawned) {
+ok = g_spawn_check_wait_status(wait_status, NULL);
+}
+
+if (stdout_out && stdout_size > 0 && raw_stdout) {
+snprintf(stdout_out, stdout_size, "%s", trim_in_place(raw_stdout));
+}
+if (stderr_out && stderr_size > 0) {
+const char *text = "";
+if (raw_stderr && raw_stderr[0]) {
+text = trim_in_place(raw_stderr);
+} else if (error && error->message) {
+text = error->message;
+}
+snprintf(stderr_out, stderr_size, "%s", text);
+}
+
+g_clear_error(&error);
+g_free(raw_stdout);
+g_free(raw_stderr);
+return ok;
+}
+
+static bool
+status_helper_run_sync(const char *args,
+char *stdout_out, size_t stdout_size,
+char *stderr_out, size_t stderr_size)
+{
+char command[PATH_MAX + 96] = { 0 };
+status_helper_command(command, sizeof(command), args);
+return run_command_line_sync(command, stdout_out, stdout_size, stderr_out, stderr_size);
+}
+
+static void
+audio_set_volume(bool input_device, int value)
+{
 char args[48] = { 0 };
 snprintf(args, sizeof(args), "%s %d",
 input_device ? "set-input-volume" : "set-output-volume", value);
-status_helper_command(command, sizeof(command), args);
-if (command[0]) {
-    spawn_command(command);
+status_helper_spawn(args);
 }
+
+static void
+show_notification_message(const char *title, const char *message)
+{
+gchar *quoted_title = g_shell_quote(title && *title ? title : "Karton");
+gchar *quoted_message = g_shell_quote(message && *message ? message : "");
+char command[1024] = { 0 };
+snprintf(command, sizeof(command),
+"sh -lc 'command -v notify-send >/dev/null 2>&1 && notify-send %s %s || true'",
+quoted_title, quoted_message);
+g_free(quoted_title);
+g_free(quoted_message);
+spawn_command(command);
+}
+
+static void
+set_quick_brightness(struct app *app, int value)
+{
+if (!app) {
+return;
+}
+
+value = clamp_percent_value(value);
+if (app->quick_brightness == value) {
+return;
+}
+
+app->quick_brightness = value;
+app->quick_status_updated = 0;
+
+char args[48] = { 0 };
+snprintf(args, sizeof(args), "set-brightness %d", value);
+status_helper_spawn(args);
+}
+
+static void
+set_audio_volume_value(struct app *app, bool input_device, int value)
+{
+if (!app) {
+return;
+}
+
+value = clamp_percent_value(value);
+int *target = input_device ? &app->quick_input_volume : &app->quick_volume;
+if (*target == value) {
+return;
+}
+
+*target = value;
+app->quick_status_updated = 0;
+audio_set_volume(input_device, value);
+}
+
+static bool
+set_audio_default_device(struct app *app, bool input_device, size_t index)
+{
+if (!app) {
+return false;
+}
+
+char args[64] = { 0 };
+char stderr_text[256] = { 0 };
+snprintf(args, sizeof(args), "%s %zu",
+input_device ? "set-default-input" : "set-default-output", index);
+if (!status_helper_run_sync(args, NULL, 0, stderr_text, sizeof(stderr_text))) {
+show_notification_message(_("Sound"), stderr_text[0] ? stderr_text : _("Could not change the default device"));
+return false;
+}
+
+app->quick_status_updated = 0;
+refresh_quick_status(app);
+return true;
 }
 
 static bool
@@ -1065,6 +1223,11 @@ snprintf(app->quick_default_input, sizeof(app->quick_default_input), "%s", value
 app->quick_volume = (int)strtol(value, NULL, 10);
 } else if (!strcmp(key, "input_volume")) {
 app->quick_input_volume = (int)strtol(value, NULL, 10);
+} else if (!strcmp(key, "brightness")) {
+int brightness = (int)strtol(value, NULL, 10);
+if (brightness >= 0) {
+app->quick_brightness = clamp_percent_value(brightness);
+}
 } else if (!strncmp(key, "network_", 8)) {
 int idx = (int)strtol(key + 8, NULL, 10);
 if (idx >= 0 && idx < MAX_STATUS_NETWORKS) {
@@ -1233,6 +1396,127 @@ app->quick_bluetooth_enabled = bluetooth_enabled();
 wifi_network_name(app->quick_wifi_name, sizeof(app->quick_wifi_name));
 }
 app->quick_status_updated = now;
+}
+
+static bool
+run_argv_sync(char **argv, char *output, size_t output_size)
+{
+if (output && output_size > 0) {
+output[0] = '\0';
+}
+
+gchar *raw_stdout = NULL;
+gchar *raw_stderr = NULL;
+gint wait_status = 0;
+GError *error = NULL;
+gboolean spawned = g_spawn_sync(NULL, argv, NULL, G_SPAWN_SEARCH_PATH,
+NULL, NULL, &raw_stdout, &raw_stderr, &wait_status, &error);
+bool ok = false;
+if (spawned) {
+ok = g_spawn_check_wait_status(wait_status, NULL);
+}
+
+if (output && output_size > 0) {
+const char *text = "";
+if (raw_stderr && raw_stderr[0]) {
+text = trim_in_place(raw_stderr);
+} else if (raw_stdout && raw_stdout[0]) {
+text = trim_in_place(raw_stdout);
+} else if (error && error->message) {
+text = error->message;
+}
+snprintf(output, output_size, "%s", text);
+}
+
+g_clear_error(&error);
+g_free(raw_stdout);
+g_free(raw_stderr);
+return ok;
+}
+
+static bool
+prompt_wifi_password(const char *ssid, char *password_out, size_t password_size)
+{
+if (!password_out || password_size == 0) {
+return false;
+}
+
+password_out[0] = '\0';
+
+char title[160] = { 0 };
+char text[224] = { 0 };
+snprintf(title, sizeof(title), "%s", _("Wi-Fi password"));
+snprintf(text, sizeof(text), _("Enter the password for %s"), ssid && *ssid ? ssid : _("selected network"));
+
+gchar *quoted_title = g_shell_quote(title);
+gchar *quoted_text = g_shell_quote(text);
+char command[1024] = { 0 };
+snprintf(command, sizeof(command),
+"sh -lc 'if command -v karton-dialog >/dev/null 2>&1; then karton-dialog --password --title %s --text %s; elif [ -x \"$HOME/.local-karton/bin/karton-dialog\" ]; then \"$HOME/.local-karton/bin/karton-dialog\" --password --title %s --text %s; else exit 127; fi'",
+quoted_title, quoted_text, quoted_title, quoted_text);
+g_free(quoted_title);
+g_free(quoted_text);
+
+return run_command_line_sync(command, password_out, password_size, NULL, 0)
+&& trim_in_place(password_out)[0] != '\0';
+}
+
+static bool
+connect_wifi_nmcli(const char *ssid, const char *password, char *error_out, size_t error_size)
+{
+char *argv[8] = { 0 };
+int argc = 0;
+argv[argc++] = "nmcli";
+argv[argc++] = "device";
+argv[argc++] = "wifi";
+argv[argc++] = "connect";
+argv[argc++] = (char *)ssid;
+if (password && *password) {
+argv[argc++] = "password";
+argv[argc++] = (char *)password;
+}
+argv[argc] = NULL;
+return run_argv_sync(argv, error_out, error_size);
+}
+
+static void
+connect_wifi_network(struct app *app, const char *ssid)
+{
+if (!app || !ssid || !ssid[0]) {
+return;
+}
+
+if (!app->quick_wifi_enabled) {
+show_notification_message(_("Wi-Fi"), _("Enable Wi-Fi before connecting to a network"));
+return;
+}
+
+if (!strcmp(app->quick_connection_type, "wifi")
+&& app->quick_connection_name[0]
+&& strcmp(app->quick_connection_name, _("Not connected"))
+&& !strcmp(app->quick_connection_name, ssid)) {
+return;
+}
+
+char error_text[256] = { 0 };
+if (connect_wifi_nmcli(ssid, NULL, error_text, sizeof(error_text))) {
+    app->quick_status_updated = 0;
+    refresh_quick_status(app);
+    return;
+}
+
+char password[256] = { 0 };
+if (!prompt_wifi_password(ssid, password, sizeof(password))) {
+    return;
+}
+
+if (connect_wifi_nmcli(ssid, password, error_text, sizeof(error_text))) {
+    app->quick_status_updated = 0;
+    refresh_quick_status(app);
+    return;
+}
+
+show_notification_message(_("Wi-Fi"), error_text[0] ? error_text : _("Wrong password or connection failed"));
 }
 
 static void
@@ -3218,8 +3502,11 @@ cairo_fill(cairo);
 
 draw_karton_symbol(cairo, 3, centers[0], cy, 14.5, colors[0], dark ? 1.0 : 0.96);
 if (has_unread_notification) {
+    set_source_hex_a(cairo, dark ? 0x172031 : 0xffffff, dark ? 0.64 : 0.92);
+    cairo_arc(cairo, centers[0] + 7.0, cy - 8.0, 4.8, 0, 2.0 * 3.14159265358979323846);
+    cairo_fill(cairo);
 set_source_hex_a(cairo, 0xf05d7b, 0.96);
-cairo_arc(cairo, centers[0] + 6.0, cy - 7.0, 3.0, 0, 2.0 * 3.14159265358979323846);
+cairo_arc(cairo, centers[0] + 7.0, cy - 8.0, 3.4, 0, 2.0 * 3.14159265358979323846);
 cairo_fill(cairo);
 }
 draw_wifi_icon(cairo, centers[1], cy, 15.0, colors[1], dark ? 1.0 : 0.96);
@@ -5016,6 +5303,66 @@ audio_popup_slider_hit(const struct panel *panel, double px, double py, double *
     }
 
     return -1;
+}
+
+static int
+network_popup_item_hit(const struct panel *panel, const struct app *app, double px, double py)
+{
+if (!panel || !app) {
+return -1;
+}
+
+double qx, qy, qw, qh;
+if (!top_quick_panel_rect(panel, &qx, &qy, &qw, &qh)) {
+return -1;
+}
+
+size_t shown = app->quick_network_count < 4 ? app->quick_network_count : 4;
+for (size_t i = 0; i < shown; i++) {
+double row_y = qy + 246.0 + i * 26.0;
+if (point_in_rect(px, py, qx + 16.0, row_y, qw - 32.0, 22.0)) {
+return (int)i;
+}
+}
+
+return -1;
+}
+
+static int
+audio_popup_device_hit(const struct panel *panel, const struct app *app,
+bool input_device, double px, double py)
+{
+if (!panel || !app) {
+return -1;
+}
+
+double qx, qy, qw, qh;
+if (!top_quick_panel_rect(panel, &qx, &qy, &qw, &qh)) {
+return -1;
+}
+
+if (!input_device) {
+size_t shown = app->quick_output_count < 3 ? app->quick_output_count : 3;
+for (size_t i = 0; i < shown; i++) {
+double row_y = qy + 290.0 + i * 24.0;
+if (point_in_rect(px, py, qx + 16.0, row_y, qw - 32.0, 20.0)) {
+return (int)i;
+}
+}
+return -1;
+}
+
+size_t shown_outputs = app->quick_output_count < 3 ? app->quick_output_count : 3;
+double inputs_y = qy + 290.0 + shown_outputs * 24.0 + 18.0;
+size_t shown_inputs = app->quick_input_count < 3 ? app->quick_input_count : 3;
+for (size_t i = 0; i < shown_inputs; i++) {
+double row_y = inputs_y + 24.0 + i * 24.0;
+if (point_in_rect(px, py, qx + 16.0, row_y, qw - 32.0, 20.0)) {
+return (int)i;
+}
+}
+
+return -1;
 }
 
 static int
@@ -7308,6 +7655,12 @@ return;
 if (app->top_popup_mode == TOP_POPUP_NETWORK) {
 double nx, ny, nw, nh;
 if (top_quick_panel_rect(&app->top, &nx, &ny, &nw, &nh)) {
+    int network = network_popup_item_hit(&app->top, app, app->pointer_x, app->pointer_y);
+    if (network >= 0 && network < (int)app->quick_network_count) {
+        connect_wifi_network(app, app->quick_networks[network]);
+        panel_draw(&app->top);
+        return;
+    }
 double button_y = ny + nh - 50.0;
 double button_w = (nw - 42.0) / 2.0;
 if (point_in_rect(app->pointer_x, app->pointer_y, nx + 16.0, button_y, button_w, 34.0)
@@ -7326,22 +7679,32 @@ double slider_pct = 0.0;
 int slider = audio_popup_slider_hit(&app->top, app->pointer_x, app->pointer_y, &slider_pct);
 if (slider >= 0) {
     int value = (int)(slider_pct * 100.0 + 0.5);
-    if (value < 0) {
-        value = 0;
-    }
-    if (value > 100) {
-        value = 100;
-    }
     if (slider == 0) {
-        app->quick_volume = value;
-        audio_set_volume(false, value);
+        app->top_slider_drag_target = TOP_SLIDER_DRAG_AUDIO_OUTPUT;
+        set_audio_volume_value(app, false, value);
     } else {
-        app->quick_input_volume = value;
-        audio_set_volume(true, value);
+        app->top_slider_drag_target = TOP_SLIDER_DRAG_AUDIO_INPUT;
+        set_audio_volume_value(app, true, value);
     }
     panel_draw(&app->top);
     return;
 }
+    int output_idx = audio_popup_device_hit(&app->top, app, false, app->pointer_x, app->pointer_y);
+    if (output_idx >= 0 && output_idx < (int)app->quick_output_count
+    && (!app->quick_default_output[0] || strcmp(app->quick_outputs[output_idx], app->quick_default_output))) {
+        if (set_audio_default_device(app, false, (size_t)output_idx)) {
+            panel_draw(&app->top);
+        }
+        return;
+    }
+    int input_idx = audio_popup_device_hit(&app->top, app, true, app->pointer_x, app->pointer_y);
+    if (input_idx >= 0 && input_idx < (int)app->quick_input_count
+    && (!app->quick_default_input[0] || strcmp(app->quick_inputs[input_idx], app->quick_default_input))) {
+        if (set_audio_default_device(app, true, (size_t)input_idx)) {
+            panel_draw(&app->top);
+        }
+        return;
+    }
     if (point_in_rect(app->pointer_x, app->pointer_y, ax + 16.0, ay + ah - 50.0, aw - 32.0, 34.0)) {
         open_settings_page("audio");
         return;
@@ -7405,23 +7768,12 @@ double slider_pct = 0.0;
 int slider = quick_slider_hit(&app->top, app->pointer_x, app->pointer_y, &slider_pct);
 if (slider >= 0) {
 int value = (int)(slider_pct * 100.0 + 0.5);
-if (value < 0) {
-value = 0;
-}
-if (value > 100) {
-value = 100;
-}
-
 if (slider == 0) {
-char cmd[320] = { 0 };
-app->quick_brightness = value;
-snprintf(cmd, sizeof(cmd),
-"sh -lc 'command -v brightnessctl >/dev/null 2>&1 && brightnessctl set %d%% || command -v light >/dev/null 2>&1 && light -S %d || command -v notify-send >/dev/null 2>&1 && notify-send \"Brightness\" \"Install brightnessctl or light\" || true'",
-value, value);
-spawn_command(cmd);
+    app->top_slider_drag_target = TOP_SLIDER_DRAG_QUICK_BRIGHTNESS;
+    set_quick_brightness(app, value);
 } else {
-app->quick_volume = value;
-audio_set_volume(false, value);
+    app->top_slider_drag_target = TOP_SLIDER_DRAG_QUICK_VOLUME;
+    set_audio_volume_value(app, false, value);
 }
 panel_draw(&app->top);
 return;
@@ -8000,6 +8352,7 @@ app->launcher_hover_favorite = -1;
 app->launcher_menu_hover = -1;
 app->quick_hover_tile = -1;
 app->quick_menu_hover_item = -1;
+app->top_slider_drag_target = TOP_SLIDER_DRAG_NONE;
 if (app->launcher_open) {
 launcher_close(app);
 return;
@@ -8017,6 +8370,29 @@ struct app *app = data;
 (void)time;
 app->pointer_x = wl_fixed_to_double(sx);
 app->pointer_y = wl_fixed_to_double(sy);
+if (app->pointer_surface == app->top.surface && app->top_slider_drag_target != TOP_SLIDER_DRAG_NONE) {
+    double slider_pct = 0.0;
+    if (app->top_slider_drag_target == TOP_SLIDER_DRAG_QUICK_BRIGHTNESS
+    || app->top_slider_drag_target == TOP_SLIDER_DRAG_QUICK_VOLUME) {
+        if (quick_slider_hit(&app->top, app->pointer_x, app->pointer_y, &slider_pct) >= 0) {
+            int value = (int)(slider_pct * 100.0 + 0.5);
+            if (app->top_slider_drag_target == TOP_SLIDER_DRAG_QUICK_BRIGHTNESS) {
+                set_quick_brightness(app, value);
+            } else {
+                set_audio_volume_value(app, false, value);
+            }
+            panel_draw(&app->top);
+        }
+    } else if (audio_popup_slider_hit(&app->top, app->pointer_x, app->pointer_y, &slider_pct) >= 0) {
+        int value = (int)(slider_pct * 100.0 + 0.5);
+        if (app->top_slider_drag_target == TOP_SLIDER_DRAG_AUDIO_OUTPUT) {
+            set_audio_volume_value(app, false, value);
+        } else if (app->top_slider_drag_target == TOP_SLIDER_DRAG_AUDIO_INPUT) {
+            set_audio_volume_value(app, true, value);
+        }
+        panel_draw(&app->top);
+    }
+}
 if (app->pointer_surface == app->top.surface && app->quick_open && app->top_popup_mode == TOP_POPUP_QUICK) {
 int old_hover = app->quick_hover_tile;
 int old_menu_hover = app->quick_menu_hover_item;
@@ -8038,6 +8414,9 @@ struct app *app = data;
 (void)time;
 app->pointer_serial = serial;
 if (state != WL_POINTER_BUTTON_STATE_PRESSED) {
+    if (state == WL_POINTER_BUTTON_STATE_RELEASED) {
+        app->top_slider_drag_target = TOP_SLIDER_DRAG_NONE;
+    }
 return;
 }
 
@@ -8069,10 +8448,53 @@ struct app *app = data;
 (void)wl_pointer;
 (void)time;
 
-if (axis != WL_POINTER_AXIS_VERTICAL_SCROLL
-|| app->pointer_surface != app->side.surface
-|| app->launcher_menu_open) {
+if (axis != WL_POINTER_AXIS_VERTICAL_SCROLL) {
 return;
+}
+
+if (app->pointer_surface == app->top.surface) {
+    double amount = wl_fixed_to_double(value);
+    int step = amount > 0.0 ? -5 : (amount < 0.0 ? 5 : 0);
+    if (step == 0) {
+        return;
+    }
+
+    if (app->quick_open && app->top_popup_mode == TOP_POPUP_AUDIO) {
+        double slider_pct = 0.0;
+        int slider = audio_popup_slider_hit(&app->top, app->pointer_x, app->pointer_y, &slider_pct);
+        if (slider == 0) {
+            set_audio_volume_value(app, false, app->quick_volume + step);
+            panel_draw(&app->top);
+            return;
+        }
+        if (slider == 1) {
+            set_audio_volume_value(app, true, app->quick_input_volume + step);
+            panel_draw(&app->top);
+            return;
+        }
+    }
+
+    if (app->quick_open && app->top_popup_mode == TOP_POPUP_QUICK) {
+        double slider_pct = 0.0;
+        int slider = quick_slider_hit(&app->top, app->pointer_x, app->pointer_y, &slider_pct);
+        if (slider == 0) {
+            set_quick_brightness(app, app->quick_brightness + step);
+            panel_draw(&app->top);
+            return;
+        }
+        if (slider == 1) {
+            set_audio_volume_value(app, false, app->quick_volume + step);
+            panel_draw(&app->top);
+            return;
+        }
+    }
+
+    return;
+}
+
+if (app->pointer_surface != app->side.surface
+|| app->launcher_menu_open) {
+    return;
 }
 
 if (!app->launcher_open) {

@@ -1,192 +1,153 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Karton Shell Web</title>
-  <meta name="description" content="Shell-like web desktop for Karton with top panel, side dock, launcher and window apps.">
+  <title>Karton Timeline</title>
+  <meta name="description" content="Historia rozwoju Karton i Tektura pokazana jako klikalna oś czasu z opisem etapów i zrzutami ekranu.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="desktop-shell">
-    <header class="top-panel">
-      <div class="top-left">
-        <button class="top-button launcher-toggle" type="button" data-action="toggle-launcher" aria-label="Toggle launcher">
-          <img src="assets/karton.svg" alt="">
-          <span>Karton</span>
-        </button>
-      </div>
-      <div class="top-center" aria-live="polite">
-        <strong id="panel-time">00:00</strong>
-        <span id="panel-date">1970-01-01</span>
-      </div>
-      <div class="top-right">
-        <button class="status-icon" type="button" aria-label="Network status">
-          <img src="assets/icons/network.svg" alt="">
-        </button>
-        <button class="status-icon" type="button" aria-label="Notifications">
-          <img src="assets/icons/notifications.svg" alt="">
-        </button>
-        <button class="status-icon" type="button" data-action="toggle-quick" aria-label="Quick settings">
-          <img src="assets/icons/theme.svg" alt="">
-        </button>
-      </div>
+  <div class="page-shell">
+    <header class="site-header">
+      <a class="brand" href="#top">
+        <img src="assets/karton.svg" alt="">
+        <span>Karton i Tektura</span>
+      </a>
+      <nav class="top-nav" aria-label="Nawigacja strony">
+        <a href="#timeline">Os czasu</a>
+        <a href="#milestone">Opis etapu</a>
+        <a href="https://github.com/mijsys/Tektura-i-Karton" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </nav>
     </header>
 
-    <aside class="side-dock">
-      <button class="dock-launcher" type="button" data-action="toggle-launcher" aria-label="Open launcher">
-        <img src="assets/icons/app.svg" alt="">
-      </button>
-      <div class="dock-separator"></div>
-      <div id="running-apps" class="running-apps" aria-label="Running applications"></div>
-    </aside>
-
-    <main id="workspace" class="workspace">
-      <article class="app-window" data-app="overview">
-        <header class="window-bar">
-          <strong data-i18n="appOverviewTitle">Overview</strong>
-          <div class="window-controls">
-            <button type="button" class="win-btn" data-action="minimize" data-app="overview" aria-label="Minimize">_</button>
-            <button type="button" class="win-btn close" data-action="close" data-app="overview" aria-label="Close">x</button>
+    <main id="top">
+      <section class="hero-section">
+        <div class="hero-copy">
+          <p class="eyebrow">KartonDE</p>
+          <h1>Witaj na stronie poświęconej Karton oraz Tektura</h1>
+          <p class="hero-text">
+            Kliknij w shell poniżej, a strona przewinie do osi czasu. Każdy numer etapu otwiera opis prac,
+            najważniejsze zmiany i odpowiadający im zrzut ekranu.
+          </p>
+          <div class="hero-actions">
+            <a class="primary-button" href="#timeline">Otworz os czasu</a>
+            <a class="secondary-button" href="https://github.com/mijsys/Tektura-i-Karton" target="_blank" rel="noopener noreferrer">Repozytorium</a>
           </div>
-        </header>
-        <div class="window-content overview-grid">
-          <section class="content-card">
-            <p class="eyebrow" data-i18n="heroEyebrow">Wayland desktop environment</p>
-            <h1 data-i18n="heroTitle">Karton brings the compositor, shell and session into one focused desktop.</h1>
-            <p data-i18n="heroText">Built on the Tektura compositor and expanded with Karton shell panels plus session services, the project aims for a fast, calm and configurable desktop for daily work.</p>
-          </section>
-          <section class="content-card stat-stack">
-            <article>
-              <span data-i18n="summaryCurrentLabel">Current milestone</span>
-              <strong data-i18n="summaryCurrentValue">0.1 in progress</strong>
-            </article>
-            <article>
-              <span data-i18n="summaryStackLabel">Stack</span>
-              <strong data-i18n="summaryStackValue">Tektura + shell-layer + session services</strong>
-            </article>
-            <article>
-              <span data-i18n="summaryGoalLabel">Goal</span>
-              <strong data-i18n="summaryGoalValue">Light, cohesive, configurable desktop</strong>
-            </article>
-          </section>
         </div>
-      </article>
 
-      <article class="app-window" data-app="roadmap">
-        <header class="window-bar">
-          <strong data-i18n="appRoadmapTitle">Roadmap</strong>
-          <div class="window-controls">
-            <button type="button" class="win-btn" data-action="minimize" data-app="roadmap" aria-label="Minimize">_</button>
-            <button type="button" class="win-btn close" data-action="close" data-app="roadmap" aria-label="Close">x</button>
+        <button class="shell-preview" type="button" id="shell-preview" aria-controls="timeline" aria-label="Pokaz os czasu Karton">
+          <div class="shell-topbar">
+            <span class="shell-chip">Karton shell</span>
+            <span class="shell-clock">11:43</span>
           </div>
-        </header>
-        <div class="window-content">
-          <p class="eyebrow" data-i18n="roadmapEyebrow">Roadmap</p>
-          <h2 data-i18n="roadmapTitle">Clickable timeline with version galleries</h2>
-          <p data-i18n="roadmapLead">Select a version on the timeline to switch the gallery below. The current work starts at 0.1.</p>
-          <div class="timeline" role="tablist" aria-label="Roadmap timeline">
-            <button class="timeline-item is-active" type="button" data-version="0.1" role="tab" aria-selected="true">
-              <span class="timeline-version">0.1</span>
-              <span class="timeline-status" data-i18n="timelineStatusCurrent">Current</span>
+          <div class="shell-body">
+            <aside class="shell-dock">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </aside>
+            <div class="shell-stage">
+              <div class="shell-window shell-window-main">
+                <div class="shell-window-bar"></div>
+                <div class="shell-timeline-mini">
+                  <span>0.1</span>
+                  <span>0.2</span>
+                  <span>0.3</span>
+                </div>
+                <div class="shell-lines">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+              <div class="shell-window shell-window-side"></div>
+            </div>
+          </div>
+          <div class="shell-caption">Kliknij shell, aby otworzyc os czasu.</div>
+        </button>
+      </section>
+
+      <section class="timeline-section" id="timeline">
+        <div class="section-heading">
+          <p class="eyebrow">Os czasu</p>
+          <h2>Etapy rozwoju Karton i Tektura</h2>
+          <p>
+            Kliknij numer etapu. Po prawej stronie od razu podmienimy opis, screenshot i liste rzeczy,
+            ktore wtedy doszly albo byly planowane.
+          </p>
+        </div>
+
+        <div class="timeline-layout">
+          <div class="timeline-rail" role="tablist" aria-label="Etapy rozwoju">
+            <button class="timeline-stop is-active" type="button" data-milestone="0.1" role="tab" aria-selected="true">
+              <span class="stop-number">0.1</span>
+              <span class="stop-label">Pierwszy spojny shell</span>
             </button>
-            <button class="timeline-item" type="button" data-version="0.2" role="tab" aria-selected="false">
-              <span class="timeline-version">0.2</span>
-              <span class="timeline-status" data-i18n="timelineStatusNext">Next</span>
+            <button class="timeline-stop" type="button" data-milestone="0.2" role="tab" aria-selected="false">
+              <span class="stop-number">0.2</span>
+              <span class="stop-label">Integracja sesji</span>
             </button>
-            <button class="timeline-item" type="button" data-version="0.3" role="tab" aria-selected="false">
-              <span class="timeline-version">0.3</span>
-              <span class="timeline-status" data-i18n="timelineStatusLater">Later</span>
+            <button class="timeline-stop" type="button" data-milestone="0.3" role="tab" aria-selected="false">
+              <span class="stop-number">0.3</span>
+              <span class="stop-label">Pelniejszy system</span>
             </button>
           </div>
-          <div class="release-note-card">
-            <p class="release-kicker" data-i18n="releaseKicker">Selected milestone</p>
-            <h3 id="release-title">0.1</h3>
-            <p id="release-copy"></p>
-          </div>
-        </div>
-      </article>
 
-      <article class="app-window" data-app="gallery">
-        <header class="window-bar">
-          <strong data-i18n="appGalleryTitle">Gallery</strong>
-          <div class="window-controls">
-            <button type="button" class="win-btn" data-action="minimize" data-app="gallery" aria-label="Minimize">_</button>
-            <button type="button" class="win-btn close" data-action="close" data-app="gallery" aria-label="Close">x</button>
-          </div>
-        </header>
-        <div class="window-content">
-          <p class="eyebrow" data-i18n="galleryEyebrow">Gallery</p>
-          <h2 data-i18n="galleryTitle">Screens and concept frames</h2>
-          <p class="gallery-hint" data-i18n="galleryHint">Images are loaded from the version folders inside docs/gallery.</p>
-          <div id="gallery-grid" class="gallery-grid" aria-live="polite"></div>
+          <article class="milestone-card" id="milestone" aria-live="polite">
+            <div class="milestone-copy">
+              <p class="eyebrow" id="milestone-kicker">Etap 0.1</p>
+              <h3 id="milestone-title">Pierwszy spojny shell</h3>
+              <p id="milestone-description"></p>
+              <div class="milestone-meta">
+                <div>
+                  <span class="meta-label">Status</span>
+                  <strong id="milestone-status"></strong>
+                </div>
+                <div>
+                  <span class="meta-label">Zakres</span>
+                  <strong id="milestone-scope"></strong>
+                </div>
+              </div>
+              <ul class="milestone-list" id="milestone-list"></ul>
+            </div>
+            <figure class="milestone-shot">
+              <img id="milestone-image" src="gallery/0.1/desktop-shell.svg" alt="Zrzut ekranu etapu Karton 0.1">
+              <figcaption id="milestone-caption"></figcaption>
+            </figure>
+          </article>
         </div>
-      </article>
+      </section>
 
-      <article class="app-window" data-app="kartonos">
-        <header class="window-bar">
-          <strong data-i18n="appKartonOSTitle">KartonOS</strong>
-          <div class="window-controls">
-            <button type="button" class="win-btn" data-action="minimize" data-app="kartonos" aria-label="Minimize">_</button>
-            <button type="button" class="win-btn close" data-action="close" data-app="kartonos" aria-label="Close">x</button>
+      <section class="gallery-strip" aria-label="Pozostale zrzuty projektu">
+        <article>
+          <img src="gallery/0.1/session-tools.svg" alt="Narzędzia sesji Karton">
+          <div>
+            <strong>Sesja</strong>
+            <p>Daemony sesyjne, screenshot i powiadomienia jako osobna warstwa uslug.</p>
           </div>
-        </header>
-        <div class="window-content">
-          <p class="eyebrow" data-i18n="kartonosEyebrow">KartonOS</p>
-          <h2 data-i18n="kartonosTitle">Still building the full system.</h2>
-          <p data-i18n="kartonosText">The OS page is an easter egg for now. The crane keeps moving while the pieces are being assembled.</p>
-          <a class="primary-link" href="https://github.com/mijsys/Tektura-i-Karton" target="_blank" rel="noopener noreferrer" data-i18n="openGithub">Open GitHub</a>
-        </div>
-      </article>
-
-      <div id="workspace-empty" class="workspace-empty" hidden>
-        <p data-i18n="workspaceEmpty">No app windows are open. Use launcher to start one.</p>
-      </div>
+        </article>
+        <article>
+          <img src="gallery/0.2/workflow-pass.svg" alt="Dalsze dopracowanie workflow Karton">
+          <div>
+            <strong>Workflow</strong>
+            <p>Drugi etap skupia sie na wygodzie pracy i zamknieciu laczen miedzy komponentami.</p>
+          </div>
+        </article>
+        <article>
+          <img src="gallery/0.3/system-view.svg" alt="Docelowy widok systemu Karton">
+          <div>
+            <strong>System</strong>
+            <p>Trzeci etap pokazuje kierunek dojscia do pelniejszego i bardziej gotowego systemu.</p>
+          </div>
+        </article>
+      </section>
     </main>
-
-    <section id="launcher-panel" class="overlay-panel launcher-panel" hidden>
-      <h3 data-i18n="launcherTitle">Launcher</h3>
-      <div class="launcher-grid">
-        <button class="launcher-app" type="button" data-app="overview" data-i18n="appOverviewTitle">Overview</button>
-        <button class="launcher-app" type="button" data-app="roadmap" data-i18n="appRoadmapTitle">Roadmap</button>
-        <button class="launcher-app" type="button" data-app="gallery" data-i18n="appGalleryTitle">Gallery</button>
-        <button class="launcher-app" type="button" data-app="kartonos" data-i18n="appKartonOSTitle">KartonOS</button>
-      </div>
-    </section>
-
-    <section id="quick-panel" class="overlay-panel quick-panel" hidden>
-      <h3 data-i18n="quickSettingsTitle">Quick settings</h3>
-      <div class="quick-group">
-        <span data-i18n="themeLabel">Theme</span>
-        <div class="theme-switcher">
-          <button type="button" data-theme="light" data-i18n="themeLight">Light</button>
-          <button type="button" data-theme="dark" data-i18n="themeDark">Dark</button>
-        </div>
-      </div>
-      <div class="quick-group">
-        <span data-i18n="languageLabel">Language</span>
-        <div class="lang-switcher">
-          <button type="button" data-lang="en">EN</button>
-          <button type="button" data-lang="pl">PL</button>
-          <button type="button" data-lang="de">DE</button>
-          <button type="button" data-lang="fr">FR</button>
-        </div>
-      </div>
-    </section>
   </div>
-
-  <template id="gallery-card-template">
-    <article class="gallery-card">
-      <img alt="">
-      <div class="gallery-meta">
-        <strong class="gallery-title"></strong>
-        <span class="gallery-caption"></span>
-      </div>
-    </article>
-  </template>
 
   <script src="app.js"></script>
 </body>
