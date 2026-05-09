@@ -25,3 +25,7 @@ karton-*.png
 # Editor/cache
 .vscode/
 .cache/
+
+# Local planning and temporary fix files
+/plan ustawien
+/fix*
