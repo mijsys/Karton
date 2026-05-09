@@ -1,6 +1,6 @@
 pkgbase = kartonde
 	pkgver = 0.7.1
-	pkgrel = 1
+	pkgrel = 2
 	url = https://github.com/mijsys/Tektura-i-Karton
 	arch = x86_64
 	license = GPL-2.0-only
@@ -50,7 +50,6 @@ pkgname = karton-shell
 	depends = cairo
 	depends = gdk-pixbuf2
 	depends = glib2
-	depends = gio
 	depends = gtk4
 	depends = libpulse
 	depends = libxkbcommon

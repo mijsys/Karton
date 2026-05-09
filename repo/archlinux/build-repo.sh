@@ -6,6 +6,7 @@ project_root="$(cd "$script_dir/../.." && pwd)"
 pkg_dir="$script_dir/x86_64"
 
 mkdir -p "$pkg_dir"
+rm -f "$pkg_dir"/*.pkg.tar.*
 
 export PKGDEST="$pkg_dir"
 export SRCDEST="$script_dir/.srcdest"
