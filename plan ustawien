@@ -1,0 +1,417 @@
+# Ustawienia systemowe dla Karton
+
+Aplikacja musi być stylowo pasująca do całego layoutu środowiska graficznego 
+
+## 1. Wygląd i personalizacja
+
+Ustawienia odpowiadające za wygląd całego środowiska.
+
+### Zawiera:
+
+* motywy jasne/ciemne
+* style okien
+* kolory systemowe
+* ikony
+* kursory
+* czcionki
+* animacje
+* przezroczystość
+* efekty pulpitu
+* zaokrąglenia rogów
+* skalowanie interfejsu
+* tapety
+* ekran blokady
+* wygląd paneli i docków
+
+### Do czego służy:
+
+Pozwala dostosować estetykę systemu oraz ergonomię pracy.
+
+---
+
+# 2. Ekran i monitory
+
+Ustawienia obrazu i wyświetlaczy.
+
+### Zawiera:
+
+* rozdzielczość
+* częstotliwość odświeżania
+* HDR
+* skalowanie DPI
+* orientacja monitora
+* wiele monitorów
+* jasność
+* night light
+* profile kolorów
+* synchronizacja pionowa
+* VRR/Adaptive Sync
+
+### Do czego służy:
+
+Konfiguracja jakości obrazu oraz pracy na wielu ekranach.
+
+---
+
+# 3. Dźwięk i multimedia
+
+Obsługa audio i urządzeń multimedialnych.
+
+### Zawiera:
+
+* głośność
+* urządzenia wejścia/wyjścia
+* mikrofon
+* balans audio
+* profile audio
+* bluetooth audio
+* efekty systemowe
+* miksowanie dźwięku
+* routing audio
+
+### Do czego służy:
+
+Sterowanie dźwiękiem systemowym i urządzeniami audio.
+
+---
+
+# 4. Urządzenia wejściowe
+
+Konfiguracja myszy, klawiatur i innych urządzeń.
+
+### Zawiera:
+
+* układy klawiatury
+* skróty klawiszowe
+* szybkość kursora
+* touchpad
+* gesty
+* przewijanie naturalne
+* klawisze multimedialne
+* tablety graficzne
+* kontrolery
+
+### Do czego służy:
+
+Personalizacja sposobu interakcji z systemem.
+
+---
+
+# 5. Sieć i internet
+
+Konfiguracja połączeń sieciowych.
+
+### Zawiera:
+
+* Wi-Fi
+* Ethernet
+* VPN
+* proxy
+* hotspot
+* DNS
+* IPv4/IPv6
+* firewall
+* udostępnianie sieci
+* Bluetooth tethering
+
+### Do czego służy:
+
+Łączenie systemu z internetem i innymi urządzeniami.
+
+---
+
+# 6. Bluetooth i urządzenia bezprzewodowe
+
+Obsługa urządzeń bezprzewodowych.
+
+### Zawiera:
+
+* parowanie urządzeń
+* słuchawki
+* kontrolery
+* transfer plików
+* profile bluetooth
+* widoczność urządzenia
+
+### Do czego służy:
+
+Komunikacja z urządzeniami bez kabli.
+
+---
+
+# 7. Zasilanie i bateria
+
+Zarządzanie energią.
+
+### Zawiera:
+
+* profile wydajności
+* oszczędzanie energii
+* usypianie
+* hibernacja
+* jasność automatyczna
+* zachowanie po zamknięciu klapy
+* limity ładowania
+* statystyki baterii
+
+### Do czego służy:
+
+Optymalizacja zużycia energii i czasu pracy laptopa.
+
+---
+
+# 8. Użytkownicy i konta
+
+Zarządzanie użytkownikami systemu.
+
+### Zawiera:
+
+* dodawanie kont
+* hasła
+* autologowanie
+* zdjęcie profilowe
+* grupy użytkowników
+* uprawnienia administratora
+* sesje użytkowników
+
+### Do czego służy:
+
+Tworzenie i zarządzanie kontami użytkowników.
+
+---
+
+# 9. Bezpieczeństwo i prywatność
+
+Ochrona systemu i danych.
+
+### Zawiera:
+
+* blokada ekranu
+* szyfrowanie
+* firewall
+* uprawnienia aplikacji
+* historia aktywności
+* lokalizacja
+* kamera i mikrofon
+* sandboxing
+* secure boot
+* SELinux/AppArmor
+
+### Do czego służy:
+
+Kontrola bezpieczeństwa oraz prywatności użytkownika.
+
+---
+
+# 10. Powiadomienia
+
+Obsługa komunikatów systemowych.
+
+### Zawiera:
+
+* tryb nie przeszkadzać
+* pozycja powiadomień
+* historia powiadomień
+* dźwięki alertów
+* priorytety aplikacji
+
+### Do czego służy:
+
+Zarządzanie komunikatami systemu i aplikacji.
+
+---
+
+# 11. Aplikacje domyślne
+
+Wybór programów używanych przez system.
+
+### Zawiera:
+
+* przeglądarka
+* menedżer plików
+* terminal
+* klient poczty
+* odtwarzacz muzyki
+* odtwarzacz video
+* edytor tekstu
+
+### Do czego służy:
+
+Definiowanie domyślnych aplikacji dla typów plików i akcji.
+
+---
+
+# 12. Aktualizacje i oprogramowanie
+
+Zarządzanie pakietami i systemem.
+
+### Zawiera:
+
+* aktualizacje systemu
+* repozytoria
+* sterowniki
+* sklep z aplikacjami
+* flatpak/snap/appimage
+* automatyczne aktualizacje
+
+### Do czego służy:
+
+Instalacja i utrzymanie oprogramowania.
+
+---
+
+# 13. Data, czas i region
+
+Ustawienia lokalizacji i języka.
+
+### Zawiera:
+
+* strefa czasowa
+* format daty
+* język systemu
+* jednostki miar
+* format klawiatury
+* regionalizacja
+
+### Do czego służy:
+
+Dostosowanie systemu do kraju i języka użytkownika.
+
+---
+
+# 14. Dostępność
+
+Funkcje ułatwień dostępu.
+
+### Zawiera:
+
+* czytnik ekranu
+* powiększanie
+* wysoki kontrast
+* napisy
+* klawiatura ekranowa
+* filtry kolorów
+* wolne klawisze
+
+### Do czego służy:
+
+Ułatwienie korzystania z systemu osobom z ograniczeniami.
+
+---
+
+# 15. Menedżer plików i dyski
+
+Obsługa pamięci masowej.
+
+### Zawiera:
+
+* montowanie dysków
+* partycje
+* automount
+* sieciowe foldery
+* kosz
+* miniatury
+* uprawnienia plików
+* szyfrowanie dysków
+
+### Do czego służy:
+
+Zarządzanie plikami oraz nośnikami danych.
+
+---
+
+# 16. Sesja i uruchamianie
+
+Sterowanie startem systemu i sesji.
+
+### Zawiera:
+
+* autostart aplikacji
+* usługi sesji
+* menedżer logowania
+* wybór sesji
+* restart/wylogowanie
+* przywracanie sesji
+
+### Do czego służy:
+
+Kontrola działania systemu po uruchomieniu.
+
+---
+
+# 17. Informacje systemowe
+
+Diagnostyka i dane sprzętowe.
+
+### Zawiera:
+
+* CPU
+* RAM
+* GPU
+* kernel
+* wersja systemu
+* sterowniki
+* temperatura
+* użycie dysku
+* logi systemowe
+
+### Do czego służy:
+
+Monitorowanie stanu systemu i sprzętu.
+
+---
+
+# 18. Zaawansowane / deweloperskie
+
+Opcje dla zaawansowanych użytkowników.
+
+### Zawiera:
+
+* debugowanie
+* zmienne środowiskowe
+* Wayland/X11
+* compositor
+* eksperymentalne funkcje
+* profile wydajności
+* konfiguracja renderera
+* API graficzne
+
+### Do czego służy:
+
+Zaawansowana konfiguracja środowiska i diagnostyka.
+
+---
+
+# Podsumowanie architektury ustawień
+
+Nowoczesne środowiska graficzne zwykle dzielą ustawienia na:
+
+* wygląd
+* urządzenia
+* system
+* personalizację
+* sieć
+* bezpieczeństwo
+* aplikacje
+* sprzęt
+* konto użytkownika
+
+Najbardziej rozbudowane środowiska mają:
+
+* modularne moduły ustawień
+* dynamiczne wyszukiwanie opcji
+* backend ustawień oparty o daemon/config API
+* profile użytkownika
+* integrację z Wayland/X11
+* system uprawnień i usług w tle
+
+W praktyce panel ustawień jest frontendem dla:
+
+* usług systemowych
+* daemonów
+* menedżera sesji
+* compositora
+* NetworkManagera
+* PipeWire/PulseAudio
+* systemd
+* konfiguracji użytkownika i sterowników
