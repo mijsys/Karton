@@ -1,6 +1,6 @@
 pkgbase = kartonde
 	pkgver = 0.7.2
-	pkgrel = 2
+	pkgrel = 3
 	url = https://github.com/mijsys/Tektura-i-Karton
 	arch = x86_64
 	license = GPL-2.0-only
@@ -56,10 +56,6 @@ pkgname = karton-shell
 	depends = pango
 	depends = wayland
 
-pkgname = karton-settings
-	pkgdesc = Settings application for KartONDE
-	depends = gtk4
-
 pkgname = karton-session
 	pkgdesc = Session services and desktop helpers for KartONDE
 	depends = glib2
@@ -73,7 +69,6 @@ pkgname = kartonde
 	install = kartonde.install
 	depends = tektura
 	depends = karton-shell
-	depends = karton-settings
 	depends = karton-session
 	optdepends = grim: screenshot backend
 	optdepends = slurp: area screenshot selection

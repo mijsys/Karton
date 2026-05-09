@@ -7,6 +7,8 @@
 
   <windowRules>
     <windowRule identifier="*" serverDecoration="yes" />
+    <windowRule identifier="nautilus*" serverDecoration="no" />
+    <windowRule identifier="org.gnome.Nautilus*" serverDecoration="no" />
     <windowRule identifier="firefox*" serverDecoration="no" />
     <windowRule identifier="Navigator*" serverDecoration="no" />
     <windowRule identifier="code*" serverDecoration="no" />
@@ -33,7 +35,7 @@
   <theme>
     <fallbackAppIcon>application-x-executable</fallbackAppIcon>
     <titlebar>
-      <layout>icon:iconify,max,close</layout>
+      <layout>menu,desk:shade,iconify,max,close</layout>
       <showTitle>yes</showTitle>
     </titlebar>
     <cornerRadius>14</cornerRadius>
