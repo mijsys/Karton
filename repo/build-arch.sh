@@ -19,11 +19,37 @@ pick_wlroots_package() {
     return 1
 }
 
-wlroots_pkg="$(pick_wlroots_package)"
+pick_gtk_greeter_package() {
+    local candidates=(greetd-gtkgreet gtkgreet greetd-gtk-greeter greettdgtk greetdgtk)
+    local pkg
 
-sudo pacman -S --needed --noconfirm \
-    base-devel meson ninja pkgconf wayland wayland-protocols "$wlroots_pkg" \
+    for pkg in "${candidates[@]}"; do
+        if pacman -Si "$pkg" >/dev/null 2>&1; then
+            printf '%s\n' "$pkg"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+wlroots_pkg="$(pick_wlroots_package)"
+gtk_greeter_pkg="$(pick_gtk_greeter_package || true)"
+
+packages=(
+    base-devel meson ninja pkgconf wayland wayland-protocols "$wlroots_pkg"
     cairo pango glib2 gtk3 gtk4 libpulse libxkbcommon libinput libxml2 pixman scdoc gdk-pixbuf2
+    greetd cage
+)
+
+if [[ -n "$gtk_greeter_pkg" ]]; then
+    packages+=("$gtk_greeter_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu GTK greeter (greetd-gtkgreet/gtkgreet)"
+fi
+
+sudo pacman -S --needed --noconfirm "${packages[@]}"
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/build-common.sh"
 build_all_karton
+setup_greetd_gtkgreet_karton_theme

@@ -14,6 +14,7 @@ USE_SUDO=0
 SYSTEM_MODE=0
 RESTART_SESSION=1
 DEV_SHELL_MODE=0
+SETUP_GREETD=0
 CONFIG_NAME="karton"
 ACTION="install"
 CURRENT_SESSION_TYPE="${XDG_SESSION_TYPE:-}"
@@ -35,6 +36,8 @@ Options:
   --prefix <path>     Install prefix (default: ~/.local-karton)
   --system            Install system-wide to /usr/local (uses sudo)
   --dev-shell         Point the running session to karton-shell/builddir-user
+  --setup-greetd      Install and configure greetd + gtkgreet KartON theme
+  --no-setup-greetd   Skip greetd/gtkgreet setup (default in system mode: enabled)
   --no-restart        Do not restart running karton session modules after install
   -h, --help          Show this help
 
@@ -44,6 +47,8 @@ Examples:
   ./install.sh compile
   ./install.sh --prefix "$HOME/.local-karton"
   ./install.sh --dev-shell
+  ./install.sh --setup-greetd
+  ./install.sh --system --no-setup-greetd
   ./install.sh --system
 EOF
 }
@@ -134,6 +139,287 @@ run_install() {
     sudo meson install -C "$1"
   else
     meson install -C "$1"
+  fi
+}
+
+pick_pacman_pkg() {
+  local pkg
+  for pkg in "$@"; do
+    if pacman -Si "$pkg" >/dev/null 2>&1; then
+      printf '%s\n' "$pkg"
+      return 0
+    fi
+  done
+  return 1
+}
+
+run_sudo_or_warn() {
+  if sudo "$@"; then
+    return 0
+  fi
+
+  log "Warning: sudo command failed: $*"
+  return 1
+}
+
+pick_apt_pkg() {
+  local pkg
+  for pkg in "$@"; do
+    if apt-cache show "$pkg" >/dev/null 2>&1; then
+      printf '%s\n' "$pkg"
+      return 0
+    fi
+  done
+  return 1
+}
+
+pick_zypper_pkg() {
+  local pkg
+  for pkg in "$@"; do
+    if zypper --non-interactive se -x "$pkg" 2>/dev/null | grep -q "<name>$pkg</name>"; then
+      printf '%s\n' "$pkg"
+      return 0
+    fi
+  done
+  return 1
+}
+
+install_greetd_packages() {
+  local gtk_greeter_pkg=""
+
+  [[ "$SETUP_GREETD" -eq 1 ]] || return 0
+
+  if command -v pacman >/dev/null 2>&1; then
+    gtk_greeter_pkg="$(pick_pacman_pkg greetd-gtkgreet gtkgreet greetd-gtk-greeter greettdgtk greetdgtk || true)"
+    local pacman_packages=(greetd cage)
+    if [[ -n "$gtk_greeter_pkg" ]]; then
+      pacman_packages+=("$gtk_greeter_pkg")
+    else
+      log "Warning: no GTK greeter package found (greetd-gtkgreet/gtkgreet)"
+    fi
+
+    log "Installing greetd dependencies via pacman"
+    if ! run_sudo_or_warn pacman -S --needed --noconfirm "${pacman_packages[@]}"; then
+      log "Warning: failed to install greetd packages via pacman; continuing"
+    fi
+    return 0
+  fi
+
+  if command -v apt >/dev/null 2>&1; then
+    local greetd_pkg cage_pkg
+    greetd_pkg="$(pick_apt_pkg greetd || true)"
+    gtk_greeter_pkg="$(pick_apt_pkg gtkgreet greetd-gtkgreet greetd-gtk-greeter greettdgtk greetdgtk || true)"
+    cage_pkg="$(pick_apt_pkg cage || true)"
+    local apt_packages=()
+
+    if [[ -n "$greetd_pkg" ]]; then
+      apt_packages+=("$greetd_pkg")
+    else
+      log "Warning: greetd package not found in apt repositories"
+    fi
+
+    if [[ -n "$gtk_greeter_pkg" ]]; then
+      apt_packages+=("$gtk_greeter_pkg")
+    else
+      log "Warning: no GTK greeter package found (gtkgreet/greetd-gtkgreet)"
+    fi
+
+    if [[ -n "$cage_pkg" ]]; then
+      apt_packages+=("$cage_pkg")
+    else
+      log "Warning: cage package not found, gtkgreet will run without cage"
+    fi
+
+    if [[ "${#apt_packages[@]}" -gt 0 ]]; then
+      log "Installing greetd dependencies via apt"
+      if run_sudo_or_warn apt update; then
+        if ! run_sudo_or_warn apt install -y "${apt_packages[@]}"; then
+          log "Warning: failed to install greetd packages via apt; continuing"
+        fi
+      else
+        log "Warning: apt update failed; skipping greetd package installation"
+      fi
+    fi
+    return 0
+  fi
+
+  if command -v zypper >/dev/null 2>&1; then
+    local greetd_pkg cage_pkg
+    greetd_pkg="$(pick_zypper_pkg greetd || true)"
+    gtk_greeter_pkg="$(pick_zypper_pkg gtkgreet greetd-gtkgreet greetd-gtk-greeter greettdgtk greetdgtk || true)"
+    cage_pkg="$(pick_zypper_pkg cage || true)"
+    local zypper_packages=()
+
+    if [[ -n "$greetd_pkg" ]]; then
+      zypper_packages+=("$greetd_pkg")
+    else
+      log "Warning: greetd package not found in zypper repositories"
+    fi
+
+    if [[ -n "$gtk_greeter_pkg" ]]; then
+      zypper_packages+=("$gtk_greeter_pkg")
+    else
+      log "Warning: no GTK greeter package found (gtkgreet/greetd-gtkgreet)"
+    fi
+
+    if [[ -n "$cage_pkg" ]]; then
+      zypper_packages+=("$cage_pkg")
+    else
+      log "Warning: cage package not found, gtkgreet will run without cage"
+    fi
+
+    if [[ "${#zypper_packages[@]}" -gt 0 ]]; then
+      log "Installing greetd dependencies via zypper"
+      if ! run_sudo_or_warn zypper install -y "${zypper_packages[@]}"; then
+        log "Warning: failed to install greetd packages via zypper; continuing"
+      fi
+    fi
+    return 0
+  fi
+
+  log "Warning: unsupported package manager; skipping greetd package installation"
+  return 0
+}
+
+setup_greetd_workspace_config() {
+  local greetd_dir="/etc/greetd"
+  local greetd_cfg="$greetd_dir/config.toml"
+  local gtkgreet_cfg="$greetd_dir/gtkgreet.toml"
+  local gtkgreet_css="$greetd_dir/gtkgreet-karton.css"
+  local snippet_file="$greetd_dir/karton-default-session.toml"
+  local src_cfg="$SCRIPT_DIR/repo/greetd/gtkgreet.toml"
+  local src_css="$SCRIPT_DIR/repo/greetd/gtkgreet-karton.css"
+  local managed_begin="# BEGIN KartON greetd default_session"
+  local managed_end="# END KartON greetd default_session"
+  local gtkgreet_bin="/usr/bin/gtkgreet"
+  local has_gtkgreet=0
+  local session_command
+  local tmp_file
+  local merged_tmp
+  local stripped_tmp
+  local backup_file
+
+  [[ "$SETUP_GREETD" -eq 1 ]] || return 0
+
+  [[ -f "$src_cfg" ]] || die "Missing greetd config template: $src_cfg"
+  [[ -f "$src_css" ]] || die "Missing greetd style template: $src_css"
+
+  install_greetd_packages
+
+  if command -v gtkgreet >/dev/null 2>&1; then
+    gtkgreet_bin="$(command -v gtkgreet)"
+    has_gtkgreet=1
+  elif [[ -x "$gtkgreet_bin" ]]; then
+    has_gtkgreet=1
+  fi
+
+  log "Installing KartON greetd theme to $greetd_dir"
+  if ! run_sudo_or_warn install -d -m 755 "$greetd_dir"; then
+    log "Warning: cannot create $greetd_dir; skipping greetd configuration"
+    return 0
+  fi
+  if ! run_sudo_or_warn install -m 644 "$src_cfg" "$gtkgreet_cfg"; then
+    log "Warning: cannot install $gtkgreet_cfg; skipping greetd configuration"
+    return 0
+  fi
+  if ! run_sudo_or_warn install -m 644 "$src_css" "$gtkgreet_css"; then
+    log "Warning: cannot install $gtkgreet_css; skipping greetd configuration"
+    return 0
+  fi
+
+  if [[ "$has_gtkgreet" -ne 1 ]]; then
+    log "Warning: gtkgreet binary not found; skipped default_session changes"
+    return 0
+  fi
+
+  session_command="$gtkgreet_bin --config $gtkgreet_cfg --style $gtkgreet_css"
+  if command -v cage >/dev/null 2>&1; then
+    session_command="cage -s -- $session_command"
+  fi
+
+  tmp_file="$(mktemp)"
+  cat > "$tmp_file" <<EOF
+$managed_begin
+[default_session]
+command = "$session_command"
+user = "greeter"
+$managed_end
+EOF
+
+  if [[ ! -f "$greetd_cfg" ]]; then
+    log "Creating default greetd config: $greetd_cfg"
+    if ! run_sudo_or_warn install -m 644 "$tmp_file" "$greetd_cfg"; then
+      log "Warning: cannot write $greetd_cfg"
+    fi
+  elif grep -q "$managed_begin" "$greetd_cfg"; then
+    merged_tmp="$(mktemp)"
+    {
+      cat "$tmp_file"
+      awk -v begin="$managed_begin" -v end="$managed_end" '
+        $0 == begin { skip = 1; next }
+        $0 == end { skip = 0; next }
+        skip { next }
+        { print }
+      ' "$greetd_cfg"
+    } > "$merged_tmp"
+    log "Updating KartON managed greetd block in $greetd_cfg"
+    if ! run_sudo_or_warn install -m 644 "$merged_tmp" "$greetd_cfg"; then
+      log "Warning: cannot update $greetd_cfg"
+    fi
+    rm -f "$merged_tmp"
+  else
+    stripped_tmp="$(mktemp)"
+    merged_tmp="$(mktemp)"
+    backup_file="$greetd_cfg.karton.bak.$(date +%s)"
+
+    awk '
+      BEGIN { in_default = 0 }
+      /^\[default_session\][[:space:]]*$/ {
+        in_default = 1
+        next
+      }
+      /^\[[^]]+\][[:space:]]*$/ {
+        if (in_default) {
+          in_default = 0
+        }
+      }
+      in_default { next }
+      { print }
+    ' "$greetd_cfg" > "$stripped_tmp"
+
+    {
+      cat "$tmp_file"
+      if [[ -s "$stripped_tmp" ]]; then
+        printf '\n'
+        cat "$stripped_tmp"
+      fi
+    } > "$merged_tmp"
+
+    log "Detected custom greetd config, replacing default_session with KartON block"
+    if run_sudo_or_warn cp "$greetd_cfg" "$backup_file"; then
+      log "Backup created: $backup_file"
+    fi
+    if ! run_sudo_or_warn install -m 644 "$merged_tmp" "$greetd_cfg"; then
+      log "Warning: cannot update $greetd_cfg, saving suggested snippet instead"
+      cat > "$tmp_file" <<EOF
+# KartON suggested default_session for greetd
+[default_session]
+command = "$session_command"
+user = "greeter"
+EOF
+      if run_sudo_or_warn install -m 644 "$tmp_file" "$snippet_file"; then
+        log "Saved suggested greetd session snippet: $snippet_file"
+      fi
+    fi
+
+    rm -f "$stripped_tmp" "$merged_tmp"
+  fi
+
+  rm -f "$tmp_file"
+
+  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files greetd.service >/dev/null 2>&1; then
+    log "Enabling greetd service"
+    sudo systemctl enable greetd.service >/dev/null 2>&1 || true
   fi
 }
 
@@ -664,10 +950,19 @@ while [[ $# -gt 0 ]]; do
       SYSTEM_MODE=1
       PREFIX="/usr/local"
       USE_SUDO=1
+      SETUP_GREETD=1
       shift
       ;;
     --dev-shell)
       DEV_SHELL_MODE=1
+      shift
+      ;;
+    --setup-greetd)
+      SETUP_GREETD=1
+      shift
+      ;;
+    --no-setup-greetd)
+      SETUP_GREETD=0
       shift
       ;;
     --no-restart)
@@ -701,6 +996,10 @@ if [[ "$USE_SUDO" -eq 1 ]]; then
   need_cmd sudo
 fi
 
+if [[ "$SETUP_GREETD" -eq 1 ]]; then
+  need_cmd sudo
+fi
+
 if [[ "$SYSTEM_MODE" -eq 1 ]]; then
   log "Using system mode with prefix $PREFIX"
   build_project "$TEKTURA_DIR" -Dsystemd-session=enabled
@@ -721,6 +1020,7 @@ if [[ "$ACTION" == "install" && "$SYSTEM_MODE" -eq 0 ]]; then
 fi
 
 if [[ "$ACTION" == "install" ]]; then
+  setup_greetd_workspace_config
   switch_session_shell_to_dev
   restart_running_session
 

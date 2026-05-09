@@ -30,6 +30,7 @@ Skrypty w tym katalogu instalują zależności i budują:
 - `tektura`
 - `karton-shell`
 - `karton-settings`
+- `karton-files`
 - `karton-session`
 
 Dodatkowo skrypty próbują zainstalować i skonfigurować stack logowania `greetd` + GTK greeter
@@ -39,8 +40,8 @@ Pliki motywu trafiają do:
 - `/etc/greetd/gtkgreet-karton.css`
 - `/etc/greetd/gtkgreet.toml`
 
-Jeżeli istnieje niestandardowy `/etc/greetd/config.toml`, skrypt go nie nadpisuje i zapisuje
-podpowiedź konfiguracji do `/etc/greetd/karton-default-session.toml`.
+Jeżeli istnieje niestandardowy `/etc/greetd/config.toml`, skrypt robi kopię zapasową i
+podmienia sekcję `default_session` na konfigurację KartON.
 
 Dostępne skrypty:
 
@@ -77,8 +78,9 @@ Pakiety docelowe:
 
 - `tektura`
 - `karton-shell`
-- `karton-session`
 - `karton-settings`
+- `karton-files`
+- `karton-session`
 - `kartonde` (metapakiet instalujący całe środowisko)
 
 Budowanie binarnych paczek i bazy repozytorium:

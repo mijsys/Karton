@@ -1,6 +1,6 @@
 pkgbase=kartonde
-pkgname=('tektura' 'karton-shell' 'karton-session' 'kartonde')
-pkgver=0.7.3
+pkgname=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-session' 'kartonde')
+pkgver=0.7.4
 pkgrel=1
 arch=('x86_64')
 url='https://github.com/mijsys/Tektura-i-Karton'
@@ -48,6 +48,11 @@ build() {
   _setup_component karton-shell
   _build_component karton-shell
 
+  _setup_component karton-settings
+  _build_component karton-settings
+
+  _setup_component karton-files
+  _build_component karton-files
 
   _setup_component karton-session
   _build_component karton-session
@@ -68,6 +73,20 @@ package_karton-shell() {
   _install_component karton-shell "$pkgdir"
 }
 
+package_karton-settings() {
+  pkgdesc='KartonDE desktop settings application'
+  depends=('glib2' 'gtk4')
+
+  _install_component karton-settings "$pkgdir"
+}
+
+package_karton-files() {
+  pkgdesc='KartonDE GTK file manager'
+  depends=('glib2' 'gtk4')
+
+  _install_component karton-files "$pkgdir"
+}
+
 
 package_karton-session() {
   pkgdesc='Session services and desktop helpers for KartONDE'
@@ -79,7 +98,7 @@ package_karton-session() {
 
 package_kartonde() {
   pkgdesc='Complete KartONDE desktop environment metapackage'
-  depends=('tektura' 'karton-shell' 'karton-session')
+  depends=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-session')
   optdepends=('grim: screenshot backend' 'slurp: area screenshot selection' 'wl-clipboard: copy screenshots to clipboard')
   backup=(
     'etc/xdg/karton/autostart'

@@ -1,0 +1,89 @@
+/* KartON greetd/gtkgreet theme */
+
+window {
+  background-image: linear-gradient(145deg, #101625 0%, #151f34 45%, #1f2d46 100%);
+  color: #e8eefc;
+  font-family: "Noto Sans", "Cantarell", sans-serif;
+  font-size: 10.5pt;
+}
+
+box,
+grid,
+list,
+list row,
+frame,
+revealer {
+  background: transparent;
+}
+
+label {
+  color: #dce7ff;
+}
+
+entry,
+combobox,
+spinbutton,
+textview,
+text {
+  background-color: rgba(17, 27, 45, 0.78);
+  color: #f3f7ff;
+  border: 1px solid rgba(123, 102, 244, 0.42);
+  border-radius: 12px;
+  padding: 10px 12px;
+  caret-color: #ffffff;
+}
+
+entry:focus,
+combobox:focus,
+spinbutton:focus,
+textview:focus {
+  border-color: rgba(146, 126, 255, 0.88);
+  box-shadow: 0 0 0 2px rgba(122, 102, 244, 0.28);
+}
+
+button {
+  background-image: none;
+  background-color: #7a66f4;
+  color: #ffffff;
+  border: 1px solid rgba(166, 146, 255, 0.42);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-weight: 600;
+}
+
+button:hover {
+  background-color: #8a76ff;
+}
+
+button:active {
+  background-color: #6954e4;
+}
+
+button:disabled {
+  background-color: rgba(95, 106, 130, 0.35);
+  color: rgba(223, 233, 255, 0.6);
+}
+
+check,
+radio,
+switch {
+  color: #87d9c9;
+}
+
+selection {
+  background-color: rgba(122, 102, 244, 0.42);
+  color: #ffffff;
+}
+
+headerbar,
+actionbar,
+toolbar {
+  background-image: none;
+  background-color: rgba(14, 22, 36, 0.74);
+  border: 0;
+  box-shadow: none;
+}
+
+separator {
+  background-color: rgba(111, 127, 165, 0.44);
+}

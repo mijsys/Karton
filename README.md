@@ -59,6 +59,26 @@ Instalator w trybie użytkownika:
 
 Tryb systemowy instaluje pliki do `/usr/local` i używa `sudo` podczas `meson install`.
 
+### Integracja greetd
+
+Jeśli chcesz od razu skonfigurować `greetd` i motyw logowania `gtkgreet` w stylu KartON:
+
+```bash
+./install.sh --setup-greetd
+```
+
+W trybie `--system` integracja greetd jest włączona domyślnie.
+Możesz ją wyłączyć przez:
+
+```bash
+./install.sh --system --no-setup-greetd
+```
+
+Ta opcja:
+- próbuje doinstalować `greetd`, `cage` i GTK greeter (nazwa zależy od dystrybucji)
+- instaluje motyw do `/etc/greetd/gtkgreet-karton.css` i `/etc/greetd/gtkgreet.toml`
+- aktualizuje aktywną sekcję `default_session` w `/etc/greetd/config.toml` (z kopią zapasową poprzedniego pliku)
+
 ### Wersja developerska
 
 Jeśli chcesz uruchamiać sesję na binarce developerskiej z `karton-shell/builddir-user`:
@@ -157,6 +177,26 @@ In user mode the installer:
 
 System mode installs into `/usr/local` and uses `sudo` for `meson install`.
 
+### greetd integration
+
+If you want to configure `greetd` and a KartON-styled `gtkgreet` theme during install:
+
+```bash
+./install.sh --setup-greetd
+```
+
+In `--system` mode, greetd integration is enabled by default.
+You can disable it with:
+
+```bash
+./install.sh --system --no-setup-greetd
+```
+
+This option:
+- tries to install `greetd`, `cage`, and a GTK greeter package (name depends on distro)
+- installs theme files to `/etc/greetd/gtkgreet-karton.css` and `/etc/greetd/gtkgreet.toml`
+- updates the active `default_session` section in `/etc/greetd/config.toml` (with a backup of the previous file)
+
 ### Development shell mode
 
 If you want the running session to use the development binary from `karton-shell/builddir-user`:
@@ -254,6 +294,26 @@ Im Benutzermodus erledigt der Installer Folgendes:
 ```
 
 Der Systemmodus installiert nach `/usr/local` und verwendet `sudo` für `meson install`.
+
+### greetd-Integration
+
+Wenn du `greetd` und ein KartON-Loginthema für `gtkgreet` direkt mit einrichten möchtest:
+
+```bash
+./install.sh --setup-greetd
+```
+
+Im Modus `--system` ist die greetd-Integration standardmäßig aktiv.
+Du kannst sie so deaktivieren:
+
+```bash
+./install.sh --system --no-setup-greetd
+```
+
+Diese Option:
+- versucht `greetd`, `cage` und ein GTK-Greeter-Paket zu installieren (Paketname je nach Distribution)
+- installiert Theme-Dateien nach `/etc/greetd/gtkgreet-karton.css` und `/etc/greetd/gtkgreet.toml`
+- aktualisiert die aktive Sektion `default_session` in `/etc/greetd/config.toml` (mit Backup der vorherigen Datei)
 
 ### Entwicklungsmodus für die Shell
 
