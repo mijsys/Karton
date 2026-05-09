@@ -1013,16 +1013,16 @@ refresh_all(KartonSettingsWindow *self)
 }
 
 static void
-on_refresh_clicked(GtkButton *button, gpointer user_data)
+on_refresh_clicked(GtkWidget *widget, gpointer user_data)
 {
-    (void)button;
+    (void)widget;
     KartonSettingsWindow *self = user_data;
     refresh_all(self);
     set_status(self, _("Settings state refreshed."), TRUE);
 }
 
 static void
-on_theme_clicked(GtkButton *button, gpointer user_data)
+on_theme_clicked(GtkWidget *widget, gpointer user_data)
 {
     KartonSettingsWindow *self = user_data;
     KartonThemeMode mode = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(button), "theme-mode"));
@@ -1039,7 +1039,7 @@ on_theme_clicked(GtkButton *button, gpointer user_data)
 }
 
 static void
-on_accent_clicked(GtkButton *button, gpointer user_data)
+on_accent_clicked(GtkWidget *widget, gpointer user_data)
 {
     KartonSettingsWindow *self = user_data;
     const char *hex = g_object_get_data(G_OBJECT(button), "accent-hex");
@@ -1058,9 +1058,9 @@ on_accent_clicked(GtkButton *button, gpointer user_data)
 }
 
 static void
-on_apply_font_clicked(GtkButton *button, gpointer user_data)
+on_apply_font_clicked(GtkWidget *widget, gpointer user_data)
 {
-    (void)button;
+    (void)widget;
     KartonSettingsWindow *self = user_data;
     const char *font_name = gtk_editable_get_text(GTK_EDITABLE(self->font_entry));
     gchar *error_msg = NULL;
@@ -1135,10 +1135,11 @@ on_dnd_state_set(GtkSwitch *sw, gboolean state, gpointer user_data)
 }
 
 static void
-on_apply_audio_clicked(GtkButton *button, gpointer user_data)
+on_apply_audio_clicked(GtkWidget *widget, gpointer user_data)
 {
-    (void)button;
+    (void)widget;
     KartonSettingsWindow *self = user_data;
+    if (self->syncing_audio) return;
     gchar *error_msg = NULL;
 
     if (karton_audio_apply(
@@ -1156,10 +1157,11 @@ on_apply_audio_clicked(GtkButton *button, gpointer user_data)
 }
 
 static void
-on_apply_power_clicked(GtkButton *button, gpointer user_data)
+on_apply_power_clicked(GtkWidget *widget, gpointer user_data)
 {
-    (void)button;
+    (void)widget;
     KartonSettingsWindow *self = user_data;
+    if (self->syncing_power) return;
     guint selected = gtk_drop_down_get_selected(self->power_profile_drop);
     gchar *error_msg = NULL;
 
@@ -1178,9 +1180,9 @@ on_apply_power_clicked(GtkButton *button, gpointer user_data)
 }
 
 static void
-on_apply_display_clicked(GtkButton *button, gpointer user_data)
+on_apply_display_clicked(GtkWidget *widget, gpointer user_data)
 {
-    (void)button;
+    (void)widget;
     KartonSettingsWindow *self = user_data;
     guint index = gtk_drop_down_get_selected(self->display_scale_drop);
     gchar *error_msg = NULL;
@@ -1200,9 +1202,9 @@ on_apply_display_clicked(GtkButton *button, gpointer user_data)
 }
 
 static void
-on_apply_display_brightness_clicked(GtkButton *button, gpointer user_data)
+on_apply_display_brightness_clicked(GtkWidget *widget, gpointer user_data)
 {
-    (void)button;
+    (void)widget;
     KartonSettingsWindow *self = user_data;
     gchar *error_msg = NULL;
 
@@ -1217,9 +1219,9 @@ on_apply_display_brightness_clicked(GtkButton *button, gpointer user_data)
 }
 
 static void
-on_apply_display_mode_clicked(GtkButton *button, gpointer user_data)
+on_apply_display_mode_clicked(GtkWidget *widget, gpointer user_data)
 {
-    (void)button;
+    (void)widget;
     KartonSettingsWindow *self = user_data;
     const char *mode = get_dropdown_selected_text(self->display_mode_drop);
     const char *orientation = get_dropdown_selected_text(self->display_orientation_drop);
@@ -1236,9 +1238,9 @@ on_apply_display_mode_clicked(GtkButton *button, gpointer user_data)
 }
 
 static void
-on_apply_input_clicked(GtkButton *button, gpointer user_data)
+on_apply_input_clicked(GtkWidget *widget, gpointer user_data)
 {
-    (void)button;
+    (void)widget;
     KartonSettingsWindow *self = user_data;
     gchar *error_msg = NULL;
 
@@ -1257,9 +1259,9 @@ on_apply_input_clicked(GtkButton *button, gpointer user_data)
 }
 
 static void
-on_apply_accessibility_clicked(GtkButton *button, gpointer user_data)
+on_apply_accessibility_clicked(GtkWidget *widget, gpointer user_data)
 {
-    (void)button;
+    (void)widget;
     KartonSettingsWindow *self = user_data;
     gchar *error_msg = NULL;
 
@@ -1281,9 +1283,9 @@ on_apply_accessibility_clicked(GtkButton *button, gpointer user_data)
 }
 
 static void
-on_apply_privacy_clicked(GtkButton *button, gpointer user_data)
+on_apply_privacy_clicked(GtkWidget *widget, gpointer user_data)
 {
-    (void)button;
+    (void)widget;
     KartonSettingsWindow *self = user_data;
     gchar *error_msg = NULL;
 
@@ -1307,7 +1309,7 @@ on_apply_privacy_clicked(GtkButton *button, gpointer user_data)
 }
 
 static void
-on_region_tool_clicked(GtkButton *button, gpointer user_data)
+on_region_tool_clicked(GtkWidget *widget, gpointer user_data)
 {
     KartonSettingsWindow *self = user_data;
     const char *tool = g_object_get_data(G_OBJECT(button), "region-tool");
@@ -1326,7 +1328,7 @@ on_region_tool_clicked(GtkButton *button, gpointer user_data)
 }
 
 static void
-on_advanced_report_clicked(GtkButton *button, gpointer user_data)
+on_advanced_report_clicked(GtkWidget *widget, gpointer user_data)
 {
     KartonSettingsWindow *self = user_data;
     const char *tool = g_object_get_data(G_OBJECT(button), "advanced-tool");
@@ -1346,7 +1348,7 @@ on_advanced_report_clicked(GtkButton *button, gpointer user_data)
 }
 
 static void
-on_session_action_clicked(GtkButton *button, gpointer user_data)
+on_session_action_clicked(GtkWidget *widget, gpointer user_data)
 {
     KartonSettingsWindow *self = user_data;
     const char *action = g_object_get_data(G_OBJECT(button), "session-action");
@@ -1421,9 +1423,9 @@ on_autostart_search_changed(GtkEditable *editable, gpointer user_data)
 }
 
 static void
-on_apply_autostart_clicked(GtkButton *button, gpointer user_data)
+on_apply_autostart_clicked(GtkWidget *widget, gpointer user_data)
 {
-    (void)button;
+    (void)widget;
     KartonSettingsWindow *self = user_data;
     const char *desktop_id = get_autostart_selected_id(self);
     gchar *error_msg = NULL;
@@ -1610,10 +1612,10 @@ build_sound_page(KartonSettingsWindow *self, const KartonCategory *category)
     gtk_box_append(GTK_BOX(mic_card), create_summary_row(_("Mute microphone"), GTK_WIDGET(self->mic_mute_switch)));
     gtk_box_append(GTK_BOX(page), mic_card);
 
-    GtkWidget *apply_button = gtk_button_new_with_label(_("Apply sound"));
-    gtk_widget_add_css_class(apply_button, "action-button");
-    g_signal_connect(apply_button, "clicked", G_CALLBACK(on_apply_audio_clicked), self);
-    gtk_box_append(GTK_BOX(card), apply_button);
+    g_signal_connect(self->volume_scale, "value-changed", G_CALLBACK(on_apply_audio_clicked), self);
+    g_signal_connect(self->mute_switch, "notify::active", G_CALLBACK(on_apply_audio_clicked), self);
+    g_signal_connect(self->mic_scale, "value-changed", G_CALLBACK(on_apply_audio_clicked), self);
+    g_signal_connect(self->mic_mute_switch, "notify::active", G_CALLBACK(on_apply_audio_clicked), self);
     self->audio_summary = GTK_LABEL(create_label_block("", "mini-note"));
     self->audio_details = GTK_LABEL(create_label_block("", "detail-text"));
     gtk_box_append(GTK_BOX(card), GTK_WIDGET(self->audio_summary));
@@ -1631,10 +1633,7 @@ build_power_page(KartonSettingsWindow *self, const KartonCategory *category)
     GtkWidget *card = create_card(_("Power profile"), _("Switch between available power policy modes."));
     self->power_profile_drop = GTK_DROP_DOWN(gtk_drop_down_new_from_strings(profile_labels));
     gtk_box_append(GTK_BOX(card), GTK_WIDGET(self->power_profile_drop));
-    GtkWidget *apply_button = gtk_button_new_with_label(_("Apply profile"));
-    gtk_widget_add_css_class(apply_button, "action-button");
-    g_signal_connect(apply_button, "clicked", G_CALLBACK(on_apply_power_clicked), self);
-    gtk_box_append(GTK_BOX(card), apply_button);
+    g_signal_connect(self->power_profile_drop, "notify::selected", G_CALLBACK(on_apply_power_clicked), self);
     self->power_summary = GTK_LABEL(create_label_block("", "mini-note"));
     gtk_box_append(GTK_BOX(card), GTK_WIDGET(self->power_summary));
     gtk_box_append(GTK_BOX(page), card);
