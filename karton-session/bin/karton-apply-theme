@@ -8,6 +8,35 @@ mkdir -p "$config_root" "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0" "${XDG_CONFI
 
 theme_tokens="$config_root/theme.toml"
 
+find_config_file() {
+  filename="$1"
+
+  user_config_root="${XDG_CONFIG_HOME:-$HOME/.config}/karton"
+  if [ -r "$user_config_root/$filename" ]; then
+    printf '%s\n' "$user_config_root/$filename"
+    return 0
+  fi
+
+  config_dirs="${XDG_CONFIG_DIRS:-/etc/xdg}"
+  old_ifs="$IFS"
+  IFS=:
+  for base in $config_dirs; do
+    [ -n "$base" ] || continue
+    if [ -r "$base/karton/$filename" ]; then
+      IFS="$old_ifs"
+      printf '%s\n' "$base/karton/$filename"
+      return 0
+    fi
+  done
+  IFS="$old_ifs"
+
+  return 1
+}
+
+if resolved_theme_tokens="$(find_config_file theme.toml 2>/dev/null)"; then
+  theme_tokens="$resolved_theme_tokens"
+fi
+
 read_mode_from_css() {
   css_file="$config_root/shell.css"
   [ -r "$css_file" ] || return 1

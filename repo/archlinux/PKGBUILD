@@ -1,0 +1,105 @@
+pkgbase=kartonde
+pkgname=('tektura' 'karton-shell' 'karton-settings' 'karton-session' 'kartonde')
+pkgver=0.7.1
+pkgrel=1
+arch=('x86_64')
+url='https://github.com/mijsys/Tektura-i-Karton'
+license=('GPL-2.0-only')
+makedepends=(
+  'git' 'meson' 'ninja' 'pkgconf' 'wayland' 'wayland-protocols' 'wlroots0.20'
+  'cairo' 'pango' 'glib2' 'gtk3' 'gtk4' 'libpulse' 'libxkbcommon' 'libinput'
+  'libxml2' 'pixman' 'scdoc' 'gdk-pixbuf2' 'librsvg' 'xorg-xwayland' 'systemd'
+)
+source_repo_url="${KARTONDE_REPO_URL:-https://github.com/mijsys/Tektura-i-Karton}"
+source=("kartonde::git+${source_repo_url}.git")
+sha256sums=('SKIP')
+
+_srcroot="$srcdir/kartonde"
+
+_setup_component() {
+  local name="$1"
+  shift || true
+  local src_dir="$_srcroot/$name"
+  local build_dir="$src_dir/builddir-pkg"
+
+  meson setup "$build_dir" "$src_dir" --prefix=/usr "$@"
+}
+
+_build_component() {
+  local name="$1"
+  meson compile -C "$_srcroot/$name/builddir-pkg"
+}
+
+_install_component() {
+  local name="$1"
+  local destdir="$2"
+  DESTDIR="$destdir" meson install -C "$_srcroot/$name/builddir-pkg" --no-rebuild
+}
+
+prepare() {
+  cd "$_srcroot"
+}
+
+build() {
+  _setup_component tektura -Dsystemd-session=enabled
+  _build_component tektura
+
+  _setup_component karton-shell
+  _build_component karton-shell
+
+  _setup_component karton-settings
+  _build_component karton-settings
+
+  _setup_component karton-session
+  _build_component karton-session
+}
+
+package_tektura() {
+  pkgdesc='KartonDE Wayland compositor based on Tektura'
+  depends=('cairo' 'glib2' 'libinput' 'libxkbcommon' 'libxml2' 'pango' 'pixman' 'wayland' 'wlroots0.20' 'xorg-xwayland')
+  optdepends=('grim: screenshot backend' 'slurp: area screenshot selection' 'wl-clipboard: copy screenshots to clipboard')
+
+  _install_component tektura "$pkgdir"
+}
+
+package_karton-shell() {
+  pkgdesc='KartonDE shell with top panel, side dock and desktop popups'
+  depends=('cairo' 'gdk-pixbuf2' 'glib2' 'gio' 'gtk4' 'libpulse' 'libxkbcommon' 'pango' 'wayland')
+
+  _install_component karton-shell "$pkgdir"
+}
+
+package_karton-settings() {
+  pkgdesc='Settings application for KartONDE'
+  depends=('gtk4')
+
+  _install_component karton-settings "$pkgdir"
+}
+
+package_karton-session() {
+  pkgdesc='Session services and desktop helpers for KartONDE'
+  depends=('glib2' 'gtk4')
+  optdepends=('grim: screenshot backend' 'slurp: area screenshot selection' 'wl-clipboard: copy screenshots to clipboard')
+
+  _install_component karton-session "$pkgdir"
+}
+
+package_kartonde() {
+  pkgdesc='Complete KartONDE desktop environment metapackage'
+  depends=('tektura' 'karton-shell' 'karton-settings' 'karton-session')
+  optdepends=('grim: screenshot backend' 'slurp: area screenshot selection' 'wl-clipboard: copy screenshots to clipboard')
+  backup=(
+    'etc/xdg/karton/autostart'
+    'etc/xdg/karton/environment'
+    'etc/xdg/karton/rc.xml'
+    'etc/xdg/karton/theme.toml'
+  )
+  install='kartonde.install'
+
+  install -Dm755 "$_srcroot/repo/archlinux/config/autostart" "$pkgdir/etc/xdg/karton/autostart"
+  install -Dm644 "$_srcroot/repo/archlinux/config/environment" "$pkgdir/etc/xdg/karton/environment"
+  install -Dm644 "$_srcroot/repo/archlinux/config/rc.xml" "$pkgdir/etc/xdg/karton/rc.xml"
+  install -Dm644 "$_srcroot/repo/archlinux/config/theme.toml" "$pkgdir/etc/xdg/karton/theme.toml"
+  install -Dm644 "$_srcroot/README.md" "$pkgdir/usr/share/doc/kartonde/README.md"
+  install -Dm644 "$_srcroot/repo/archlinux/pacman.conf.example" "$pkgdir/usr/share/doc/kartonde/pacman.conf.example"
+}

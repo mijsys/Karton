@@ -1,0 +1,107 @@
+<?xml version="1.0"?>
+<labwc_config>
+  <!-- BEGIN KartON managed SSD rules -->
+  <core>
+    <decoration>server</decoration>
+  </core>
+
+  <windowRules>
+    <windowRule identifier="*" serverDecoration="yes" />
+    <windowRule identifier="firefox*" serverDecoration="no" />
+    <windowRule identifier="Navigator*" serverDecoration="no" />
+    <windowRule identifier="code*" serverDecoration="no" />
+    <windowRule identifier="Code*" serverDecoration="no" />
+    <windowRule identifier="code-oss*" serverDecoration="no" />
+    <windowRule identifier="Code - OSS*" serverDecoration="no" />
+    <windowRule identifier="codium*" serverDecoration="no" />
+    <windowRule identifier="VSCodium*" serverDecoration="no" />
+    <windowRule identifier="cursor*" serverDecoration="no" />
+    <windowRule identifier="Cursor*" serverDecoration="no" />
+    <windowRule identifier="chromium*" serverDecoration="no" />
+    <windowRule identifier="google-chrome*" serverDecoration="no" />
+    <windowRule identifier="microsoft-edge*" serverDecoration="no" />
+    <windowRule identifier="zen*" serverDecoration="no" />
+    <windowRule identifier="org.mozilla.firefox*" serverDecoration="no" />
+    <windowRule identifier="visual-studio-code*" serverDecoration="no" />
+    <windowRule identifier="code-url-handler*" serverDecoration="no" />
+    <windowRule identifier="discord*" serverDecoration="no" />
+    <windowRule identifier="Slack*" serverDecoration="no" />
+    <windowRule identifier="obsidian*" serverDecoration="no" />
+  </windowRules>
+  <!-- END KartON managed SSD rules -->
+
+  <theme>
+    <fallbackAppIcon>application-x-executable</fallbackAppIcon>
+    <titlebar>
+      <layout>icon:iconify,max,close</layout>
+      <showTitle>yes</showTitle>
+    </titlebar>
+    <cornerRadius>14</cornerRadius>
+    <keepBorder>yes</keepBorder>
+    <maximizedDecoration>titlebar</maximizedDecoration>
+    <dropShadows>yes</dropShadows>
+    <dropShadowsOnTiled>no</dropShadowsOnTiled>
+    <font place="ActiveWindow">
+      <name>Inter Weight=600 11</name>
+    </font>
+    <font place="InactiveWindow">
+      <name>Inter Weight=500 11</name>
+    </font>
+  </theme>
+
+  <desktops>
+    <windowMargin>12</windowMargin>
+  </desktops>
+
+  <keyboard>
+    <default />
+
+    <keybind key="Print">
+      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot full'" />
+    </keybind>
+
+    <keybind key="SysRq">
+      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot full'" />
+    </keybind>
+
+    <keybind key="Sys_Req">
+      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot full'" />
+    </keybind>
+
+    <keybind key="S-Print">
+      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot area'" />
+    </keybind>
+
+    <keybind key="S-SysRq">
+      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot area'" />
+    </keybind>
+
+    <keybind key="S-Sys_Req">
+      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot area'" />
+    </keybind>
+
+    <keybind key="C-Print">
+      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot full-copy'" />
+    </keybind>
+
+    <keybind key="C-SysRq">
+      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot full-copy'" />
+    </keybind>
+
+    <keybind key="C-Sys_Req">
+      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot full-copy'" />
+    </keybind>
+
+    <keybind key="C-S-Print">
+      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot area-copy'" />
+    </keybind>
+
+    <keybind key="C-S-SysRq">
+      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot area-copy'" />
+    </keybind>
+
+    <keybind key="C-S-Sys_Req">
+      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot area-copy'" />
+    </keybind>
+  </keyboard>
+</labwc_config>

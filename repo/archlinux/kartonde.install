@@ -1,0 +1,56 @@
+post_install() {
+  _kartonde_configure_keyboard
+  _kartonde_post_message
+}
+
+post_upgrade() {
+  _kartonde_configure_keyboard
+  _kartonde_post_message
+}
+
+_kartonde_configure_keyboard() {
+  local envfile="/etc/xdg/karton/environment"
+  local layout
+  local model
+  local variant
+  local options
+
+  [[ -f "$envfile" ]] || return 0
+
+  if ! command -v localectl >/dev/null 2>&1; then
+    return 0
+  fi
+
+  layout="$(localectl status 2>/dev/null | awk -F: '/X11 Layout/ { gsub(/^[[:space:]]+/, "", $2); print $2; exit }')"
+  model="$(localectl status 2>/dev/null | awk -F: '/X11 Model/ { gsub(/^[[:space:]]+/, "", $2); print $2; exit }')"
+  variant="$(localectl status 2>/dev/null | awk -F: '/X11 Variant/ { gsub(/^[[:space:]]+/, "", $2); print $2; exit }')"
+  options="$(localectl status 2>/dev/null | awk -F: '/X11 Options/ { gsub(/^[[:space:]]+/, "", $2); print $2; exit }')"
+
+  if [[ -n "$layout" ]] && ! grep -q '^XKB_DEFAULT_LAYOUT=' "$envfile"; then
+    printf '\nXKB_DEFAULT_LAYOUT=%s\n' "$layout" >> "$envfile"
+  fi
+  if [[ -n "$model" ]] && ! grep -q '^XKB_DEFAULT_MODEL=' "$envfile"; then
+    printf 'XKB_DEFAULT_MODEL=%s\n' "$model" >> "$envfile"
+  fi
+  if [[ -n "$variant" ]] && ! grep -q '^XKB_DEFAULT_VARIANT=' "$envfile"; then
+    printf 'XKB_DEFAULT_VARIANT=%s\n' "$variant" >> "$envfile"
+  fi
+  if [[ -n "$options" ]] && ! grep -q '^XKB_DEFAULT_OPTIONS=' "$envfile"; then
+    printf 'XKB_DEFAULT_OPTIONS=%s\n' "$options" >> "$envfile"
+  fi
+}
+
+_kartonde_post_message() {
+  cat <<'EOF'
+
+KartONDE is installed.
+
+- Wayland session file: /usr/share/wayland-sessions/karton.desktop
+- System defaults live in: /etc/xdg/karton
+- If your display manager was already running, log out and choose the Karton session.
+
+Optional tools for screenshots and clipboard integration:
+  sudo pacman -S grim slurp wl-clipboard
+
+EOF
+}

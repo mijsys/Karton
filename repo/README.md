@@ -35,6 +35,7 @@ Skrypty w tym katalogu instalują zależności i budują:
 Dostępne skrypty:
 
 - `build-arch.sh`
+- `archlinux/build-repo.sh`
 - `build-opensuse.sh`
 - `build-ubuntu.sh`
 - `build-debian.sh`
@@ -57,3 +58,44 @@ curl -fsSL https://raw.githubusercontent.com/mijsys/Tektura-i-Karton/main/repo/i
 ```
 
 Każdy z nich klonuje aktualne repozytorium do `~/.cache/karton-src` i uruchamia odpowiedni skrypt budowania dla danej dystrybucji.
+
+## Arch Linux: pacman repo
+
+W katalogu `repo/archlinux` znajduje się split package dla Arch Linux z metapakietem `kartonde`.
+
+Pakiety docelowe:
+
+- `tektura`
+- `karton-shell`
+- `karton-session`
+- `karton-settings`
+- `kartonde` (metapakiet instalujący całe środowisko)
+
+Budowanie binarnych paczek i bazy repozytorium:
+
+```sh
+cd repo/archlinux
+./build-repo.sh
+```
+
+Po tym w `repo/archlinux/x86_64` znajdziesz:
+
+- pakiety `*.pkg.tar.zst`
+- bazę repozytorium `kartonde.db`
+- listę plików `kartonde.files`
+
+Aby dodać repozytorium do Arch Linux przez `pacman`, dodaj do `/etc/pacman.conf`:
+
+```ini
+[kartonde]
+SigLevel = Optional TrustAll
+Server = https://raw.githubusercontent.com/mijsys/Tektura-i-Karton/main/repo/archlinux/$arch
+```
+
+Następnie:
+
+```sh
+sudo pacman -Sy kartonde
+```
+
+Paczka `kartonde` instaluje też domyślne pliki sesji do `/etc/xdg/karton` i korzysta z pliku sesji Wayland `karton.desktop` instalowanego przez `tektura`.
