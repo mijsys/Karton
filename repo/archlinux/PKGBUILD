@@ -1,7 +1,7 @@
 pkgbase=kartonde
 pkgname=('tektura' 'karton-shell' 'karton-settings' 'karton-session' 'kartonde')
-pkgver=0.7.1
-pkgrel=2
+pkgver=0.7.2
+pkgrel=1
 arch=('x86_64')
 url='https://github.com/mijsys/Tektura-i-Karton'
 license=('GPL-2.0-only')
@@ -42,7 +42,7 @@ prepare() {
 }
 
 build() {
-  _setup_component tektura -Dsystemd-session=enabled
+  _setup_component tektura -Dsystemd-session=enabled -Dicon=disabled
   _build_component tektura
 
   _setup_component karton-shell

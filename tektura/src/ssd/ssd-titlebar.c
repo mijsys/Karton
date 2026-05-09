@@ -132,7 +132,7 @@ ssd_titlebar_create(struct ssd *ssd)
 	if (squared) {
 		ssd->state.was_squared = true;
 	}
-	set_squared_corners(ssd, maximized || squared);
+	set_squared_corners(ssd, squared);
 
 	if (view->shaded) {
 		set_alt_button_icon(ssd, LAB_NODE_BUTTON_SHADE, true);
@@ -297,7 +297,7 @@ ssd_titlebar_update(struct ssd *ssd)
 
 	if (ssd->state.was_maximized != maximized
 			|| ssd->state.was_squared != squared) {
-		set_squared_corners(ssd, maximized || squared);
+		set_squared_corners(ssd, squared);
 		if (ssd->state.was_maximized != maximized) {
 			set_alt_button_icon(ssd, LAB_NODE_BUTTON_MAXIMIZE, maximized);
 		}
@@ -325,7 +325,7 @@ ssd_titlebar_update(struct ssd *ssd)
 	/* Center buttons vertically within titlebar */
 	int y = (theme->titlebar_height - theme->window_button_height) / 2;
 	int x;
-	int bg_offset = maximized || squared ? 0 : corner_width;
+	int bg_offset = squared ? 0 : corner_width;
 
 	enum ssd_active_state active;
 	FOR_EACH_ACTIVE_STATE(active) {

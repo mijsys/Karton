@@ -1626,8 +1626,7 @@ view_set_ssd_mode(struct view *view, enum lab_ssd_mode mode)
 {
 	assert(view);
 
-	if (view->shaded || view->fullscreen
-			|| mode == view->ssd_mode) {
+	if (view->shaded || mode == view->ssd_mode) {
 		return;
 	}
 
@@ -1666,22 +1665,12 @@ set_fullscreen(struct view *view, bool fullscreen)
 		view_set_shade(view, false);
 	}
 
-	/* Hide decorations when going fullscreen */
-	if (fullscreen && view->ssd_mode) {
-		undecorate(view);
-	}
-
 	if (view->impl->set_fullscreen) {
 		view->impl->set_fullscreen(view, fullscreen);
 	}
 
 	view->fullscreen = fullscreen;
 	wl_signal_emit_mutable(&view->events.fullscreened, NULL);
-
-	/* Re-show decorations when no longer fullscreen */
-	if (!fullscreen && view->ssd_mode) {
-		decorate(view);
-	}
 
 	/* Show fullscreen views above top-layer */
 	if (view->output) {
@@ -2323,7 +2312,7 @@ void
 view_reload_ssd(struct view *view)
 {
 	assert(view);
-	if (view->ssd_mode && !view->fullscreen) {
+	if (view->ssd_mode) {
 		undecorate(view);
 		decorate(view);
 	}

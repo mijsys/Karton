@@ -1,7 +1,7 @@
 project(
   'karton',
   'c',
-  version: '0.7',
+  version: '0.7.2',
   license: 'GPL-2.0-only',
   meson_version: '>=0.59.0',
   default_options: [
@@ -57,7 +57,7 @@ wlroots = dependency(
 )
 
 wlroots_has_xwayland = wlroots.get_variable('have_xwayland') == 'true'
-have_libsfdo = not get_option('icon').disabled()
+want_libsfdo = not get_option('icon').disabled()
 
 wayland_server = dependency('wayland-server', version: '>=1.22.90')
 wayland_protos = dependency('wayland-protocols', version: '>=1.39')
@@ -78,22 +78,49 @@ png = dependency('libpng')
 svg = dependency('librsvg-2.0', version: '>=2.46', required: false)
 sfdo_basedir = dependency(
   'libsfdo-basedir',
-  default_options: ['default_library=static', 'examples=false', 'tests=false'],
   version: '>=0.1.3',
-  required: have_libsfdo,
+  required: false,
 )
 sfdo_desktop = dependency(
   'libsfdo-desktop',
-  default_options: ['default_library=static', 'examples=false', 'tests=false'],
   version: '>=0.1.3',
-  required: have_libsfdo,
+  required: false,
 )
 sfdo_icon = dependency(
   'libsfdo-icon',
-  default_options: ['default_library=static', 'examples=false', 'tests=false'],
   version: '>=0.1.3',
-  required: have_libsfdo,
+  required: false,
 )
+
+have_libsfdo = false
+if want_libsfdo
+  if sfdo_basedir.found() and sfdo_desktop.found() and sfdo_icon.found()
+    have_libsfdo = cc.links(
+      '''
+      #include <sfdo-basedir.h>
+      #include <sfdo-desktop.h>
+      #include <sfdo-icon.h>
+
+      int main(void) {
+        struct sfdo_basedir_ctx *basedir = sfdo_basedir_ctx_create();
+        struct sfdo_desktop_ctx *desktop = sfdo_desktop_ctx_create(basedir);
+        struct sfdo_icon_ctx *icon = sfdo_icon_ctx_create(basedir);
+        sfdo_icon_ctx_destroy(icon);
+        sfdo_desktop_ctx_destroy(desktop);
+        sfdo_basedir_ctx_destroy(basedir);
+        return 0;
+      }
+      ''',
+      name: 'libsfdo link test',
+      dependencies: [sfdo_basedir, sfdo_desktop, sfdo_icon],
+    )
+    if not have_libsfdo
+      warning('disabling libsfdo-backed icons because the installed libsfdo libraries fail a link test')
+    endif
+  elif get_option('icon').enabled()
+    warning('disabling libsfdo-backed icons because the required libsfdo dependencies are unavailable')
+  endif
+endif
 
 xwayland = dependency(
   'xwayland',

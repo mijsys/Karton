@@ -35,7 +35,7 @@ ssd_thickness(struct view *view)
 	 * in border-only deco mode as view->ssd would only be set
 	 * after ssd_create() returns.
 	 */
-	if (!view->ssd_mode || view->fullscreen) {
+	if (!view->ssd_mode) {
 		return (struct border){ 0 };
 	}
 
