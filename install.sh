@@ -195,9 +195,15 @@ ensure_user_config() {
   local autostart_file="$config_dir/autostart"
   local style_file="$config_dir/shell.css"
   local rcxml_file="$config_dir/rc.xml"
+  local environment_file="$config_dir/environment"
   local desktop_src="$PREFIX/share/applications/karton-settings.desktop"
   local desktop_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
   local managed_ssd_block
+  local xkb_layout=""
+  local xkb_model=""
+  local xkb_variant=""
+  local xkb_options=""
+  local managed_keyboard_env_block=""
 
   managed_ssd_block="$(cat <<'EOF'
   <!-- BEGIN KartON managed SSD rules -->
@@ -221,10 +227,55 @@ ensure_user_config() {
     <windowRule identifier="google-chrome*" serverDecoration="no" />
     <windowRule identifier="microsoft-edge*" serverDecoration="no" />
     <windowRule identifier="zen*" serverDecoration="no" />
+    <windowRule identifier="org.mozilla.firefox*" serverDecoration="no" />
+    <windowRule identifier="visual-studio-code*" serverDecoration="no" />
+    <windowRule identifier="code-url-handler*" serverDecoration="no" />
+    <windowRule identifier="discord*" serverDecoration="no" />
+    <windowRule identifier="Slack*" serverDecoration="no" />
+    <windowRule identifier="obsidian*" serverDecoration="no" />
   </windowRules>
   <!-- END KartON managed SSD rules -->
 EOF
 )"
+
+  read_localectl_field() {
+    local field="$1"
+    localectl status 2>/dev/null | awk -F: -v key="$field" '$1 ~ key {
+      sub(/^[[:space:]]+/, "", $2)
+      print $2
+      exit
+    }'
+  }
+
+  write_managed_env_block() {
+    local file="$1"
+    local begin_marker="$2"
+    local end_marker="$3"
+    local block="$4"
+    local tmp_file
+
+    tmp_file="$(mktemp)"
+    if [[ -f "$file" ]]; then
+      awk -v begin="$begin_marker" -v end="$end_marker" '
+        $0 == begin { skip = 1; next }
+        $0 == end { skip = 0; next }
+        skip { next }
+        { print }
+      ' "$file" > "$tmp_file"
+    fi
+
+    {
+      printf '%s\n' "$begin_marker"
+      printf '%s\n' "$block"
+      printf '%s\n' "$end_marker"
+      if [[ -s "$tmp_file" ]]; then
+        printf '\n'
+        cat "$tmp_file"
+      fi
+    } > "$file"
+
+    rm -f "$tmp_file"
+  }
 
   write_managed_ssd_block() {
     local file="$1"
@@ -268,6 +319,34 @@ EOF
   }
 
   mkdir -p "$config_dir"
+
+  xkb_layout="$(read_localectl_field 'X11 Layout' || true)"
+  xkb_model="$(read_localectl_field 'X11 Model' || true)"
+  xkb_variant="$(read_localectl_field 'X11 Variant' || true)"
+  xkb_options="$(read_localectl_field 'X11 Options' || true)"
+
+  if [[ -n "$xkb_layout" || -n "$xkb_model" || -n "$xkb_variant" || -n "$xkb_options" ]]; then
+    managed_keyboard_env_block=""
+    if [[ -n "$xkb_layout" ]]; then
+      managed_keyboard_env_block+="XKB_DEFAULT_LAYOUT=$xkb_layout"$'\n'
+    fi
+    if [[ -n "$xkb_model" ]]; then
+      managed_keyboard_env_block+="XKB_DEFAULT_MODEL=$xkb_model"$'\n'
+    fi
+    if [[ -n "$xkb_variant" ]]; then
+      managed_keyboard_env_block+="XKB_DEFAULT_VARIANT=$xkb_variant"$'\n'
+    fi
+    if [[ -n "$xkb_options" ]]; then
+      managed_keyboard_env_block+="XKB_DEFAULT_OPTIONS=$xkb_options"$'\n'
+    fi
+    managed_keyboard_env_block="${managed_keyboard_env_block%$'\n'}"
+
+    write_managed_env_block \
+      "$environment_file" \
+      "# BEGIN KartON managed keyboard env" \
+      "# END KartON managed keyboard env" \
+      "$managed_keyboard_env_block"
+  fi
 
   if [[ ! -f "$autostart_file" ]]; then
     log "Creating default autostart: $autostart_file"
