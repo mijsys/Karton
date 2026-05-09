@@ -32,6 +32,16 @@ Skrypty w tym katalogu instalują zależności i budują:
 - `karton-settings`
 - `karton-session`
 
+Dodatkowo skrypty próbują zainstalować i skonfigurować stack logowania `greetd` + GTK greeter
+(`greetd-gtkgreet` albo odpowiednik nazwy na danej dystrybucji) z motywem KartON.
+Pliki motywu trafiają do:
+
+- `/etc/greetd/gtkgreet-karton.css`
+- `/etc/greetd/gtkgreet.toml`
+
+Jeżeli istnieje niestandardowy `/etc/greetd/config.toml`, skrypt go nie nadpisuje i zapisuje
+podpowiedź konfiguracji do `/etc/greetd/karton-default-session.toml`.
+
 Dostępne skrypty:
 
 - `build-arch.sh`
@@ -89,7 +99,7 @@ Aby dodać repozytorium do Arch Linux przez `pacman`, dodaj do `/etc/pacman.conf
 ```ini
 [kartonde]
 SigLevel = Optional TrustAll
-Server = https://raw.githubusercontent.com/mijsys/Tektura-i-Karton/main/repo/archlinux/$arch
+Server = https://cdn.jsdelivr.net/gh/mijsys/Tektura-i-Karton@main/repo/archlinux/$arch
 ```
 
 Następnie:
