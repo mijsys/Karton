@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Karton Files File</title>
+  <path fill="none" stroke="#7b66f0" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" d="M19 8h18l10 10v32a6 6 0 0 1-6 6H19a6 6 0 0 1-6-6V14a6 6 0 0 1 6-6z"/>
+  <path fill="none" stroke="#7b66f0" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" d="M37 8v10h10"/>
+  <path fill="none" stroke="#5dcdc3" stroke-width="4" stroke-linecap="round" d="M23 29h14M23 38h18M23 47h12"/>
+  <circle cx="45" cy="46" r="5" fill="#ffb84d"/>
+</svg>

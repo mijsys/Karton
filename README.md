@@ -23,6 +23,7 @@ KartONDE łączy kompozytor Wayland Tektura z panelem Karton, usługami sesji i 
 - `karton-shell` - górny panel, panel boczny i popupy
 - `karton-session` - usługi sesyjne, screenshoty, integracja autostartu
 - `karton-settings` - aplikacja ustawień
+- `karton-files` - menedżer plików GTK dopasowany do stylu KartON
 - `repo` - pomocnicze skrypty build/install dla dystrybucji
 - `docs/images` - obrazy używane w dokumentacji
 
@@ -45,6 +46,7 @@ Z katalogu głównego projektu:
 
 Instalator w trybie użytkownika:
 - buduje `tektura`, `karton-shell`, `karton-session` i `karton-settings`
+- buduje `karton-files` (menedżer plików)
 - instaluje pliki do `~/.local-karton`
 - tworzy lub uzupełnia `~/.config/karton/autostart`
 - restartuje komponenty sesji przez `karton-sessiond`
@@ -119,6 +121,7 @@ KartONDE combines the Tektura Wayland compositor with the Karton shell, session 
 - `karton-shell` - top panel, side dock and popups
 - `karton-session` - session services, screenshots and autostart integration
 - `karton-settings` - settings application
+- `karton-files` - GTK file manager aligned with the KartON visual style
 - `repo` - helper build and packaging scripts
 - `docs/images` - images used by the documentation
 
@@ -141,6 +144,7 @@ From the repository root:
 
 In user mode the installer:
 - builds `tektura`, `karton-shell`, `karton-session` and `karton-settings`
+- builds `karton-files` (file manager)
 - installs files into `~/.local-karton`
 - creates or updates `~/.config/karton/autostart`
 - restarts the session components through `karton-sessiond`
@@ -215,6 +219,7 @@ KartONDE kombiniert den Tektura-Wayland-Compositor mit der Karton-Shell, den Sit
 - `karton-shell` - obere Leiste, Seiten-Dock und Popups
 - `karton-session` - Sitzungsdienste, Screenshots und Autostart-Integration
 - `karton-settings` - Einstellungsanwendung
+- `karton-files` - GTK-Dateimanager im KartON-Stil
 - `repo` - Hilfsskripte für Build und Paketierung
 - `docs/images` - Bilder für die Dokumentation
 
@@ -237,6 +242,7 @@ Im Wurzelverzeichnis des Repositories:
 
 Im Benutzermodus erledigt der Installer Folgendes:
 - baut `tektura`, `karton-shell`, `karton-session` und `karton-settings`
+- baut `karton-files` (Dateimanager)
 - installiert nach `~/.local-karton`
 - erstellt oder aktualisiert `~/.config/karton/autostart`
 - startet die Sitzungskomponenten über `karton-sessiond` neu

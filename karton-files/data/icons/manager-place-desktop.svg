@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Karton Place Desktop</title>
+  <rect x="10" y="14" width="44" height="30" rx="5" fill="none" stroke="#7b66f0" stroke-width="5"/>
+  <path d="M24 50h16M28 44v6M36 44v6" fill="none" stroke="#5dcdc3" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="47" cy="22" r="3" fill="#ffb84d"/>
+</svg>

@@ -1,0 +1,540 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: karton-settings 0.2\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-09 16:15+0200\n"
+"PO-Revision-Date: 2026-05-09 00:00+0000\n"
+"Last-Translator: KartON Team\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/window.c:59
+msgid "Karton System Settings"
+msgstr "Karton System Settings"
+
+#: src/window.c:96 src/page-appearance.c:866
+msgid "Appearance and personalization"
+msgstr "Appearance and personalization"
+
+#: src/window.c:97
+msgid "Desktop and layout"
+msgstr "Desktop and layout"
+
+#: src/window.c:98
+msgid "Windows"
+msgstr "Windows"
+
+#: src/window.c:99
+msgid "Display"
+msgstr "Display"
+
+#: src/window.c:100
+msgid "Sound"
+msgstr "Sound"
+
+#: src/window.c:101
+msgid "Devices"
+msgstr "Devices"
+
+#: src/window.c:102
+msgid "Network"
+msgstr "Network"
+
+#: src/window.c:103
+msgid "Power"
+msgstr "Power"
+
+#: src/window.c:128
+msgid "This module is prepared for expansion in future iterations."
+msgstr "This module is prepared for expansion in future iterations."
+
+#: src/page-appearance.c:16
+msgid "Lavender"
+msgstr "Lavender"
+
+#: src/page-appearance.c:17
+msgid "Teal"
+msgstr "Teal"
+
+#: src/page-appearance.c:18
+msgid "Rose"
+msgstr "Rose"
+
+#: src/page-appearance.c:19
+msgid "Amber"
+msgstr "Amber"
+
+#: src/page-appearance.c:20
+msgid "Azure"
+msgstr "Azure"
+
+#: src/page-appearance.c:21
+msgid "Lime"
+msgstr "Lime"
+
+#: src/page-appearance.c:261
+msgid "Path to image file"
+msgstr "Path to image file"
+
+#: src/page-appearance.c:870
+msgid ""
+"Configure theme, colors and UI details so the environment works as one "
+"coherent whole."
+msgstr ""
+"Configure theme, colors and UI details so the environment works as one "
+"coherent whole."
+
+#: src/page-appearance.c:879
+msgid "Light/Dark themes"
+msgstr "Light/Dark themes"
+
+#: src/page-appearance.c:879
+msgid ""
+"Changes instantly affect shell, window decorations and GTK applications."
+msgstr ""
+"Changes instantly affect shell, window decorations and GTK applications."
+
+#: src/page-appearance.c:894
+msgid "Light"
+msgstr "Light"
+
+#: src/page-appearance.c:895
+msgid "Dark"
+msgstr "Dark"
+
+#: src/page-appearance.c:896
+msgid "Auto"
+msgstr "Auto"
+
+#: src/page-appearance.c:909
+msgid "System colors"
+msgstr "System colors"
+
+#: src/page-appearance.c:909
+msgid "Color of buttons and active shell elements."
+msgstr "Color of buttons and active shell elements."
+
+#: src/page-appearance.c:931
+msgid "Icon themes"
+msgstr "Icon themes"
+
+#: src/page-appearance.c:931
+msgid "Choose icon palette for folders and launcher shortcuts."
+msgstr "Choose icon palette for folders and launcher shortcuts."
+
+#: src/page-appearance.c:956
+msgid "Window styles"
+msgstr "Window styles"
+
+#: src/page-appearance.c:956
+msgid "Decoration, corner radius and transparency settings."
+msgstr "Decoration, corner radius and transparency settings."
+
+#: src/page-appearance.c:960
+msgid "Standard"
+msgstr "Standard"
+
+#: src/page-appearance.c:961
+msgid "Compact"
+msgstr "Compact"
+
+#: src/page-appearance.c:962
+msgid "Minimal"
+msgstr "Minimal"
+
+#: src/page-appearance.c:966
+msgid "Window button layout"
+msgstr "Window button layout"
+
+#: src/page-appearance.c:973
+msgid "Corner roundness"
+msgstr "Corner roundness"
+
+#: src/page-appearance.c:973
+msgid "Range: 6-38 px"
+msgstr "Range: 6-38 px"
+
+#: src/page-appearance.c:980
+msgid "Transparency"
+msgstr "Transparency"
+
+#: src/page-appearance.c:980
+msgid "Window and panel transparency level (0-40%)"
+msgstr "Window and panel transparency level (0-40%)"
+
+#: src/page-appearance.c:984
+msgid "Panels and docks appearance"
+msgstr "Panels and docks appearance"
+
+#: src/page-appearance.c:984
+msgid "Panel parameters go through karton-apply-theme and apply instantly."
+msgstr "Panel parameters go through karton-apply-theme and apply instantly."
+
+#: src/page-appearance.c:991
+msgid "Top panel height"
+msgstr "Top panel height"
+
+#: src/page-appearance.c:991
+msgid "Range: 30-84 px"
+msgstr "Range: 30-84 px"
+
+#: src/page-appearance.c:997
+msgid "Fonts, scaling and animations"
+msgstr "Fonts, scaling and animations"
+
+#: src/page-appearance.c:997
+msgid "Behavior settings for GTK apps and interface."
+msgstr "Behavior settings for GTK apps and interface."
+
+#: src/page-appearance.c:1001
+msgid "Inter"
+msgstr "Inter"
+
+#: src/page-appearance.c:1002
+msgid "Cantarell"
+msgstr "Cantarell"
+
+#: src/page-appearance.c:1003
+msgid "Noto Sans"
+msgstr "Noto Sans"
+
+#: src/page-appearance.c:1004
+msgid "DejaVu Sans"
+msgstr "DejaVu Sans"
+
+#: src/page-appearance.c:1008
+msgid "System font"
+msgstr "System font"
+
+#: src/page-appearance.c:1015
+msgid "Interface scaling"
+msgstr "Interface scaling"
+
+#: src/page-appearance.c:1015
+msgid "Affects GTK application font size"
+msgstr "Affects GTK application font size"
+
+#: src/page-appearance.c:1018
+msgid "Default"
+msgstr "Default"
+
+#: src/page-appearance.c:1020
+msgid "Animations"
+msgstr "Animations"
+
+#: src/page-appearance.c:1025
+msgid "Desktop effects"
+msgstr "Desktop effects"
+
+#: src/page-appearance.c:1029
+msgid "Wallpapers and lock screen"
+msgstr "Wallpapers and lock screen"
+
+#: src/page-appearance.c:1029
+msgid "Set image paths for desktop and lock screen."
+msgstr "Set image paths for desktop and lock screen."
+
+#: src/page-appearance.c:1034
+msgid "Wallpapers"
+msgstr "Wallpapers"
+
+#: src/page-appearance.c:1034
+msgid "Apply wallpaper"
+msgstr "Apply wallpaper"
+
+#: src/page-appearance.c:1036
+msgid "Lock screen"
+msgstr "Lock screen"
+
+#: src/page-appearance.c:1036
+msgid "Apply lock screen"
+msgstr "Apply lock screen"
+
+#: src/page-appearance.c:0
+msgid "Choose default wallpaper"
+msgstr "Choose default wallpaper"
+
+#: src/page-appearance.c:0
+msgid "Choose image from disk"
+msgstr "Choose image from disk"
+
+#: src/page-appearance.c:0
+msgid "Select"
+msgstr "Select"
+
+#: src/page-appearance.c:0
+msgid "Image files"
+msgstr "Image files"
+
+#: src/page-appearance.c:0
+msgid "Install custom font"
+msgstr "Install custom font"
+
+#: src/page-appearance.c:0
+msgid "Install"
+msgstr "Install"
+
+#: src/page-appearance.c:0
+msgid "Font files"
+msgstr "Font files"
+
+#: src/page-appearance.c:0
+msgid "Choose from disk"
+msgstr "Choose from disk"
+
+#: src/page-appearance.c:0
+msgid "Default wallpapers"
+msgstr "Default wallpapers"
+
+#: src/page-appearance.c:0
+msgid "Custom font"
+msgstr "Custom font"
+
+#: src/page-appearance.c:0
+msgid "Path is empty"
+msgstr "Path is empty"
+
+#: src/page-appearance.c:0
+msgid "File not found"
+msgstr "File not found"
+
+#: src/page-appearance.c:0
+msgid "Wallpaper applied (OK)"
+msgstr "Wallpaper applied (OK)"
+
+#: src/page-appearance.c:0
+msgid "Lock screen applied (OK)"
+msgstr "Lock screen applied (OK)"
+
+#: src/page-display.c
+msgid "Display and monitors"
+msgstr "Display and monitors"
+
+#: src/page-display.c
+msgid "Detected outputs are shown graphically with live name, resolution and refresh rate."
+msgstr "Detected outputs are shown graphically with live name, resolution and refresh rate."
+
+#: src/page-display.c
+msgid "Connected monitors"
+msgstr "Connected monitors"
+
+#: src/page-display.c
+msgid "Preview and detect all currently connected outputs."
+msgstr "Preview and detect all currently connected outputs."
+
+#: src/page-display.c
+msgid "Refresh monitor list"
+msgstr "Refresh monitor list"
+
+#: src/page-display.c
+msgid "Screen configuration"
+msgstr "Screen configuration"
+
+#: src/page-display.c
+msgid "Apply mode, scaling, orientation and adaptive sync to the selected monitor."
+msgstr "Apply mode, scaling, orientation and adaptive sync to the selected monitor."
+
+#: src/page-display.c
+msgid "Monitor"
+msgstr "Monitor"
+
+#: src/page-display.c
+msgid "Main monitor"
+msgstr "Main monitor"
+
+#: src/page-display.c
+msgid "Monitor layout"
+msgstr "Monitor layout"
+
+#: src/page-display.c
+msgid "Resolution and refresh rate"
+msgstr "Resolution and refresh rate"
+
+#: src/page-display.c
+msgid "DPI scaling"
+msgstr "DPI scaling"
+
+#: src/page-display.c
+msgid "Orientation"
+msgstr "Orientation"
+
+#: src/page-display.c
+msgid "VRR / Adaptive Sync"
+msgstr "VRR / Adaptive Sync"
+
+#: src/page-display.c
+msgid "Brightness"
+msgstr "Brightness"
+
+#: src/page-display.c
+msgid "Adjust display brightness (10-100%)"
+msgstr "Adjust display brightness (10-100%)"
+
+#: src/page-display.c
+msgid "Night light"
+msgstr "Night light"
+
+#: src/page-display.c
+msgid "Apply display settings"
+msgstr "Apply display settings"
+
+#: src/page-display.c
+msgid "No monitor selected"
+msgstr "No monitor selected"
+
+#: src/page-display.c
+msgid "scale"
+msgstr "scale"
+
+#: src/page-display.c
+msgid "position"
+msgstr "position"
+
+#: src/page-display.c
+msgid "No modes available"
+msgstr "No modes available"
+
+#: src/page-display.c
+msgid "preferred"
+msgstr "preferred"
+
+#: src/page-display.c
+msgid "current"
+msgstr "current"
+
+#: src/page-display.c
+msgid "No monitor backend available (wlr-randr/swaymsg) or no outputs"
+msgstr "No monitor backend available (wlr-randr/swaymsg) or no outputs"
+
+#: src/page-display.c
+msgid "No monitors were detected"
+msgstr "No monitors were detected"
+
+#: src/page-display.c
+msgid "No monitors detected"
+msgstr "No monitors detected"
+
+#: src/page-display.c
+msgid "All outputs are disabled"
+msgstr "All outputs are disabled"
+
+#: src/page-display.c
+msgid "Monitor list refreshed"
+msgstr "Monitor list refreshed"
+
+#: src/page-display.c
+msgid "Could not detect monitors"
+msgstr "Could not detect monitors"
+
+#: src/page-display.c
+msgid "Could not apply monitor settings"
+msgstr "Could not apply monitor settings"
+
+#: src/page-display.c
+msgid "Display settings applied"
+msgstr "Display settings applied"
+
+#: src/page-display.c
+msgid "No connected monitors"
+msgstr "No connected monitors"
+
+#: src/page-display.c
+msgid "Landscape"
+msgstr "Landscape"
+
+#: src/page-display.c
+msgid "Portrait left"
+msgstr "Portrait left"
+
+#: src/page-display.c
+msgid "Portrait right"
+msgstr "Portrait right"
+
+#: src/page-display.c
+msgid "Inverted"
+msgstr "Inverted"
+
+#: src/page-display.c
+msgid "Keep current layout"
+msgstr "Keep current layout"
+
+#: src/page-display.c
+msgid "Arrange to the right"
+msgstr "Arrange to the right"
+
+#: src/page-display.c
+msgid "Arrange to the left"
+msgstr "Arrange to the left"
+
+#: src/page-display.c
+msgid "Arrange downward"
+msgstr "Arrange downward"
+
+#: src/page-display.c
+msgid "Arrange upward"
+msgstr "Arrange upward"
+
+#: src/page-display.c
+msgid "Mirror all monitors"
+msgstr "Mirror all monitors"
+
+#: src/page-display.c
+msgid "No GDK display available"
+msgstr "No GDK display available"
+
+#: src/page-display.c
+msgid "No monitors reported by GDK"
+msgstr "No monitors reported by GDK"
+
+#: src/page-display.c
+msgid "No monitors could be created from GDK data"
+msgstr "No monitors could be created from GDK data"
+
+#: src/page-display.c
+msgid " [main]"
+msgstr " [main]"
+
+#: src/page-display.c
+msgid " [disabled]"
+msgstr " [disabled]"
+
+#: src/page-display.c
+msgid "Monitor list refreshed via GDK (resolution apply needs output backend)"
+msgstr "Monitor list refreshed via GDK (resolution apply needs output backend)"
+
+#: src/page-display.c
+msgid "Detected monitors, but no output-management backend is available for mode/layout apply"
+msgstr "Detected monitors, but no output-management backend is available for mode/layout apply"
+
+#: src/page-display.c
+msgid "Monitor controls are in limited mode (missing wlr-randr/swaymsg). Layout changes are saved locally only."
+msgstr "Monitor controls are in limited mode (missing wlr-randr/swaymsg). Layout changes are saved locally only."
+
+#: src/page-display.c
+msgid "Rebuilding display layout..."
+msgstr "Rebuilding display layout..."
+
+#: src/page-display.c
+msgid "Refreshing monitor list..."
+msgstr "Refreshing monitor list..."
+
+#: src/page-display.c
+msgid "Applying display settings..."
+msgstr "Applying display settings..."
+
+#: src/page-display.c
+msgid "Working..."
+msgstr "Working..."
+
+#: src/page-display.c
+msgid "Monitor moved in preview. Click Apply display settings to save."
+msgstr "Monitor moved in preview. Click Apply display settings to save."
+
+#~ msgid "KartONDE Settings Panel"
+#~ msgstr "KartONDE Settings Panel"
+
+#~ msgid "Modern environment, hardware and session configuration"
+#~ msgstr "Modern environment, hardware and session configuration"

@@ -1,0 +1,253 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-09 16:15+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/window.c:59
+msgid "Karton System Settings"
+msgstr ""
+
+#: src/window.c:96 src/page-appearance.c:866
+msgid "Appearance and personalization"
+msgstr ""
+
+#: src/window.c:97
+msgid "Desktop and layout"
+msgstr ""
+
+#: src/window.c:98
+msgid "Windows"
+msgstr ""
+
+#: src/window.c:99
+msgid "Display"
+msgstr ""
+
+#: src/window.c:100
+msgid "Sound"
+msgstr ""
+
+#: src/window.c:101
+msgid "Devices"
+msgstr ""
+
+#: src/window.c:102
+msgid "Network"
+msgstr ""
+
+#: src/window.c:103
+msgid "Power"
+msgstr ""
+
+#: src/window.c:128
+msgid "This module is prepared for expansion in future iterations."
+msgstr ""
+
+#: src/page-appearance.c:16
+msgid "Lavender"
+msgstr ""
+
+#: src/page-appearance.c:17
+msgid "Teal"
+msgstr ""
+
+#: src/page-appearance.c:18
+msgid "Rose"
+msgstr ""
+
+#: src/page-appearance.c:19
+msgid "Amber"
+msgstr ""
+
+#: src/page-appearance.c:20
+msgid "Azure"
+msgstr ""
+
+#: src/page-appearance.c:21
+msgid "Lime"
+msgstr ""
+
+#: src/page-appearance.c:261
+msgid "Path to image file"
+msgstr ""
+
+#: src/page-appearance.c:870
+msgid ""
+"Configure theme, colors and UI details so the environment works as one "
+"coherent whole."
+msgstr ""
+
+#: src/page-appearance.c:879
+msgid "Light/Dark themes"
+msgstr ""
+
+#: src/page-appearance.c:879
+msgid ""
+"Changes instantly affect shell, window decorations and GTK applications."
+msgstr ""
+
+#: src/page-appearance.c:894
+msgid "Light"
+msgstr ""
+
+#: src/page-appearance.c:895
+msgid "Dark"
+msgstr ""
+
+#: src/page-appearance.c:896
+msgid "Auto"
+msgstr ""
+
+#: src/page-appearance.c:909
+msgid "System colors"
+msgstr ""
+
+#: src/page-appearance.c:909
+msgid "Color of buttons and active shell elements."
+msgstr ""
+
+#: src/page-appearance.c:931
+msgid "Icon themes"
+msgstr ""
+
+#: src/page-appearance.c:931
+msgid "Choose icon palette for folders and launcher shortcuts."
+msgstr ""
+
+#: src/page-appearance.c:956
+msgid "Window styles"
+msgstr ""
+
+#: src/page-appearance.c:956
+msgid "Decoration, corner radius and transparency settings."
+msgstr ""
+
+#: src/page-appearance.c:960
+msgid "Standard"
+msgstr ""
+
+#: src/page-appearance.c:961
+msgid "Compact"
+msgstr ""
+
+#: src/page-appearance.c:962
+msgid "Minimal"
+msgstr ""
+
+#: src/page-appearance.c:966
+msgid "Window button layout"
+msgstr ""
+
+#: src/page-appearance.c:973
+msgid "Corner roundness"
+msgstr ""
+
+#: src/page-appearance.c:973
+msgid "Range: 6-38 px"
+msgstr ""
+
+#: src/page-appearance.c:980
+msgid "Transparency"
+msgstr ""
+
+#: src/page-appearance.c:980
+msgid "Window and panel transparency level (0-40%)"
+msgstr ""
+
+#: src/page-appearance.c:984
+msgid "Panels and docks appearance"
+msgstr ""
+
+#: src/page-appearance.c:984
+msgid "Panel parameters go through karton-apply-theme and apply instantly."
+msgstr ""
+
+#: src/page-appearance.c:991
+msgid "Top panel height"
+msgstr ""
+
+#: src/page-appearance.c:991
+msgid "Range: 30-84 px"
+msgstr ""
+
+#: src/page-appearance.c:997
+msgid "Fonts, scaling and animations"
+msgstr ""
+
+#: src/page-appearance.c:997
+msgid "Behavior settings for GTK apps and interface."
+msgstr ""
+
+#: src/page-appearance.c:1001
+msgid "Inter"
+msgstr ""
+
+#: src/page-appearance.c:1002
+msgid "Cantarell"
+msgstr ""
+
+#: src/page-appearance.c:1003
+msgid "Noto Sans"
+msgstr ""
+
+#: src/page-appearance.c:1004
+msgid "DejaVu Sans"
+msgstr ""
+
+#: src/page-appearance.c:1008
+msgid "System font"
+msgstr ""
+
+#: src/page-appearance.c:1015
+msgid "Interface scaling"
+msgstr ""
+
+#: src/page-appearance.c:1015
+msgid "Affects GTK application font size"
+msgstr ""
+
+#: src/page-appearance.c:1020
+msgid "Animations"
+msgstr ""
+
+#: src/page-appearance.c:1025
+msgid "Desktop effects"
+msgstr ""
+
+#: src/page-appearance.c:1029
+msgid "Wallpapers and lock screen"
+msgstr ""
+
+#: src/page-appearance.c:1029
+msgid "Set image paths for desktop and lock screen."
+msgstr ""
+
+#: src/page-appearance.c:1034
+msgid "Wallpapers"
+msgstr ""
+
+#: src/page-appearance.c:1034
+msgid "Apply wallpaper"
+msgstr ""
+
+#: src/page-appearance.c:1036
+msgid "Lock screen"
+msgstr ""
+
+#: src/page-appearance.c:1036
+msgid "Apply lock screen"
+msgstr ""

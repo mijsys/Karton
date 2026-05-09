@@ -1,0 +1,384 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: karton-files 0.1\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-09 18:30+0200\n"
+"PO-Revision-Date: 2026-05-09 00:00+0000\n"
+"Last-Translator: KartON Team\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: src/window.c
+msgid "%u item"
+msgid_plural "%u items"
+msgstr[0] "%u item"
+msgstr[1] "%u items"
+
+#: src/window.c
+msgid "%s, free space: %s"
+msgstr "%s, free space: %s"
+
+#: src/window.c
+msgid "Files"
+msgstr "Files"
+
+#: src/window.c
+msgid "File system"
+msgstr "File system"
+
+#: src/window.c
+msgid "Location is not a folder."
+msgstr "Location is not a folder."
+
+#: src/window.c
+msgid "Cannot open this location."
+msgstr "Cannot open this location."
+
+#: src/window.c
+msgid "Cannot browse this location."
+msgstr "Cannot browse this location."
+
+#: src/window.c
+msgid "Cannot resolve path."
+msgstr "Cannot resolve path."
+
+#: src/window.c
+msgid "Cannot move up from this location."
+msgstr "Cannot move up from this location."
+
+#: src/window.c
+msgid "Karton Files"
+msgstr "Karton Files"
+
+#: src/window.c
+msgid "Back"
+msgstr "Back"
+
+#: src/window.c
+msgid "Back (Alt+Left)"
+msgstr "Back (Alt+Left)"
+
+#: src/window.c
+msgid "Up"
+msgstr "Up"
+
+#: src/window.c
+msgid "Up (Alt+Up)"
+msgstr "Up (Alt+Up)"
+
+#: src/window.c
+msgid "Refresh"
+msgstr "Refresh"
+
+#: src/window.c
+msgid "Refresh (F5)"
+msgstr "Refresh (F5)"
+
+#: src/window.c
+msgid "Enter path and press Enter"
+msgstr "Enter path and press Enter"
+
+#: src/window.c
+msgid "Enter path and press Enter (Ctrl+L to focus)"
+msgstr "Enter path and press Enter (Ctrl+L to focus)"
+
+#: src/window.c
+msgid "This folder is empty."
+msgstr "This folder is empty."
+
+#: src/window.c
+msgid "Loading files..."
+msgstr "Loading files..."
+
+#: src/window.c
+msgid "Recent"
+msgstr "Recent"
+
+#: src/window.c
+msgid "Favorites"
+msgstr "Favorites"
+
+#: src/window.c
+msgid "Home"
+msgstr "Home"
+
+#: src/window.c
+msgid "Desktop"
+msgstr "Desktop"
+
+#: src/window.c
+msgid "Documents"
+msgstr "Documents"
+
+#: src/window.c
+msgid "Downloads"
+msgstr "Downloads"
+
+#: src/window.c
+msgid "Music"
+msgstr "Music"
+
+#: src/window.c
+msgid "Pictures"
+msgstr "Pictures"
+
+#: src/window.c
+msgid "Videos"
+msgstr "Videos"
+
+#: src/window.c
+msgid "Public"
+msgstr "Public"
+
+#: src/window.c
+msgid "Trash"
+msgstr "Trash"
+
+#: src/window.c
+msgid "Network"
+msgstr "Network"
+
+#: src/window.c
+msgid "Karton Drive"
+msgstr "Karton Drive"
+
+#: src/window.c
+msgid "Places"
+msgstr "Places"
+
+#: src/window.c
+msgid "Mounted devices"
+msgstr "Mounted devices"
+
+#: src/window.c
+msgid "Network locations"
+msgstr "Network locations"
+
+#: src/window.c
+msgid "No recent files."
+msgstr "No recent files."
+
+#: src/window.c
+msgid "No favorite locations."
+msgstr "No favorite locations."
+
+#: src/window.c
+msgid "Recent files"
+msgstr "Recent files"
+
+#: src/window.c
+msgid "Favorite locations"
+msgstr "Favorite locations"
+
+#: src/window.c
+msgid "Name cannot be empty."
+msgstr "Name cannot be empty."
+
+#: src/window.c
+msgid "Rename failed."
+msgstr "Rename failed."
+
+#: src/window.c
+msgid "Item renamed."
+msgstr "Item renamed."
+
+#: src/window.c
+msgid "Current location does not support creating folders."
+msgstr "Current location does not support creating folders."
+
+#: src/window.c
+msgid "Cannot create folder."
+msgstr "Cannot create folder."
+
+#: src/window.c
+msgid "Folder created."
+msgstr "Folder created."
+
+#: src/window.c
+msgid "Rename item"
+msgstr "Rename item"
+
+#: src/window.c
+msgid "Cancel"
+msgstr "Cancel"
+
+#: src/window.c
+msgid "Choose new name"
+msgstr "Choose new name"
+
+#: src/window.c
+msgid "Delete failed."
+msgstr "Delete failed."
+
+#: src/window.c
+msgid "Moved to trash."
+msgstr "Moved to trash."
+
+#: src/window.c
+msgid "Create folder"
+msgstr "Create folder"
+
+#: src/window.c
+msgid "Create"
+msgstr "Create"
+
+#: src/window.c
+msgid "Folder name"
+msgstr "Folder name"
+
+#: src/window.c
+msgid "New folder"
+msgstr "New folder"
+
+#: src/window.c
+msgid "Open"
+msgstr "Open"
+
+#: src/window.c
+msgid "Open folder"
+msgstr "Open folder"
+
+#: src/window.c
+msgid "No application is associated with this file type."
+msgstr "No application is associated with this file type."
+
+#: src/window.c
+msgid "Rename"
+msgstr "Rename"
+
+#: src/window.c
+msgid "Move to Trash"
+msgstr "Move to Trash"
+
+#: src/window.c
+msgid "New Folder"
+msgstr "New Folder"
+
+#: src/window.c
+msgid "Current location does not support creating files."
+msgstr "Current location does not support creating files."
+
+#: src/window.c
+msgid "Cannot create file."
+msgstr "Cannot create file."
+
+#: src/window.c
+msgid "File created."
+msgstr "File created."
+
+#: src/window.c
+msgid "Create file"
+msgstr "Create file"
+
+#: src/window.c
+msgid "New file"
+msgstr "New file"
+
+#: src/window.c
+msgid "File name"
+msgstr "File name"
+
+#: src/window.c
+msgid "Select an item first."
+msgstr "Select an item first."
+
+#: src/window.c
+msgid "Copied to clipboard."
+msgstr "Copied to clipboard."
+
+#: src/window.c
+msgid "Cut to clipboard."
+msgstr "Cut to clipboard."
+
+#: src/window.c
+msgid "Nothing to paste."
+msgstr "Nothing to paste."
+
+#: src/window.c
+msgid "Current location does not support paste."
+msgstr "Current location does not support paste."
+
+#: src/window.c
+msgid "Paste failed."
+msgstr "Paste failed."
+
+#: src/window.c
+msgid "Source and destination are the same."
+msgstr "Source and destination are the same."
+
+#: src/window.c
+msgid "Paste complete."
+msgstr "Paste complete."
+
+#: src/window.c
+msgid "Nothing to undo."
+msgstr "Nothing to undo."
+
+#: src/window.c
+msgid "Undo failed."
+msgstr "Undo failed."
+
+#: src/window.c
+msgid "Undo complete."
+msgstr "Undo complete."
+
+#: src/window.c
+msgid "Nothing to redo."
+msgstr "Nothing to redo."
+
+#: src/window.c
+msgid "Redo failed."
+msgstr "Redo failed."
+
+#: src/window.c
+msgid "Redo complete."
+msgstr "Redo complete."
+
+#: src/window.c
+msgid "Copy"
+msgstr "Copy"
+
+#: src/window.c
+msgid "Cut"
+msgstr "Cut"
+
+#: src/window.c
+msgid "Paste"
+msgstr "Paste"
+
+#: src/window.c
+msgid "Undo"
+msgstr "Undo"
+
+#: src/window.c
+msgid "Redo"
+msgstr "Redo"
+
+#: src/window.c
+msgid "About authors"
+msgstr "About authors"
+
+#: src/window.c
+msgid "Close"
+msgstr "Close"
+
+
+#: src/window.c
+msgid "Show hidden files"
+msgstr "Show hidden files"
+
+#: src/window.c
+msgid "Open files with single click"
+msgstr "Open files with single click"
+
+#: src/window.c
+msgid "Shortcuts: Ctrl+C, Ctrl+X, Ctrl+V, Ctrl+N, Ctrl+Shift+N, Ctrl+Z, Ctrl+Y"
+msgstr "Shortcuts: Ctrl+C, Ctrl+X, Ctrl+V, Ctrl+N, Ctrl+Shift+N, Ctrl+Z, Ctrl+Y"
+
+#: src/window.c
+msgid "File manager settings"
+msgstr "File manager settings"

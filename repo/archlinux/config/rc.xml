@@ -33,6 +33,10 @@
   <!-- END KartON managed SSD rules -->
 
   <theme>
+    <name>KartONFlat</name>
+    <icon>
+      <theme>Adwaita</theme>
+    </icon>
     <fallbackAppIcon>application-x-executable</fallbackAppIcon>
     <titlebar>
       <layout>menu,desk:shade,iconify,max,close</layout>

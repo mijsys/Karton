@@ -1,0 +1,4 @@
+src/main.c
+src/window.c
+src/page-appearance.c
+src/page-display.c

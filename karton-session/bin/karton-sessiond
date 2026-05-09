@@ -5,6 +5,44 @@ set -eu
 pids=""
 sessiond_pidfile=""
 sessiond_lockfile=""
+wallpaper_pid=""
+
+read_wallpaper_override() {
+	file="${XDG_CONFIG_HOME:-$HOME/.config}/karton/wallpaper-path"
+	[ -r "$file" ] || return 1
+
+	value="$(sed -n '1p' "$file" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+	[ -n "$value" ] || return 1
+	[ -f "$value" ] || return 1
+
+	printf '%s\n' "$value"
+}
+
+start_wallpaper_backend() {
+	if ! command -v swaybg >/dev/null 2>&1; then
+		return 0
+	fi
+
+	if [ -n "$wallpaper_pid" ]; then
+		kill "$wallpaper_pid" 2>/dev/null || true
+		wait "$wallpaper_pid" 2>/dev/null || true
+		wallpaper_pid=""
+	fi
+
+	wallpaper_path="$(read_wallpaper_override 2>/dev/null || true)"
+	if [ -n "$wallpaper_path" ]; then
+		swaybg -i "$wallpaper_path" -m fill >/dev/null 2>&1 &
+	else
+		swaybg -c '#113344' >/dev/null 2>&1 &
+	fi
+
+	wallpaper_pid="$!"
+	pids="$pids $wallpaper_pid"
+}
+
+reload_wallpaper() {
+	start_wallpaper_backend || true
+}
 
 sanitize_tag() {
 	printf '%s' "$1" | tr -c 'A-Za-z0-9._-' '_'
@@ -236,11 +274,9 @@ cleanup() {
 }
 
 trap cleanup INT TERM EXIT
+trap reload_wallpaper USR1
 
-if command -v swaybg >/dev/null 2>&1; then
-	swaybg -c '#113344' >/dev/null 2>&1 &
-	pids="$pids $!"
-fi
+start_wallpaper_backend
 
 start_component_supervised karton-top-panel
 start_component_supervised karton-side-dock

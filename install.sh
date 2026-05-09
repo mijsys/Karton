@@ -7,6 +7,7 @@ TEKTURA_DIR="$SCRIPT_DIR/tektura"
 SHELL_DIR="$SCRIPT_DIR/karton-shell"
 SESSION_DIR="$SCRIPT_DIR/karton-session"
 SETTINGS_DIR="$SCRIPT_DIR/karton-settings"
+FILES_DIR="$SCRIPT_DIR/karton-files"
 
 PREFIX="${HOME}/.local-karton"
 USE_SUDO=0
@@ -213,7 +214,11 @@ build_project() {
   fi
 
   log "Configuring $(basename "$src_dir")"
-  meson setup "$build_dir" "$src_dir" --reconfigure --prefix "$PREFIX" "${extra_setup_args[@]}"
+  if [[ -f "$build_dir/meson-private/coredata.dat" ]]; then
+    meson setup "$build_dir" "$src_dir" --reconfigure --prefix "$PREFIX" "${extra_setup_args[@]}"
+  else
+    meson setup "$build_dir" "$src_dir" --prefix "$PREFIX" "${extra_setup_args[@]}"
+  fi
 
   log "Building $(basename "$src_dir")"
   meson compile -C "$build_dir"
@@ -241,9 +246,11 @@ ensure_user_config() {
   local environment_file="$config_dir/environment"
   local desktop_src="$PREFIX/share/applications/karton-settings.desktop"
   local desktop_src_appid="$PREFIX/share/applications/io.karton.Settings.desktop"
+  local files_desktop_src_appid="$PREFIX/share/applications/io.karton.Files.desktop"
   local desktop_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
   local icon_src="$PREFIX/share/icons/hicolor/scalable/apps/karton-settings.svg"
   local icon_src_appid="$PREFIX/share/icons/hicolor/scalable/apps/io.karton.Settings.svg"
+  local files_icon_src_appid="$PREFIX/share/icons/hicolor/scalable/apps/io.karton.Files.svg"
   local icon_dir="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor/scalable/apps"
   local managed_ssd_block
   local xkb_layout=""
@@ -260,6 +267,8 @@ ensure_user_config() {
 
   <windowRules>
     <windowRule identifier="*" serverDecoration="yes" />
+    <windowRule identifier="nautilus*" serverDecoration="no" />
+    <windowRule identifier="org.gnome.Nautilus*" serverDecoration="no" />
     <windowRule identifier="firefox*" serverDecoration="no" />
     <windowRule identifier="Navigator*" serverDecoration="no" />
     <windowRule identifier="code*" serverDecoration="no" />
@@ -433,10 +442,14 @@ EOF
 $managed_ssd_block
 
   <theme>
+    <name>KartONFlat</name>
+    <icon>
+      <theme>Adwaita</theme>
+    </icon>
     <cornerRadius>14</cornerRadius>
     <keepBorder>yes</keepBorder>
     <titlebar>
-      <layout>icon:iconify,max,close</layout>
+      <layout>menu,desk:shade,iconify,max,close</layout>
       <showTitle>yes</showTitle>
     </titlebar>
   </theme>
@@ -453,10 +466,19 @@ EOF
     "$theme_sync_bin" --sync-from-css || true
   fi
 
+  if [[ -d "$PREFIX/share/themes/KartONFlat" && "$SYSTEM_MODE" -eq 0 ]]; then
+    log "Enabling KartONFlat theme locally"
+    mkdir -p "$HOME/.local/share/themes"
+    rm -rf "$HOME/.local/share/themes/KartONFlat"
+    cp -R "$PREFIX/share/themes/KartONFlat" "$HOME/.local/share/themes/"
+  fi
+
   copy_user_desktop_file "$desktop_src" "$desktop_dir/karton-settings.desktop" "$icon_src_appid"
   copy_user_desktop_file "$desktop_src_appid" "$desktop_dir/io.karton.Settings.desktop" "$icon_src_appid"
+  copy_user_desktop_file "$files_desktop_src_appid" "$desktop_dir/io.karton.Files.desktop" "$files_icon_src_appid"
   copy_optional_user_data "$icon_src" "$icon_dir/karton-settings.svg"
   copy_optional_user_data "$icon_src_appid" "$icon_dir/io.karton.Settings.svg"
+  copy_optional_user_data "$files_icon_src_appid" "$icon_dir/io.karton.Files.svg"
 }
 
 migrate_legacy_config() {
@@ -604,6 +626,14 @@ restart_running_session() {
     pkill -KILL -x karton-dialogd 2>/dev/null || true
   fi
 
+  if command -v karton >/dev/null 2>&1; then
+    log "Reconfiguring compositor"
+    karton --reconfigure >/dev/null 2>&1 || true
+  elif [[ -x "$PREFIX/bin/karton" ]]; then
+    log "Reconfiguring compositor"
+    "$PREFIX/bin/karton" --reconfigure >/dev/null 2>&1 || true
+  fi
+
   PATH="$PREFIX/bin:$PATH"
   karton-top-panel >/dev/null 2>&1 &
   karton-side-dock >/dev/null 2>&1 &
@@ -665,6 +695,7 @@ need_cmd ninja
 [[ -d "$SHELL_DIR" ]] || die "Missing directory: $SHELL_DIR"
 [[ -d "$SESSION_DIR" ]] || die "Missing directory: $SESSION_DIR"
 [[ -d "$SETTINGS_DIR" ]] || die "Missing directory: $SETTINGS_DIR"
+[[ -d "$FILES_DIR" ]] || die "Missing directory: $FILES_DIR"
 
 if [[ "$USE_SUDO" -eq 1 ]]; then
   need_cmd sudo
@@ -681,6 +712,7 @@ fi
 build_project "$SHELL_DIR"
 build_project "$SESSION_DIR"
 build_project "$SETTINGS_DIR"
+build_project "$FILES_DIR"
 
 if [[ "$ACTION" == "install" && "$SYSTEM_MODE" -eq 0 ]]; then
   migrate_legacy_config

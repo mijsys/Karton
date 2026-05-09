@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/io/karton/Files/styles">
+    <file alias="files.css">styles/files.css</file>
+  </gresource>
+  <gresource prefix="/io/karton/Files/icons">
+    <file alias="folder.svg">icons/manager-folder.svg</file>
+    <file alias="file.svg">icons/manager-file.svg</file>
+    <file alias="place-recent.svg">icons/manager-place-recent.svg</file>
+    <file alias="place-favorites.svg">icons/manager-place-favorites.svg</file>
+    <file alias="place-home.svg">icons/manager-place-home.svg</file>
+    <file alias="place-folder.svg">icons/manager-place-folder.svg</file>
+    <file alias="place-desktop.svg">icons/manager-place-desktop.svg</file>
+    <file alias="place-documents.svg">icons/manager-place-documents.svg</file>
+    <file alias="place-downloads.svg">icons/manager-place-downloads.svg</file>
+    <file alias="place-music.svg">icons/manager-place-music.svg</file>
+    <file alias="place-pictures.svg">icons/manager-place-pictures.svg</file>
+    <file alias="place-videos.svg">icons/manager-place-videos.svg</file>
+    <file alias="place-public.svg">icons/manager-place-public.svg</file>
+    <file alias="place-trash.svg">icons/manager-place-trash.svg</file>
+    <file alias="place-drive.svg">icons/manager-place-drive.svg</file>
+    <file alias="place-network.svg">icons/manager-place-network.svg</file>
+  </gresource>
+</gresources>

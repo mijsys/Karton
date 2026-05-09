@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Karton Files
+Name[pl]=Pliki Karton
+Name[de]=Karton Dateien
+Comment=Browse files and folders in KartON
+Comment[pl]=Przeglądaj pliki i foldery w KartON
+Comment[de]=Dateien und Ordner in KartON durchsuchen
+Exec=karton-files
+Icon=io.karton.Files
+Terminal=false
+Categories=Utility;System;FileManager;
+StartupNotify=true
+StartupWMClass=io.karton.Files
+Keywords=files;folders;manager;explorer;

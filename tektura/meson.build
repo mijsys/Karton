@@ -1,7 +1,7 @@
 project(
   'karton',
   'c',
-  version: '0.7.2',
+  version: '0.7.3',
   license: 'GPL-2.0-only',
   meson_version: '>=0.59.0',
   default_options: [
@@ -232,6 +232,8 @@ executable(
   install: true,
   link_args: link_args,
 )
+
+install_subdir('themes/KartONFlat', install_dir: get_option('datadir') / 'themes')
 
 install_data('data/karton.desktop', install_dir: get_option('datadir') / 'wayland-sessions')
 

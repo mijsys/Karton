@@ -41,13 +41,6 @@ ssd_thickness(struct view *view)
 
 	struct theme *theme = rc.theme;
 
-	if (view->maximized == VIEW_AXIS_BOTH) {
-		struct border thickness = { 0 };
-		if (view_titlebar_visible(view)) {
-			thickness.top += theme->titlebar_height;
-		}
-		return thickness;
-	}
 
 	struct border thickness = {
 		.top = theme->titlebar_height + theme->border_width,

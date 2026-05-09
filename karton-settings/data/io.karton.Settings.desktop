@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Karton Settings
+Name[pl]=Ustawienia Karton
+Name[de]=Karton Einstellungen
+Comment=Configure KartON system settings
+Comment[pl]=Konfiguruj ustawienia systemowe KartON
+Comment[de]=Karton-Systemeinstellungen konfigurieren
+Exec=karton-settings
+Icon=io.karton.Settings
+Terminal=false
+Categories=Settings;System;DesktopSettings;
+StartupNotify=true
+StartupWMClass=io.karton.Settings
+Keywords=settings;preferences;display;sound;network;

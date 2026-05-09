@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Karton Place Documents</title>
+  <path d="M19 9h18l8 8v35a4 4 0 0 1-4 4H19a4 4 0 0 1-4-4V13a4 4 0 0 1 4-4z" fill="none" stroke="#7b66f0" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M37 9v10h10" fill="none" stroke="#7b66f0" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M23 30h18M23 38h18M23 46h12" fill="none" stroke="#5dcdc3" stroke-width="4" stroke-linecap="round"/>
+</svg>

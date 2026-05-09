@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Karton Place Drive</title>
+  <rect x="11" y="17" width="42" height="30" rx="8" fill="none" stroke="#7b66f0" stroke-width="5"/>
+  <path d="M16 38h32" fill="none" stroke="#5dcdc3" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="24" cy="32" r="3" fill="#ffb84d"/>
+  <circle cx="40" cy="32" r="3" fill="#ffb84d"/>
+</svg>
