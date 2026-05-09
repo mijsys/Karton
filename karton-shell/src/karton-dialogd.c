@@ -403,6 +403,7 @@ prompt_with_gtk(const char *title,
     if (password) {
         state.entry = gtk_entry_new();
         gtk_entry_set_visibility(GTK_ENTRY(state.entry), FALSE);
+        gtk_entry_set_input_purpose(GTK_ENTRY(state.entry), GTK_INPUT_PURPOSE_PASSWORD);
         gtk_entry_set_activates_default(GTK_ENTRY(state.entry), TRUE);
         gtk_box_append(GTK_BOX(root), state.entry);
     }
@@ -425,6 +426,9 @@ prompt_with_gtk(const char *title,
     g_signal_connect(window, "close-request", G_CALLBACK(on_gtk_prompt_close), &state);
 
     gtk_window_present(GTK_WINDOW(window));
+    if (state.entry) {
+        gtk_widget_grab_focus(state.entry);
+    }
     g_main_loop_run(state.loop);
 
     gtk_window_destroy(GTK_WINDOW(window));

@@ -1,0 +1,854 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: karton-settings 0.1\n"
+"POT-Creation-Date: 2026-05-09 00:00+0000\n"
+"PO-Revision-Date: 2026-05-09 00:00+0000\n"
+"Last-Translator: Karton Team\n"
+"Language-Team: Polish\n"
+"Language: pl\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Settings"
+msgstr "Ustawienia"
+
+msgid "Appearance"
+msgstr "Wygląd"
+
+msgid "Desktop"
+msgstr "Pulpit"
+
+msgid "Windows"
+msgstr "Okna"
+
+msgid "Displays"
+msgstr "Ekrany"
+
+msgid "Sound"
+msgstr "Dźwiek"
+
+msgid "Mouse and Touchpad"
+msgstr "Mysz i touchpad"
+
+msgid "Network"
+msgstr "Sieć"
+
+msgid "Bluetooth"
+msgstr "Bluetooth"
+
+msgid "Power"
+msgstr "Zasilanie"
+
+msgid "Users"
+msgstr "Użytkownicy"
+
+msgid "Security and Privacy"
+msgstr "Bezpieczenstwo i prywatnosc"
+
+msgid "Privacy controls"
+msgstr "Kontrola prywatnosci"
+
+msgid "Protect local data, device access and the recent files history."
+msgstr "Chroń lokalne dane, dostep do urzadzen i historie ostatnich plikow."
+
+msgid "Lock screen"
+msgstr "Blokada ekranu"
+
+msgid "Privacy screen"
+msgstr "Ekran prywatnosci"
+
+msgid "Recent files history"
+msgstr "Historia ostatnich plikow"
+
+msgid "Camera access"
+msgstr "Dostep do kamery"
+
+msgid "Microphone access"
+msgstr "Dostep do mikrofonu"
+
+msgid "USB protection"
+msgstr "Ochrona USB"
+
+msgid "Hide identity"
+msgstr "Ukryj tozsamosc"
+
+msgid "Usage statistics"
+msgstr "Statystyki uzycia"
+
+msgid "Technical problem reports"
+msgstr "Raporty o problemach technicznych"
+
+msgid "Apply privacy settings"
+msgstr "Zastosuj ustawienia prywatnosci"
+
+msgid "Privacy overview"
+msgstr "Przeglad prywatnosci"
+
+msgid "Current privacy state resolved from the active desktop settings."
+msgstr "Biezacy stan prywatnosci wykryty z aktywnych ustawien pulpitu."
+
+msgid "Notifications"
+msgstr "Powiadomienia"
+
+msgid "Default Apps"
+msgstr "Aplikacje domyslne"
+
+msgid "Updates"
+msgstr "Aktualizacje"
+
+msgid "Date, Time and Region"
+msgstr "Data, czas i region"
+
+msgid "Regional settings"
+msgstr "Ustawienia regionalne"
+
+msgid "Locale, timezone and keyboard layout detected from the current system."
+msgstr "Locale, strefa czasowa i uklad klawiatury wykryte z aktualnego systemu."
+
+msgid "Accessibility"
+msgstr "Dostepnosc"
+
+msgid "Accessibility controls"
+msgstr "Ustawienia dostepnosci"
+
+msgid "Advanced diagnostics"
+msgstr "Diagnostyka zaawansowana"
+
+msgid "Session environment and low-level tools detected in the current runtime."
+msgstr "Srodowisko sesji i narzedzia niskiego poziomu wykryte w biezacym uruchomieniu."
+
+msgid "Reading, magnification and input assistance resolved from the active desktop settings."
+msgstr "Czytanie, powiekszanie i pomoc przy wprowadzaniu wykryte z aktywnych ustawien pulpitu."
+
+msgid "Screen reader"
+msgstr "Czytnik ekranu"
+
+msgid "On-screen keyboard"
+msgstr "Klawiatura ekranowa"
+
+msgid "Screen magnifier"
+msgstr "Lupa ekranowa"
+
+msgid "Sticky keys"
+msgstr "Klawisze trwale"
+
+msgid "Mouse keys"
+msgstr "Klawisze myszy"
+
+msgid "Slow keys"
+msgstr "Wolne klawisze"
+
+msgid "Text scaling"
+msgstr "Skalowanie tekstu"
+
+msgid "Apply accessibility settings"
+msgstr "Zastosuj ustawienia dostepnosci"
+
+msgid "Accessibility overview"
+msgstr "Przeglad dostepnosci"
+
+msgid "Current accessibility state collected from the running desktop session."
+msgstr "Biezacy stan dostepnosci zebrany z uruchomionej sesji pulpitu."
+
+msgid "Files and Storage"
+msgstr "Pliki i dyski"
+
+msgid "Session and Startup"
+msgstr "Sesja i uruchamianie"
+
+msgid "System"
+msgstr "System"
+
+msgid "Advanced"
+msgstr "Zaawansowane"
+
+msgid "Refresh"
+msgstr "Odswiez"
+
+msgid "Light"
+msgstr "Jasny"
+
+msgid "Dark"
+msgstr "Ciemny"
+
+msgid "Auto"
+msgstr "Automatyczny"
+
+msgid "Apply font"
+msgstr "Zastosuj czcionke"
+
+msgid "Apply sound"
+msgstr "Zastosuj dzwiek"
+
+msgid "Apply profile"
+msgstr "Zastosuj profil"
+
+msgid "Accent color"
+msgstr "Kolor akcentu"
+
+msgid "Theme mode"
+msgstr "Tryb motywu"
+
+msgid "Ready"
+msgstr "Gotowe"
+
+msgid "Settings shell initialized."
+msgstr "Aplikacja ustawien zostala uruchomiona."
+
+msgid "Settings state refreshed."
+msgstr "Stan ustawien zostal odswiezony."
+
+msgid "Global theme updated."
+msgstr "Globalny motyw zostal zaktualizowany."
+
+msgid "Accent color updated for Karton."
+msgstr "Kolor akcentu dla Karton zostal zaktualizowany."
+
+msgid "GTK interface font updated."
+msgstr "Czcionka interfejsu GTK zostala zaktualizowana."
+
+msgid "Wi-Fi enabled."
+msgstr "Wi-Fi wlaczone."
+
+msgid "Wi-Fi disabled."
+msgstr "Wi-Fi wylaczone."
+
+msgid "Bluetooth enabled."
+msgstr "Bluetooth wlaczony."
+
+msgid "Bluetooth disabled."
+msgstr "Bluetooth wylaczony."
+
+msgid "Do not disturb enabled."
+msgstr "Tryb nie przeszkadzac wlaczony."
+
+msgid "Notifications enabled."
+msgstr "Powiadomienia wlaczone."
+
+msgid "Privacy settings updated."
+msgstr "Ustawienia prywatnosci zostaly zaktualizowane."
+
+msgid "Accessibility settings updated."
+msgstr "Ustawienia dostepnosci zostaly zaktualizowane."
+
+msgid "Sound output updated."
+msgstr "Wyjscie dzwieku zostalo zaktualizowane."
+
+msgid "Power profile updated."
+msgstr "Profil zasilania zostal zaktualizowany."
+
+msgid "Global theme, accent and desktop style"
+msgstr "Globalny motyw, akcent i styl pulpitu"
+
+msgid "Current account"
+msgstr "Biezace konto"
+
+msgid "Local user details resolved from the active session."
+msgstr "Szczegoly lokalnego uzytkownika wykryte z aktywnej sesji."
+
+msgid "Session runtime"
+msgstr "Stan sesji"
+
+msgid "Live session data and autostart snapshot."
+msgstr "Biezace dane sesji i podglad autostartu."
+
+msgid "Autostart"
+msgstr "Autostart"
+
+msgid "Inspect system startup entries and apply a user override."
+msgstr "Przejrzyj wpisy startowe systemu i zastosuj nadpisanie uzytkownika."
+
+msgid "Filter autostart entries"
+msgstr "Filtruj wpisy autostartu"
+
+msgid "Entry"
+msgstr "Wpis"
+
+msgid "Enabled"
+msgstr "Wlaczone"
+
+msgid "Apply autostart state"
+msgstr "Zastosuj stan autostartu"
+
+msgid "Disabling writes a user override in ~/.config/autostart so the system entry stays installed but does not start in your session."
+msgstr "Wylaczenie zapisuje nadpisanie uzytkownika w ~/.config/autostart, dzieki czemu wpis systemowy pozostaje zainstalowany, ale nie startuje w twojej sesji."
+
+msgid "Session actions"
+msgstr "Akcje sesji"
+
+msgid "Immediate actions forwarded to the current system session."
+msgstr "Natychmiastowe akcje przekazywane do aktualnej sesji systemowej."
+
+msgid "Log out"
+msgstr "Wyloguj"
+
+msgid "Restart device"
+msgstr "Uruchom ponownie"
+
+msgid "Power off device"
+msgstr "Wylacz urzadzenie"
+
+msgid "These actions are executed immediately, so use them only from an interactive session."
+msgstr "Te akcje sa wykonywane natychmiast, wiec uzywaj ich tylko z interaktywnej sesji."
+
+msgid "Connected outputs"
+msgstr "Podlaczone wyjscia"
+
+msgid "A live summary is shown when a supported display backend is present."
+msgstr "Widoczny jest biezacy podglad, gdy dostepny jest obslugiwany backend ekranu."
+
+msgid "Brightness"
+msgstr "Jasnosc"
+
+msgid "Adjust the internal display backlight when a supported backend is available."
+msgstr "Dostosuj podswietlenie wbudowanego ekranu, gdy dostepny jest obslugiwany backend."
+
+msgid "Apply brightness"
+msgstr "Zastosuj jasnosc"
+
+msgid "Interface scale"
+msgstr "Skalowanie interfejsu"
+
+msgid "Apply a GTK interface scaling factor for Karton apps."
+msgstr "Zastosuj wspolczynnik skalowania GTK dla aplikacji Karton."
+
+msgid "Apply scale"
+msgstr "Zastosuj skale"
+
+msgid "Selected display scale is invalid."
+msgstr "Wybrane skalowanie ekranu jest nieprawidlowe."
+
+msgid "Interface scale updated."
+msgstr "Skalowanie interfejsu zostalo zaktualizowane."
+
+msgid "Brightness updated."
+msgstr "Jasnosc zostala zaktualizowana."
+
+msgid "Cannot update the interface scale."
+msgstr "Nie mozna zaktualizowac skalowania interfejsu."
+
+msgid "Cannot update brightness."
+msgstr "Nie mozna zaktualizowac jasnosci."
+
+msgid "Logout requested."
+msgstr "Wylogowanie zostalo zlecone."
+
+msgid "Restart requested."
+msgstr "Restart zostal zlecony."
+
+msgid "Shutdown requested."
+msgstr "Wylaczenie zostalo zlecone."
+
+msgid "Cannot run the requested session action."
+msgstr "Nie mozna wykonac zadanej akcji sesji."
+
+msgid "Display state unavailable."
+msgstr "Stan ekranow jest niedostepny."
+
+msgid "Brightness control unavailable."
+msgstr "Sterowanie jasnoscia jest niedostepne."
+
+msgid "Brightness backend: %s. Current level: %.0f%%"
+msgstr "Backend jasnosci: %s. Biezacy poziom: %.0f%%"
+
+msgid "Brightness value is out of range."
+msgstr "Wartosc jasnosci jest poza dozwolonym zakresem."
+
+msgid "Brightness control backend is unavailable."
+msgstr "Backend sterowania jasnoscia jest niedostepny."
+
+msgid "No display details available."
+msgstr "Brak szczegolow ekranow."
+
+msgid "User information unavailable."
+msgstr "Informacje o uzytkowniku sa niedostepne."
+
+msgid "No user details available."
+msgstr "Brak szczegolow uzytkownika."
+
+msgid "Privacy information unavailable."
+msgstr "Informacje o prywatnosci sa niedostepne."
+
+msgid "No privacy details available."
+msgstr "Brak szczegolow prywatnosci."
+
+msgid "Region information unavailable."
+msgstr "Informacje regionalne sa niedostepne."
+
+msgid "Advanced diagnostics unavailable."
+msgstr "Diagnostyka zaawansowana jest niedostepna."
+
+msgid "No advanced diagnostics available."
+msgstr "Brak danych diagnostyki zaawansowanej."
+
+msgid "Accessibility information unavailable."
+msgstr "Informacje o dostepnosci sa niedostepne."
+
+msgid "No accessibility details available."
+msgstr "Brak szczegolow dostepnosci."
+
+msgid "No region details available."
+msgstr "Brak szczegolow regionalnych."
+
+msgid "Session information unavailable."
+msgstr "Informacje o sesji sa niedostepne."
+
+msgid "No session details available."
+msgstr "Brak szczegolow sesji."
+
+msgid "No autostart details available."
+msgstr "Brak szczegolow autostartu."
+
+msgid "No autostart entries detected."
+msgstr "Nie wykryto wpisow autostartu."
+
+msgid "No autostart entries match the current filter."
+msgstr "Zaden wpis autostartu nie pasuje do biezacego filtra."
+
+msgid "Cannot read the selected autostart entry."
+msgstr "Nie mozna odczytac wybranego wpisu autostartu."
+
+msgid "Select an autostart entry first."
+msgstr "Najpierw wybierz wpis autostartu."
+
+msgid "Autostart override updated."
+msgstr "Nadpisanie autostartu zostalo zaktualizowane."
+
+msgid "Entry: %s\nDesktop file: %s\nSource: %s\nState: %s\nCommand: %s\nDescription: %s"
+msgstr "Wpis: %s\nPlik desktop: %s\nZrodlo: %s\nStan: %s\nPolecenie: %s\nOpis: %s"
+
+msgid "user override"
+msgstr "nadpisanie uzytkownika"
+
+msgid "system default"
+msgstr "domyslne ustawienie systemowe"
+
+msgid "Autostart entry was not found."
+msgstr "Nie znaleziono wpisu autostartu."
+
+msgid "Cannot create the user autostart directory."
+msgstr "Nie mozna utworzyc katalogu autostartu uzytkownika."
+
+msgid "Cannot update the autostart override."
+msgstr "Nie mozna zaktualizowac nadpisania autostartu."
+
+msgid "Locale %s, timezone %s"
+msgstr "Locale %s, strefa %s"
+
+msgid "Open time settings"
+msgstr "Otworz ustawienia czasu"
+
+msgid "Open language and formats"
+msgstr "Otworz jezyk i formaty"
+
+msgid "Time settings tool opened."
+msgstr "Otwarto narzedzie ustawien czasu."
+
+msgid "Language and formats tool opened."
+msgstr "Otwarto narzedzie jezyka i formatow."
+
+msgid "Cannot open the regional settings tool."
+msgstr "Nie mozna otworzyc narzedzia ustawien regionalnych."
+
+msgid "No supported regional settings tool is available."
+msgstr "Brak obslugiwanego narzedzia ustawien regionalnych."
+
+msgid "Open session journal"
+msgstr "Otworz dziennik sesji"
+
+msgid "Open display report"
+msgstr "Otworz raport wyswietlania"
+
+msgid "Session journal report opened."
+msgstr "Otwarto raport dziennika sesji."
+
+msgid "Display report opened."
+msgstr "Otwarto raport wyswietlania."
+
+msgid "Cannot open the diagnostics report."
+msgstr "Nie mozna otworzyc raportu diagnostycznego."
+
+msgid "No supported diagnostics command is available."
+msgstr "Brak obslugiwanego polecenia diagnostycznego."
+
+msgid "Privacy settings backend is unavailable."
+msgstr "Backend ustawien prywatnosci jest niedostepny."
+
+msgid "Install gsettings support to manage privacy options here."
+msgstr "Zainstaluj obsluge gsettings, aby zarzadzac tutaj opcjami prywatnosci."
+
+msgid "Privacy schemas are only partially available."
+msgstr "Schematy prywatnosci sa dostepne tylko czesciowo."
+
+msgid "Some privacy controls could not be read from the current desktop settings."
+msgstr "Niektorych ustawien prywatnosci nie udalo sie odczytac z biezacych ustawien pulpitu."
+
+msgid "Lock screen %s, recent files %s"
+msgstr "Blokada ekranu %s, ostatnie pliki %s"
+
+msgid "Privacy screen: %s\nCamera access: %s\nMicrophone access: %s\nRecent files history: %s"
+msgstr "Ekran prywatnosci: %s\nDostep do kamery: %s\nDostep do mikrofonu: %s\nHistoria ostatnich plikow: %s"
+
+msgid "Privacy screen: %s\nCamera access: %s\nMicrophone access: %s\nRecent files history: %s\nUSB protection: %s\nHide identity: %s\nUsage stats: %s\nTechnical reports: %s"
+msgstr "Ekran prywatnosci: %s\nDostep do kamery: %s\nDostep do mikrofonu: %s\nHistoria ostatnich plikow: %s\nOchrona USB: %s\nUkrywanie tozsamosci: %s\nStatystyki uzycia: %s\nRaporty techniczne: %s"
+
+msgid "Cannot update privacy settings."
+msgstr "Nie mozna zaktualizowac ustawien prywatnosci."
+
+msgid "Accessibility settings backend is unavailable."
+msgstr "Backend ustawien dostepnosci jest niedostepny."
+
+msgid "Install gsettings support to manage accessibility options here."
+msgstr "Zainstaluj obsluge gsettings, aby zarzadzac tutaj opcjami dostepnosci."
+
+msgid "Accessibility schemas are only partially available."
+msgstr "Schematy dostepnosci sa dostepne tylko czesciowo."
+
+msgid "Some accessibility controls could not be read from the current desktop settings."
+msgstr "Niektorych ustawien dostepnosci nie udalo sie odczytac z biezacych ustawien pulpitu."
+
+msgid "%s session, desktop %s"
+msgstr "Sesja %s, pulpit %s"
+
+msgid "WAYLAND_DISPLAY: %s\nDISPLAY: %s\nwayland-info: %s\nxrandr: %s\nwlr-randr: %s\nloginctl: %s\ngsettings: %s\njournalctl: %s"
+msgstr "WAYLAND_DISPLAY: %s\nDISPLAY: %s\nwayland-info: %s\nxrandr: %s\nwlr-randr: %s\nloginctl: %s\ngsettings: %s\njournalctl: %s"
+
+msgid "available"
+msgstr "dostepne"
+
+msgid "missing"
+msgstr "brak"
+
+msgid "Screen reader %s, text scale %.2fx"
+msgstr "Czytnik ekranu %s, skala tekstu %.2fx"
+
+msgid "On-screen keyboard: %s\nScreen magnifier: %s\nSticky keys: %s\nMouse keys: %s\nSlow keys: %s\nText scaling: %.2fx"
+msgstr "Klawiatura ekranowa: %s\nLupa ekranowa: %s\nKlawisze trwale: %s\nKlawisze myszy: %s\nWolne klawisze: %s\nSkalowanie tekstu: %.2fx"
+
+msgid "Text scaling is out of range."
+msgstr "Skalowanie tekstu jest poza dozwolonym zakresem."
+
+msgid "Cannot update accessibility settings."
+msgstr "Nie mozna zaktualizowac ustawien dostepnosci."
+
+msgid "System locale: %s\nTimezone: %s\nVC keymap: %s\nX11 layout: %s"
+msgstr "Locale systemu: %s\nStrefa czasowa: %s\nMapa klawiatury VC: %s\nUklad X11: %s"
+
+msgid "not provided"
+msgstr "brak"
+
+msgid "NetworkManager CLI is not available."
+msgstr "CLI NetworkManagera nie jest dostepne."
+
+msgid "Cannot read Wi-Fi status."
+msgstr "Nie mozna odczytac stanu Wi-Fi."
+
+msgid "Connected to %s"
+msgstr "Polaczono z %s"
+
+msgid "Wi-Fi network"
+msgstr "siecia Wi-Fi"
+
+msgid "Wi-Fi is enabled."
+msgstr "Wi-Fi jest wlaczone."
+
+msgid "Wi-Fi is disabled."
+msgstr "Wi-Fi jest wylaczone."
+
+msgid "nmcli is not available"
+msgstr "nmcli nie jest dostepne"
+
+msgid "Bluetooth backend is not available."
+msgstr "Backend Bluetooth nie jest dostepny."
+
+msgid "Cannot read Bluetooth state."
+msgstr "Nie mozna odczytac stanu Bluetooth."
+
+msgid "No Bluetooth backend is available"
+msgstr "Brak dostepnego backendu Bluetooth"
+
+msgid "gsettings is not available."
+msgstr "gsettings nie jest dostepne."
+
+msgid "Notification schema is unavailable."
+msgstr "Schemat powiadomien jest niedostepny."
+
+msgid "PipeWire wpctl is not available."
+msgstr "PipeWire wpctl nie jest dostepne."
+
+msgid "Cannot read output volume."
+msgstr "Nie mozna odczytac glosnosci wyjscia."
+
+msgid "Output volume: %.0f%%%s"
+msgstr "Glosnosc wyjscia: %.0f%%%s"
+
+msgid " (muted)"
+msgstr " (wyciszone)"
+
+msgid "wpctl is not available"
+msgstr "wpctl nie jest dostepne"
+
+msgid "powerprofilesctl is not available."
+msgstr "powerprofilesctl nie jest dostepne."
+
+msgid "Cannot read the current power profile."
+msgstr "Nie mozna odczytac aktywnego profilu zasilania."
+
+msgid "Active profile: %s"
+msgstr "Aktywny profil: %s"
+
+msgid "Power profile is required"
+msgstr "Profil zasilania jest wymagany"
+
+msgid "Detected %u display output(s). Interface scale: %.2fx"
+msgstr "Wykryto %u wyjsc ekranu. Skalowanie interfejsu: %.2fx"
+
+msgid "Display backend not detected. Interface scale: %.2fx"
+msgstr "Nie wykryto backendu ekranu. Skalowanie interfejsu: %.2fx"
+
+msgid "Display information will appear when a display backend is detected."
+msgstr "Informacje o ekranie pojawia sie, gdy wykryty zostanie backend ekranu."
+
+msgid "Interface scale is out of range."
+msgstr "Skalowanie interfejsu jest poza dozwolonym zakresem."
+
+msgid "Unknown user"
+msgstr "Nieznany uzytkownik"
+
+msgid "Unknown shell"
+msgstr "Nieznana powloka"
+
+msgid "Signed in as %s"
+msgstr "Zalogowano jako %s"
+
+msgid "Login: %s\nShell: %s\nAdministrator privileges: %s"
+msgstr "Login: %s\nPowloka: %s\nUprawnienia administratora: %s"
+
+msgid "yes"
+msgstr "tak"
+
+msgid "no"
+msgstr "nie"
+
+msgid "unknown"
+msgstr "nieznana"
+
+msgid "%s session on %s"
+msgstr "Sesja %s na %s"
+
+msgid "Session name: %s\nAutostart entries: %d"
+msgstr "Nazwa sesji: %s\nElementy autostartu: %d"
+
+msgid "self"
+msgstr "self"
+
+msgid "Unknown session action."
+msgstr "Nieznana akcja sesji."
+
+msgid "Cannot execute session action."
+msgstr "Nie mozna wykonac akcji sesji."
+
+msgid "Use this section for pointer speed, touchpad gestures and keyboard layout shortcuts."
+msgstr "Ta sekcja jest przeznaczona dla predkosci kursora, gestow touchpada i skrotow klawiatury."
+
+msgid "Kernel information unavailable"
+msgstr "Informacje o kernelu sa niedostepne"
+
+msgid "Preferred applications"
+msgstr "Preferowane aplikacje"
+
+msgid "Handlers currently registered in the XDG desktop stack."
+msgstr "Obslugujace aplikacje aktualnie zarejestrowane w stosie XDG desktop."
+
+msgid "Package updates"
+msgstr "Aktualizacje pakietow"
+
+msgid "Pending updates detected through the native package manager CLI."
+msgstr "Oczekujace aktualizacje wykryte przez natywne CLI menedzera pakietow."
+
+msgid "Storage overview"
+msgstr "Przeglad magazynu danych"
+
+msgid "Mounted filesystems and block devices reported by the local system."
+msgstr "Zamontowane systemy plikow i urzadzenia blokowe zgloszone przez lokalny system."
+
+msgid "Default application state unavailable."
+msgstr "Stan aplikacji domyslnych jest niedostepny."
+
+msgid "No default application details available."
+msgstr "Brak szczegolow aplikacji domyslnych."
+
+msgid "Update information unavailable."
+msgstr "Informacje o aktualizacjach sa niedostepne."
+
+msgid "No update details available."
+msgstr "Brak szczegolow aktualizacji."
+
+msgid "Storage information is unavailable."
+msgstr "Informacje o magazynie danych sa niedostepne."
+
+msgid "No storage details available."
+msgstr "Brak szczegolow magazynu danych."
+
+msgid "Browser: %s"
+msgstr "Przegladarka: %s"
+
+msgid "not set"
+msgstr "nie ustawiono"
+
+msgid "File manager: %s\nText editor: %s\nMail handler: %s\nMusic: %s\nVideo: %s"
+msgstr "Menedzer plikow: %s\nEdytor tekstu: %s\nObsluga poczty: %s\nMuzyka: %s\nWideo: %s"
+
+msgid "No supported updates backend detected."
+msgstr "Nie wykryto obslugiwanego backendu aktualizacji."
+
+msgid "Install a supported package manager CLI to see pending updates here."
+msgstr "Zainstaluj obslugiwane CLI menedzera pakietow, aby zobaczyc tutaj oczekujace aktualizacje."
+
+msgid "System is up to date according to %s."
+msgstr "System jest aktualny wedlug %s."
+
+msgid "No pending package updates were reported."
+msgstr "Nie zgloszono oczekujacych aktualizacji pakietow."
+
+msgid "%d package update(s) pending via %s."
+msgstr "Oczekuje %d aktualizacji pakietow przez %s."
+
+msgid "Mounted volumes and block devices detected."
+msgstr "Wykryto zamontowane wolumeny i urzadzenia blokowe."
+
+msgid "Usage snapshot:\n%s\n\nDevices:\n%s"
+msgstr "Migawka uzycia:\n%s\n\nUrzadzenia:\n%s"
+
+msgid "Neither df nor lsblk returned usable data."
+msgstr "Ani df, ani lsblk nie zwrocily uzytecznych danych."
+
+msgid "Hidden network"
+msgstr "Ukryta siec"
+
+msgid "Open"
+msgstr "Otwarta"
+
+msgid "No Wi-Fi networks were reported."
+msgstr "Nie zgloszono zadnych sieci Wi-Fi."
+
+msgid "No Bluetooth devices were reported."
+msgstr "Nie zgloszono zadnych urzadzen Bluetooth."
+
+msgid "No Wi-Fi details available."
+msgstr "Brak szczegolow Wi-Fi."
+
+msgid "No Bluetooth details available."
+msgstr "Brak szczegolow Bluetooth."
+
+msgid "No audio device details available."
+msgstr "Brak szczegolow urzadzen audio."
+
+msgid "Input level"
+msgstr "Poziom wejscia"
+
+msgid "Microphone level and mute state for the default capture device."
+msgstr "Poziom mikrofonu i stan wyciszenia dla domyslnego urzadzenia przechwytywania."
+
+msgid "Mute microphone"
+msgstr "Wycisz mikrofon"
+
+msgid "Input settings backend is unavailable."
+msgstr "Backend ustawien wejscia jest niedostepny."
+
+msgid "Input settings are unavailable."
+msgstr "Ustawienia wejscia sa niedostepne."
+
+msgid "Mouse and touchpad keys could not be read from gsettings."
+msgstr "Nie udalo sie odczytac kluczy myszy i touchpada z gsettings."
+
+msgid "Pointer speed %.0f%%, tap-to-click %s"
+msgstr "Predkosc kursora %.0f%%, tap-to-click %s"
+
+msgid "enabled"
+msgstr "wlaczone"
+
+msgid "disabled"
+msgstr "wylaczone"
+
+msgid "Natural scroll: %s\nLeft-handed mouse: %s\nTouchpad tap-to-click: %s"
+msgstr "Naturalne przewijanie: %s\nMysz leworeczna: %s\nTap-to-click touchpada: %s"
+
+msgid "Pointer speed is out of range."
+msgstr "Predkosc kursora jest poza dozwolonym zakresem."
+
+msgid "No input details available."
+msgstr "Brak szczegolow wejscia."
+
+msgid "Input settings updated."
+msgstr "Ustawienia wejscia zostaly zaktualizowane."
+
+msgid "Cannot update input settings."
+msgstr "Nie mozna zaktualizowac ustawien wejscia."
+
+msgid "Pointer speed"
+msgstr "Predkosc kursora"
+
+msgid "Acceleration speed for the default mouse device."
+msgstr "Predkosc akceleracji dla domyslnego urzadzenia wskazujacego."
+
+msgid "Left-handed mode"
+msgstr "Tryb leworeczny"
+
+msgid "Touchpad"
+msgstr "Touchpad"
+
+msgid "Natural scrolling and tap gestures for the default touchpad."
+msgstr "Naturalne przewijanie i gesty stukniecia dla domyslnego touchpada."
+
+msgid "Natural scroll"
+msgstr "Naturalne przewijanie"
+
+msgid "Tap to click"
+msgstr "Tap to click"
+
+msgid "Mouse and touchpad state resolved from the current desktop settings."
+msgstr "Stan myszy i touchpada odczytany z biezacych ustawien pulpitu."
+
+msgid "Apply input"
+msgstr "Zastosuj wejscie"
+
+msgid "mode unknown"
+msgstr "nieznany tryb"
+
+msgid "xrandr is not available."
+msgstr "xrandr nie jest dostepny."
+
+msgid "Display mode changes are available only in X11 sessions."
+msgstr "Zmiany trybu ekranu sa dostepne tylko w sesjach X11."
+
+msgid "Display output and mode are required."
+msgstr "Wyjscie ekranu i tryb sa wymagane."
+
+msgid "No active output"
+msgstr "Brak aktywnego wyjscia"
+
+msgid "Display mode updated."
+msgstr "Tryb ekranu zostal zaktualizowany."
+
+msgid "Cannot update the display mode."
+msgstr "Nie mozna zaktualizowac trybu ekranu."
+
+msgid "Active output"
+msgstr "Aktywne wyjscie"
+
+msgid "Current output, mode and orientation reported by the display backend."
+msgstr "Biezace wyjscie, tryb i orientacja zgloszone przez backend ekranu."
+
+msgid "Resolution"
+msgstr "Rozdzielczosc"
+
+msgid "Orientation"
+msgstr "Orientacja"
+
+msgid "Apply display mode"
+msgstr "Zastosuj tryb ekranu"
+
+msgid "Mode changes are enabled only when Karton runs in an X11 session with direct xrandr access."
+msgstr "Zmiany trybu sa wlaczone tylko wtedy, gdy Karton dziala w sesji X11 z bezposrednim dostepem do xrandr."

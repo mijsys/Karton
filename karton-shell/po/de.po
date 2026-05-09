@@ -497,6 +497,138 @@ msgid "Default"
 msgstr "Standard"
 
 #: src/karton-shell.c
+msgid "Could not change the default device"
+msgstr "Das Standardgerät konnte nicht geändert werden"
+
+#: src/karton-shell.c
+msgid "Wi-Fi password"
+msgstr "WLAN-Passwort"
+
+#: src/karton-shell.c
+msgid "Enter the password for %s"
+msgstr "Passwort für %s eingeben"
+
+#: src/karton-shell.c
+msgid "selected network"
+msgstr "ausgewähltes Netzwerk"
+
+#: src/karton-shell.c
+msgid "Wrong password or connection failed"
+msgstr "Falsches Passwort oder Verbindung fehlgeschlagen"
+
+#: src/karton-shell.c
+msgid "Enable Wi-Fi before connecting to a network"
+msgstr "Aktivieren Sie WLAN, bevor Sie sich mit einem Netzwerk verbinden"
+
+#: src/karton-shell.c
+msgid "Enter the password to connect"
+msgstr "Geben Sie das Passwort ein, um sich zu verbinden"
+
+#: src/karton-shell.c
+msgid "Invalid password. Try again."
+msgstr "Falsches Passwort. Versuchen Sie es erneut."
+
+#: src/karton-dialogd.c
+msgid "Question"
+msgstr "Frage"
+
+#: src/karton-dialogd.c
+msgid "Proceed?"
+msgstr "Fortfahren?"
+
+#: src/karton-dialogd.c
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: src/karton-dialogd.c
+msgid "OK"
+msgstr "OK"
+
+#: src/karton-dialogd.c
+msgid "Yes"
+msgstr "Ja"
+
+#: src/karton-shell.c
+msgid "Connected now"
+msgstr "Jetzt verbunden"
+
+#: src/karton-shell.c
+msgid "Saved password available"
+msgstr "Gespeichertes Passwort verfügbar"
+
+#: src/karton-shell.c
+msgid "Password required before connecting"
+msgstr "Vor der Verbindung wird ein Passwort benötigt"
+
+#: src/karton-shell.c
+msgid "Tap to open actions"
+msgstr "Tippen, um Aktionen zu öffnen"
+
+#: src/karton-shell.c
+msgid "Password"
+msgstr "Passwort"
+
+#: src/karton-shell.c
+msgid "Security:"
+msgstr "Sicherheit:"
+
+#: src/karton-shell.c
+msgid "Unknown"
+msgstr "Unbekannt"
+
+#: src/karton-shell.c
+msgid "Signal:"
+msgstr "Signal:"
+
+#: src/karton-shell.c
+msgid "Signal unavailable"
+msgstr "Signal nicht verfügbar"
+
+#: src/karton-shell.c
+msgid "NetworkManager secret:"
+msgstr "NetworkManager-Geheimnis:"
+
+#: src/karton-shell.c
+msgid "Saved"
+msgstr "Gespeichert"
+
+#: src/karton-shell.c
+msgid "Missing"
+msgstr "Fehlt"
+
+#: src/karton-shell.c
+msgid "Connected"
+msgstr "Verbunden"
+
+#: src/karton-shell.c
+msgid "Connect now"
+msgstr "Jetzt verbinden"
+
+#: src/karton-shell.c
+msgid "Enter password"
+msgstr "Passwort eingeben"
+
+#: src/karton-shell.c
+msgid "Connect"
+msgstr "Verbinden"
+
+#: src/karton-shell.c
+msgid "Hide details"
+msgstr "Details ausblenden"
+
+#: src/karton-shell.c
+msgid "Show details"
+msgstr "Details anzeigen"
+
+#: src/karton-shell.c
+msgid "No nearby Wi-Fi networks"
+msgstr "Keine WLAN-Netzwerke in der Nähe"
+
+#: src/karton-shell.c
+msgid "Refresh"
+msgstr "Aktualisieren"
+
+#: src/karton-shell.c
 msgid "Mounted devices"
 msgstr "Eingebundene Geräte"
 

@@ -12,6 +12,7 @@
 #include <linux/input-event-codes.h>
 #include <locale.h>
 #include <pango/pangocairo.h>
+#include <poll.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -92,6 +93,14 @@ TOP_SLIDER_DRAG_QUICK_BRIGHTNESS,
 TOP_SLIDER_DRAG_QUICK_VOLUME,
 TOP_SLIDER_DRAG_AUDIO_OUTPUT,
 TOP_SLIDER_DRAG_AUDIO_INPUT,
+};
+
+enum network_popup_action {
+NETWORK_POPUP_ACTION_NONE,
+NETWORK_POPUP_ACTION_TOGGLE,
+NETWORK_POPUP_ACTION_CONNECT,
+NETWORK_POPUP_ACTION_DETAILS,
+NETWORK_POPUP_ACTION_PASSWORD_FIELD,
 };
 
 enum launcher_category {
@@ -271,6 +280,16 @@ unsigned long long quick_rx_bytes;
 unsigned long long quick_tx_bytes;
 char quick_networks[MAX_STATUS_NETWORKS][96];
 size_t quick_network_count;
+int quick_network_expanded;
+bool quick_network_show_details;
+bool quick_network_password_visible;
+bool quick_network_metadata_loaded;
+bool quick_network_requires_password;
+bool quick_network_has_saved_password;
+int quick_network_signal;
+char quick_network_security[96];
+char quick_network_password[256];
+char quick_network_error[160];
 char quick_outputs[MAX_STATUS_AUDIO_DEVICES][96];
 size_t quick_output_count;
 char quick_inputs[MAX_STATUS_AUDIO_DEVICES][96];
@@ -420,6 +439,15 @@ double *x, double *y, double *w, double *h);
 static bool launcher_favorite_tile_rect(const struct panel *panel, const struct app *app, int preview_idx,
 double *x, double *y, double *w, double *h);
 static int launcher_favorite_tile_hit(const struct panel *panel, const struct app *app, double px, double py);
+static double network_popup_list_height(const struct app *app);
+static bool network_popup_card_rect(const struct panel *panel, const struct app *app,
+int network, double *x, double *y, double *w, double *h);
+static int network_popup_action_hit(const struct panel *panel, const struct app *app,
+double px, double py, int *network_out);
+static void reset_network_popup_state(struct app *app);
+static void network_popup_select(struct app *app, int network);
+static void network_popup_load_metadata(struct app *app, int network);
+static void network_popup_perform_connect(struct app *app, int network);
 static void popup_clamp_selection(struct app *app);
 static void request_top_panel_size(struct app *app);
 static void request_side_panel_size(struct app *app);
@@ -1325,24 +1353,42 @@ clear_notifications_cache(void)
     }
 }
 
-static void
+static bool
+notification_entries_equal(const struct notification_entry *a, const struct notification_entry *b)
+{
+if (!a || !b) {
+return false;
+}
+
+return strcmp(a->app_name, b->app_name) == 0
+&& strcmp(a->text, b->text) == 0
+&& strcmp(a->detail, b->detail) == 0
+&& strcmp(a->action_label, b->action_label) == 0
+&& strcmp(a->action_target, b->action_target) == 0
+&& a->target_kind == b->target_kind;
+}
+
+static bool
 load_system_notifications(struct app *app)
 {
 if (!app) {
-return;
+return false;
 }
 
 time_t now = time(NULL);
+size_t previous_count = app->notification_count;
+struct notification_entry previous_notifications[MAX_NOTIFICATIONS];
+memcpy(previous_notifications, app->notifications, sizeof(previous_notifications));
 if (app->notifications_updated > 0
 && now != (time_t)-1
-&& now - app->notifications_updated < 4) {
-return;
+&& now - app->notifications_updated < 1) {
+return false;
 }
 
 app->notification_count = 0;
 FILE *f = popen("sh -lc 'log=\"${XDG_CACHE_HOME:-$HOME/.cache}/karton/notifications.log\"; if [ -s \"$log\" ]; then tail -n 8 \"$log\"; elif command -v timeout >/dev/null 2>&1 && command -v makoctl >/dev/null 2>&1; then timeout 1s makoctl list 2>/dev/null | sed -n \"s/^[[:space:]]*summary: //p;s/^[[:space:]]*Summary: //p\"; fi'", "r");
 if (!f) {
-return;
+return false;
 }
 
 char line[240];
@@ -1370,10 +1416,25 @@ notification_prepare_entry(app,
 app_name, summary, body);
 }
 pclose(f);
+
+bool snapshot_changed = previous_count != app->notification_count;
+if (!snapshot_changed) {
+for (size_t i = 0; i < app->notification_count; i++) {
+    if (!notification_entries_equal(&previous_notifications[i], &app->notifications[i])) {
+        snapshot_changed = true;
+        break;
+    }
+}
+}
+
+if (snapshot_changed && app->notification_count > 0) {
+app->notifications_read = false;
+}
 if (app->notification_count > 0) {
     app->notifications_cleared = false;
 }
 app->notifications_updated = now;
+return snapshot_changed;
 }
 
 static void
@@ -1435,33 +1496,6 @@ return ok;
 }
 
 static bool
-prompt_wifi_password(const char *ssid, char *password_out, size_t password_size)
-{
-if (!password_out || password_size == 0) {
-return false;
-}
-
-password_out[0] = '\0';
-
-char title[160] = { 0 };
-char text[224] = { 0 };
-snprintf(title, sizeof(title), "%s", _("Wi-Fi password"));
-snprintf(text, sizeof(text), _("Enter the password for %s"), ssid && *ssid ? ssid : _("selected network"));
-
-gchar *quoted_title = g_shell_quote(title);
-gchar *quoted_text = g_shell_quote(text);
-char command[1024] = { 0 };
-snprintf(command, sizeof(command),
-"sh -lc 'if command -v karton-dialog >/dev/null 2>&1; then karton-dialog --password --title %s --text %s; elif [ -x \"$HOME/.local-karton/bin/karton-dialog\" ]; then \"$HOME/.local-karton/bin/karton-dialog\" --password --title %s --text %s; else exit 127; fi'",
-quoted_title, quoted_text, quoted_title, quoted_text);
-g_free(quoted_title);
-g_free(quoted_text);
-
-return run_command_line_sync(command, password_out, password_size, NULL, 0)
-&& trim_in_place(password_out)[0] != '\0';
-}
-
-static bool
 connect_wifi_nmcli(const char *ssid, const char *password, char *error_out, size_t error_size)
 {
 char *argv[8] = { 0 };
@@ -1479,44 +1513,286 @@ argv[argc] = NULL;
 return run_argv_sync(argv, error_out, error_size);
 }
 
-static void
-connect_wifi_network(struct app *app, const char *ssid)
+static bool
+activate_saved_wifi_connection(const char *ssid, char *error_out, size_t error_size)
 {
+char *argv[7] = { 0 };
+int argc = 0;
+argv[argc++] = "nmcli";
+argv[argc++] = "connection";
+argv[argc++] = "up";
+argv[argc++] = "id";
+argv[argc++] = (char *)ssid;
+argv[argc] = NULL;
+return run_argv_sync(argv, error_out, error_size);
+}
+
+static bool
+wifi_security_requires_password(const char *security)
+{
+if (!security || !security[0]) {
+return false;
+}
+
+return strcmp(security, "--") != 0 && strcasecmp(security, "NONE") != 0;
+}
+
+static bool
+query_wifi_scan_info(const char *ssid, char *security_out, size_t security_size,
+int *signal_out, bool *connected_out)
+{
+if (security_out && security_size > 0) {
+security_out[0] = '\0';
+}
+if (signal_out) {
+*signal_out = -1;
+}
+if (connected_out) {
+*connected_out = false;
+}
+if (!ssid || !ssid[0]) {
+return false;
+}
+
+char *argv[] = {
+    "nmcli",
+    "-m",
+    "multiline",
+    "-f",
+    "SSID,SECURITY,SIGNAL,IN-USE",
+    "device",
+    "wifi",
+    "list",
+    NULL,
+};
+char output[8192] = { 0 };
+if (!run_argv_sync(argv, output, sizeof(output))) {
+return false;
+}
+
+char current_ssid[96] = { 0 };
+char current_security[96] = { 0 };
+int current_signal = -1;
+bool current_connected = false;
+bool found = false;
+bool found_connected = false;
+int best_signal = -1;
+
+char *saveptr = NULL;
+for (char *line = strtok_r(output, "\n", &saveptr);
+     line;
+     line = strtok_r(NULL, "\n", &saveptr)) {
+line = trim_in_place(line);
+if (!line[0]) {
+    if (!strcmp(current_ssid, ssid)
+    && (!found || (!found_connected && current_connected) || current_signal > best_signal)) {
+        if (security_out && security_size > 0) {
+            snprintf(security_out, security_size, "%s", current_security);
+        }
+        if (signal_out) {
+            *signal_out = current_signal;
+        }
+        if (connected_out) {
+            *connected_out = current_connected;
+        }
+        found = true;
+        found_connected = current_connected;
+        best_signal = current_signal;
+    }
+    current_ssid[0] = '\0';
+    current_security[0] = '\0';
+    current_signal = -1;
+    current_connected = false;
+    continue;
+}
+
+if (g_str_has_prefix(line, "SSID:")) {
+    snprintf(current_ssid, sizeof(current_ssid), "%s", trim_in_place(line + 5));
+} else if (g_str_has_prefix(line, "SECURITY:")) {
+    snprintf(current_security, sizeof(current_security), "%s", trim_in_place(line + 9));
+} else if (g_str_has_prefix(line, "SIGNAL:")) {
+    current_signal = atoi(trim_in_place(line + 7));
+} else if (g_str_has_prefix(line, "IN-USE:")) {
+    current_connected = trim_in_place(line + 7)[0] == '*';
+}
+}
+
+if (!strcmp(current_ssid, ssid)
+&& (!found || (!found_connected && current_connected) || current_signal > best_signal)) {
+if (security_out && security_size > 0) {
+    snprintf(security_out, security_size, "%s", current_security);
+}
+if (signal_out) {
+    *signal_out = current_signal;
+}
+if (connected_out) {
+    *connected_out = current_connected;
+}
+found = true;
+}
+
+return found;
+}
+
+static bool
+wifi_connection_has_saved_password(const char *ssid)
+{
+if (!ssid || !ssid[0]) {
+return false;
+}
+
+char *argv[] = {
+    "nmcli",
+    "--show-secrets",
+    "-g",
+    "802-11-wireless-security.psk",
+    "connection",
+    "show",
+    "id",
+    (char *)ssid,
+    NULL,
+};
+char output[256] = { 0 };
+if (!run_argv_sync(argv, output, sizeof(output))) {
+return false;
+}
+
+return trim_in_place(output)[0] != '\0';
+}
+
+static bool
+try_connect_wifi_network(struct app *app, const char *ssid, const char *password,
+char *error_out, size_t error_size)
+{
+if (error_out && error_size > 0) {
+error_out[0] = '\0';
+}
 if (!app || !ssid || !ssid[0]) {
-return;
+return false;
 }
 
 if (!app->quick_wifi_enabled) {
-show_notification_message(_("Wi-Fi"), _("Enable Wi-Fi before connecting to a network"));
-return;
+if (error_out && error_size > 0) {
+    snprintf(error_out, error_size, "%s", _("Enable Wi-Fi before connecting to a network"));
+}
+return false;
 }
 
 if (!strcmp(app->quick_connection_type, "wifi")
 && app->quick_connection_name[0]
 && strcmp(app->quick_connection_name, _("Not connected"))
 && !strcmp(app->quick_connection_name, ssid)) {
+return true;
+}
+
+if ((!password || !password[0])
+&& activate_saved_wifi_connection(ssid, error_out, error_size)) {
+app->quick_status_updated = 0;
+refresh_quick_status(app);
+return true;
+}
+
+if (connect_wifi_nmcli(ssid, password && password[0] ? password : NULL,
+                       error_out, error_size)) {
+app->quick_status_updated = 0;
+refresh_quick_status(app);
+return true;
+}
+
+return false;
+}
+
+static void
+network_popup_select(struct app *app, int network)
+{
+if (!app || network < 0 || network >= (int)app->quick_network_count) {
+reset_network_popup_state(app);
 return;
 }
 
+reset_network_popup_state(app);
+app->quick_network_expanded = network;
+}
+
+static void
+network_popup_load_metadata(struct app *app, int network)
+{
+if (!app || network < 0 || network >= (int)app->quick_network_count) {
+return;
+}
+
+if (app->quick_network_metadata_loaded) {
+return;
+}
+
+query_wifi_scan_info(app->quick_networks[network],
+                     app->quick_network_security,
+                     sizeof(app->quick_network_security),
+                     &app->quick_network_signal,
+                     NULL);
+app->quick_network_requires_password = wifi_security_requires_password(app->quick_network_security);
+app->quick_network_has_saved_password = app->quick_network_requires_password
+    && wifi_connection_has_saved_password(app->quick_networks[network]);
+app->quick_network_metadata_loaded = true;
+}
+
+static void
+network_popup_perform_connect(struct app *app, int network)
+{
+if (!app || network < 0 || network >= (int)app->quick_network_count) {
+return;
+}
+
+const char *ssid = app->quick_networks[network];
 char error_text[256] = { 0 };
-if (connect_wifi_nmcli(ssid, NULL, error_text, sizeof(error_text))) {
-    app->quick_status_updated = 0;
-    refresh_quick_status(app);
-    return;
+network_popup_load_metadata(app, network);
+if (app->quick_network_requires_password
+&& !app->quick_network_has_saved_password
+&& !app->quick_network_password_visible) {
+app->quick_network_password_visible = true;
+app->quick_network_error[0] = '\0';
+request_top_panel_size(app);
+panel_draw(&app->top);
+return;
 }
 
-char password[256] = { 0 };
-if (!prompt_wifi_password(ssid, password, sizeof(password))) {
+const char *password = NULL;
+if (app->quick_network_password_visible) {
+if (!app->quick_network_password[0]) {
+    snprintf(app->quick_network_error, sizeof(app->quick_network_error), "%s", _("Enter the password to connect"));
+    panel_draw(&app->top);
     return;
 }
-
-if (connect_wifi_nmcli(ssid, password, error_text, sizeof(error_text))) {
-    app->quick_status_updated = 0;
-    refresh_quick_status(app);
-    return;
+password = app->quick_network_password;
 }
 
-show_notification_message(_("Wi-Fi"), error_text[0] ? error_text : _("Wrong password or connection failed"));
+if (try_connect_wifi_network(app, ssid, password, error_text, sizeof(error_text))) {
+reset_network_popup_state(app);
+request_top_panel_size(app);
+panel_draw(&app->top);
+return;
+}
+
+if (app->quick_network_requires_password
+|| app->quick_network_password_visible
+|| contains_nocase(error_text, "password")
+|| contains_nocase(error_text, "secret")) {
+app->quick_network_requires_password = true;
+app->quick_network_has_saved_password = false;
+app->quick_network_password_visible = true;
+snprintf(app->quick_network_error, sizeof(app->quick_network_error), "%.*s",
+         (int)sizeof(app->quick_network_error) - 1,
+         error_text[0] ? error_text : _("Invalid password. Try again."));
+request_top_panel_size(app);
+panel_draw(&app->top);
+return;
+}
+
+snprintf(app->quick_network_error, sizeof(app->quick_network_error), "%.*s",
+         (int)sizeof(app->quick_network_error) - 1,
+         error_text[0] ? error_text : _("Wrong password or connection failed"));
+show_notification_message(_("Wi-Fi"), app->quick_network_error);
+panel_draw(&app->top);
 }
 
 static void
@@ -1568,8 +1844,8 @@ char cmd[160] = { 0 };
 snprintf(cmd, sizeof(cmd), "karton-apply-theme %s", theme_mode_name(mode));
 spawn_command(cmd);
 
-/* In split-process mode, restart side panel so it reloads the new theme. */
-spawn_command("pkill -f 'karton-shell --side-only' >/dev/null 2>&1 || true");
+/* In split-process mode, ask the side dock to reload instead of killing it. */
+spawn_command("pkill -HUP -f 'karton-shell --side-only' >/dev/null 2>&1 || true");
 }
 
 static void
@@ -1597,7 +1873,12 @@ trigger_redraw(app);
 static void
 process_runtime_signals(struct app *app)
 {
+bool notifications_changed = load_system_notifications(app);
+
 if (!theme_reload_requested) {
+if (notifications_changed && app && app->top.surface) {
+    panel_draw(&app->top);
+}
 return;
 }
 theme_reload_requested = 0;
@@ -1769,10 +2050,11 @@ if (!panel->app->launcher_open || panel->width <= panel->app->style.side_width +
 return false;
 }
 
+double top_inset = panel->app->style.top_height + 8.0;
 *x = panel->app->style.side_width + 10.0;
-*y = 8.0;
+*y = top_inset;
 *w = panel->width - *x - 10.0;
-*h = panel->height - 16.0;
+*h = panel->height - top_inset - 8.0;
 if (*w < 180.0 || *h < 120.0) {
 return false;
 }
@@ -4292,6 +4574,35 @@ snprintf(out, out_size, "%zu", group->count);
 }
 
 static void
+reset_network_popup_state(struct app *app)
+{
+if (!app) {
+return;
+}
+
+app->quick_network_expanded = -1;
+app->quick_network_show_details = false;
+app->quick_network_password_visible = false;
+app->quick_network_metadata_loaded = false;
+app->quick_network_requires_password = false;
+app->quick_network_has_saved_password = false;
+app->quick_network_signal = -1;
+app->quick_network_security[0] = '\0';
+app->quick_network_password[0] = '\0';
+app->quick_network_error[0] = '\0';
+}
+
+static bool
+top_popup_accepts_keyboard(const struct app *app)
+{
+return app
+&& app->quick_open
+&& app->top_popup_mode == TOP_POPUP_NETWORK
+&& app->quick_network_expanded >= 0
+&& app->quick_network_password_visible;
+}
+
+static void
 request_top_panel_size(struct app *app)
 {
 if (!app->top.layer_surface || !app->top.surface) {
@@ -4310,6 +4621,10 @@ h = app->output_height;
 }
 }
 zwlr_layer_surface_v1_set_size(app->top.layer_surface, 0, h);
+zwlr_layer_surface_v1_set_keyboard_interactivity(app->top.layer_surface,
+top_popup_accepts_keyboard(app)
+? ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE
+: ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE);
 zwlr_layer_surface_v1_set_exclusive_zone(app->top.layer_surface, app->style.top_height);
 wl_surface_commit(app->top.surface);
 }
@@ -4416,7 +4731,7 @@ return;
 char line[320];
 while (fgets(line, sizeof(line), f)) {
 if (app->calendar_item_count >= MAX_CALENDAR_ITEMS) {
-break;
+    break;
 }
 if (line[0] == '#' || line[0] == '\n') {
 continue;
@@ -4953,6 +5268,46 @@ bounded_text_len(const char *text, size_t limit)
 }
 
 static double
+network_popup_card_height(const struct app *app, int network)
+{
+if (!app || network < 0) {
+return 32.0;
+}
+
+double height = 32.0;
+if (app->quick_network_expanded == network) {
+height = 84.0;
+if (app->quick_network_password_visible) {
+    height += 44.0;
+}
+if (app->quick_network_show_details) {
+    height += 56.0;
+}
+}
+
+return height;
+}
+
+static double
+network_popup_list_height(const struct app *app)
+{
+if (!app) {
+return 0.0;
+}
+
+size_t shown = app->quick_network_count < 4 ? app->quick_network_count : 4;
+double total = 0.0;
+for (size_t i = 0; i < shown; i++) {
+total += network_popup_card_height(app, (int)i);
+if (i + 1 < shown) {
+    total += 8.0;
+}
+}
+
+return total;
+}
+
+static double
 top_quick_panel_content_width(const struct panel *panel, double avail_w)
 {
     struct app *app = panel->app;
@@ -4966,8 +5321,8 @@ top_quick_panel_content_width(const struct panel *panel, double avail_w)
         max_w = 440.0;
         base_w = panel->width * 0.30;
     } else if (app->top_popup_mode == TOP_POPUP_NETWORK) {
-        min_w = 360.0;
-        max_w = 500.0;
+        min_w = app->quick_network_password_visible ? 400.0 : 360.0;
+        max_w = app->quick_network_password_visible ? 540.0 : 500.0;
         base_w = panel->width * 0.28;
         longest = bounded_text_len(app->quick_connection_name, sizeof(app->quick_connection_name));
         for (size_t i = 0; i < app->quick_network_count && i < 4; i++) {
@@ -5025,8 +5380,7 @@ top_quick_panel_content_height(const struct panel *panel, double avail_h)
     }
 
     if (app->top_popup_mode == TOP_POPUP_NETWORK) {
-        size_t shown = app->quick_network_count < 4 ? app->quick_network_count : 4;
-        desired_h = 310.0 + (double)shown * 26.0;
+        desired_h = 306.0 + network_popup_list_height(app);
         desired_h = clamp_double(desired_h, 304.0, avail_h);
         return desired_h;
     }
@@ -5305,27 +5659,94 @@ audio_popup_slider_hit(const struct panel *panel, double px, double py, double *
     return -1;
 }
 
-static int
-network_popup_item_hit(const struct panel *panel, const struct app *app, double px, double py)
+static bool
+network_popup_card_rect(const struct panel *panel, const struct app *app,
+int network, double *x, double *y, double *w, double *h)
 {
-if (!panel || !app) {
-return -1;
+if (!panel || !app || network < 0) {
+return false;
 }
 
 double qx, qy, qw, qh;
 if (!top_quick_panel_rect(panel, &qx, &qy, &qw, &qh)) {
-return -1;
+return false;
+}
+
+size_t shown = app->quick_network_count < 4 ? app->quick_network_count : 4;
+if ((size_t)network >= shown) {
+return false;
+}
+
+double row_y = qy + 246.0;
+for (size_t i = 0; i < shown; i++) {
+double row_h = network_popup_card_height(app, (int)i);
+if ((int)i == network) {
+    if (x) {
+        *x = qx + 16.0;
+    }
+    if (y) {
+        *y = row_y;
+    }
+    if (w) {
+        *w = qw - 32.0;
+    }
+    if (h) {
+        *h = row_h;
+    }
+    return true;
+}
+row_y += row_h + 8.0;
+}
+
+return false;
+}
+
+static int
+network_popup_action_hit(const struct panel *panel, const struct app *app,
+double px, double py, int *network_out)
+{
+if (network_out) {
+*network_out = -1;
+}
+if (!panel || !app) {
+return NETWORK_POPUP_ACTION_NONE;
 }
 
 size_t shown = app->quick_network_count < 4 ? app->quick_network_count : 4;
 for (size_t i = 0; i < shown; i++) {
-double row_y = qy + 246.0 + i * 26.0;
-if (point_in_rect(px, py, qx + 16.0, row_y, qw - 32.0, 22.0)) {
-return (int)i;
+double card_x, card_y, card_w, card_h;
+if (!network_popup_card_rect(panel, app, (int)i, &card_x, &card_y, &card_w, &card_h)) {
+    continue;
 }
+if (!point_in_rect(px, py, card_x, card_y, card_w, card_h)) {
+    continue;
 }
 
-return -1;
+if (network_out) {
+    *network_out = (int)i;
+}
+
+if (app->quick_network_expanded == (int)i) {
+    double cursor_y = card_y + 42.0;
+    if (app->quick_network_password_visible
+    && point_in_rect(px, py, card_x + 12.0, cursor_y, card_w - 24.0, 34.0)) {
+        return NETWORK_POPUP_ACTION_PASSWORD_FIELD;
+    }
+
+    double button_y = card_y + card_h - 36.0;
+    double button_w = (card_w - 34.0) / 2.0;
+    if (point_in_rect(px, py, card_x + 12.0, button_y, button_w, 28.0)) {
+        return NETWORK_POPUP_ACTION_CONNECT;
+    }
+    if (point_in_rect(px, py, card_x + 22.0 + button_w, button_y, button_w, 28.0)) {
+        return NETWORK_POPUP_ACTION_DETAILS;
+    }
+}
+
+return NETWORK_POPUP_ACTION_TOGGLE;
+}
+
+return NETWORK_POPUP_ACTION_NONE;
 }
 
 static int
@@ -6363,14 +6784,162 @@ draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
 (int)qw - 36, PANGO_ALIGN_LEFT, _("Detected Wi-Fi networks"));
 
 size_t shown = panel->app->quick_network_count < 4 ? panel->app->quick_network_count : 4;
-for (size_t i = 0; i < shown; i++) {
-double row_y = qy + 246.0 + i * 26.0;
-set_source_hex_a(cairo, dark ? 0x253555 : 0xf7f9fd, 0.86);
-rounded_rect(cairo, qx + 16.0, row_y, qw - 32.0, 22.0, 10.0);
+if (shown == 0) {
+set_source_hex_a(cairo, dark ? 0x253555 : 0xf7f9fd, 0.84);
+rounded_rect(cairo, qx + 16.0, qy + 246.0, qw - 32.0, 36.0, 12.0);
 cairo_fill(cairo);
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
-10.0, style->quick_title_text, 0.90, qx + 26.0, row_y + 5.0,
-(int)qw - 52, PANGO_ALIGN_LEFT, panel->app->quick_networks[i]);
+10.0, style->quick_title_text, 0.78, qx + 28.0, qy + 257.0,
+(int)qw - 56, PANGO_ALIGN_LEFT, _("No nearby Wi-Fi networks"));
+} else {
+for (size_t i = 0; i < shown; i++) {
+double card_x, card_y, card_w, card_h;
+if (!network_popup_card_rect(panel, panel->app, (int)i, &card_x, &card_y, &card_w, &card_h)) {
+    continue;
+}
+
+bool expanded = panel->app->quick_network_expanded == (int)i;
+bool connected = !strcmp(panel->app->quick_connection_type, "wifi")
+    && !strcmp(panel->app->quick_connection_name, panel->app->quick_networks[i]);
+set_source_hex_a(cairo,
+                 expanded ? (dark ? 0x2b3b59 : 0xfbfdff) : (dark ? 0x253555 : 0xf7f9fd),
+                 expanded ? 0.94 : 0.86);
+rounded_rect(cairo, card_x, card_y, card_w, card_h, 14.0);
+cairo_fill(cairo);
+
+set_source_hex_a(cairo,
+                 expanded ? style->side_launcher_bg : (dark ? 0xffffff : 0x1f3352),
+                 expanded ? (dark ? 0.20 : 0.12) : (dark ? 0.08 : 0.08));
+rounded_rect(cairo, card_x + 0.5, card_y + 0.5, card_w - 1.0, card_h - 1.0, 13.5);
+cairo_set_line_width(cairo, 1.0);
+cairo_stroke(cairo);
+
+draw_wifi_icon(cairo, card_x + 22.0, card_y + 16.0, 12.0,
+               connected ? karton_symbol_color(0) : style->quick_title_text,
+               connected ? 0.98 : 0.72);
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+10.6, style->quick_title_text, 0.95, card_x + 42.0, card_y + 8.0,
+(int)card_w - 132, PANGO_ALIGN_LEFT, panel->app->quick_networks[i]);
+
+char subtitle[160] = { 0 };
+if (expanded && panel->app->quick_network_error[0]) {
+    snprintf(subtitle, sizeof(subtitle), "%s", panel->app->quick_network_error);
+} else if (connected) {
+    snprintf(subtitle, sizeof(subtitle), "%s", _("Connected now"));
+} else if (expanded && panel->app->quick_network_requires_password && panel->app->quick_network_has_saved_password) {
+    snprintf(subtitle, sizeof(subtitle), "%s", _("Saved password available"));
+} else if (expanded && panel->app->quick_network_requires_password) {
+    snprintf(subtitle, sizeof(subtitle), "%s", _("Password required before connecting"));
+} else if (expanded && panel->app->quick_network_security[0]) {
+    snprintf(subtitle, sizeof(subtitle), "%s", panel->app->quick_network_security);
+} else {
+    snprintf(subtitle, sizeof(subtitle), "%s", _("Tap to open actions"));
+}
+
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+8.8, expanded && panel->app->quick_network_error[0] ? 0xc84e4e : style->quick_title_text,
+expanded && panel->app->quick_network_error[0] ? 0.96 : 0.68,
+card_x + 42.0, card_y + 20.0, (int)card_w - 132, PANGO_ALIGN_LEFT, subtitle);
+
+if (expanded && panel->app->quick_network_signal >= 0) {
+    char signal_text[24] = { 0 };
+    snprintf(signal_text, sizeof(signal_text), "%d%%", panel->app->quick_network_signal);
+    set_source_hex_a(cairo, dark ? 0x34435f : 0xe9f1fc, 0.84);
+    rounded_rect(cairo, card_x + card_w - 68.0, card_y + 8.0, 52.0, 16.0, 8.0);
+    cairo_fill(cairo);
+    draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+7.8, style->quick_title_text, 0.78, card_x + card_w - 64.0, card_y + 11.0,
+44, PANGO_ALIGN_CENTER, signal_text);
+}
+
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_BOLD,
+12.0, style->quick_title_text, 0.68,
+card_x + card_w - 26.0, card_y + 9.0, 14, PANGO_ALIGN_CENTER,
+expanded ? "-" : "+");
+
+if (expanded) {
+    double cursor_y = card_y + 42.0;
+    if (panel->app->quick_network_password_visible) {
+        set_source_hex_a(cairo, dark ? 0x1f2d46 : 0xffffff, 0.96);
+        rounded_rect(cairo, card_x + 12.0, cursor_y, card_w - 24.0, 34.0, 10.0);
+        cairo_fill(cairo);
+
+        set_source_hex_a(cairo, style->side_launcher_bg, 0.18);
+        rounded_rect(cairo, card_x + 12.5, cursor_y + 0.5, card_w - 25.0, 33.0, 9.5);
+        cairo_set_line_width(cairo, 1.0);
+        cairo_stroke(cairo);
+
+        char masked_password[96] = { 0 };
+        if (panel->app->quick_network_password[0]) {
+            size_t masked_len = strlen(panel->app->quick_network_password);
+            if (masked_len >= sizeof(masked_password)) {
+                masked_len = sizeof(masked_password) - 1;
+            }
+            memset(masked_password, '*', masked_len);
+            masked_password[masked_len] = '\0';
+        }
+        draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+9.6, style->quick_title_text, panel->app->quick_network_password[0] ? 0.92 : 0.48,
+card_x + 24.0, cursor_y + 9.0, (int)card_w - 48, PANGO_ALIGN_LEFT,
+panel->app->quick_network_password[0] ? masked_password : _("Password"));
+        cursor_y += 44.0;
+    }
+
+    if (panel->app->quick_network_show_details) {
+        set_source_hex_a(cairo, dark ? 0x202e47 : 0xf2f6fc, 0.92);
+        rounded_rect(cairo, card_x + 12.0, cursor_y, card_w - 24.0, 48.0, 10.0);
+        cairo_fill(cairo);
+
+        char line1[160] = { 0 };
+        char line2[160] = { 0 };
+        char line3[160] = { 0 };
+        snprintf(line1, sizeof(line1), "%s %s", _("Security:"),
+                 panel->app->quick_network_security[0] ? panel->app->quick_network_security : _("Unknown"));
+        if (panel->app->quick_network_signal >= 0) {
+            snprintf(line2, sizeof(line2), "%s %d%%", _("Signal:"), panel->app->quick_network_signal);
+        } else {
+            snprintf(line2, sizeof(line2), "%s", _("Signal unavailable"));
+        }
+        snprintf(line3, sizeof(line3), "%s %s",
+                 _("NetworkManager secret:"),
+                 panel->app->quick_network_has_saved_password ? _("Saved") : _("Missing"));
+
+        draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+8.6, style->quick_title_text, 0.74, card_x + 22.0, cursor_y + 8.0,
+(int)card_w - 44, PANGO_ALIGN_LEFT, line1);
+        draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+8.6, style->quick_title_text, 0.74, card_x + 22.0, cursor_y + 22.0,
+(int)card_w - 44, PANGO_ALIGN_LEFT, line2);
+        draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
+8.6, style->quick_title_text, 0.74, card_x + 22.0, cursor_y + 36.0,
+(int)card_w - 44, PANGO_ALIGN_LEFT, line3);
+    }
+
+    double button_y = card_y + card_h - 36.0;
+    double button_w = (card_w - 34.0) / 2.0;
+    bool connect_disabled = connected;
+    set_source_hex_a(cairo,
+                     connect_disabled ? (dark ? 0x34435f : 0xe3ebf7) : style->side_launcher_bg,
+                     connect_disabled ? 0.44 : 0.20);
+    rounded_rect(cairo, card_x + 12.0, button_y, button_w, 28.0, 10.0);
+    cairo_fill(cairo);
+    draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+9.2, style->quick_title_text, 0.94,
+card_x + 12.0, button_y + 8.0, (int)button_w, PANGO_ALIGN_CENTER,
+connect_disabled ? _("Connected")
+                 : (panel->app->quick_network_password_visible ? _("Connect now")
+                    : (panel->app->quick_network_requires_password && !panel->app->quick_network_has_saved_password
+                       ? _("Enter password") : _("Connect"))));
+
+    set_source_hex_a(cairo, dark ? 0x253555 : 0xf2f6fc, 0.94);
+    rounded_rect(cairo, card_x + 22.0 + button_w, button_y, button_w, 28.0, 10.0);
+    cairo_fill(cairo);
+    draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
+9.2, style->quick_title_text, 0.94,
+card_x + 22.0 + button_w, button_y + 8.0, (int)button_w, PANGO_ALIGN_CENTER,
+panel->app->quick_network_show_details ? _("Hide details") : _("Show details"));
+}
+}
 }
 
 double button_y = qy + qh - 50.0;
@@ -6378,9 +6947,15 @@ double button_w = (qw - 42.0) / 2.0;
 set_source_hex_a(cairo, style->side_launcher_bg, 0.18);
 rounded_rect(cairo, qx + 16.0, button_y, button_w, 34.0, 12.0);
 cairo_fill(cairo);
+bool have_refresh_icon = draw_named_icon(cairo, panel->app, "refresh", qx + 38.0, button_y + 17.0, 15.0);
+if (!have_refresh_icon) {
+    draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_BOLD,
+    11.0, style->quick_title_text, 0.94, qx + 30.0, button_y + 9.0,
+    16, PANGO_ALIGN_CENTER, "R");
+}
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
-10.0, style->quick_title_text, 0.94, qx + 16.0, button_y + 10.0,
-(int)button_w, PANGO_ALIGN_CENTER, _("Add network"));
+10.0, style->quick_title_text, 0.94, qx + 52.0, button_y + 10.0,
+(int)button_w - 36, PANGO_ALIGN_CENTER, _("Refresh"));
 
 set_source_hex_a(cairo, dark ? 0x253555 : 0xf2f6fc, 0.94);
 rounded_rect(cairo, qx + 26.0 + button_w, button_y, button_w, 34.0, 12.0);
@@ -7432,6 +8007,7 @@ app->top_popup_mode = TOP_POPUP_NONE;
 app->clock_picker_open = false;
 app->quick_menu_tile = -1;
 app->quick_menu_hover_item = -1;
+reset_network_popup_state(app);
 request_top_panel_size(app);
 panel_draw(&app->top);
 }
@@ -7460,6 +8036,7 @@ app->quick_open = true;
 app->top_popup_mode = mode;
 app->quick_menu_tile = -1;
 app->quick_menu_hover_item = -1;
+reset_network_popup_state(app);
 request_top_panel_size(app);
 panel_draw(&app->top);
 }
@@ -7655,16 +8232,52 @@ return;
 if (app->top_popup_mode == TOP_POPUP_NETWORK) {
 double nx, ny, nw, nh;
 if (top_quick_panel_rect(&app->top, &nx, &ny, &nw, &nh)) {
-    int network = network_popup_item_hit(&app->top, app, app->pointer_x, app->pointer_y);
-    if (network >= 0 && network < (int)app->quick_network_count) {
-        connect_wifi_network(app, app->quick_networks[network]);
+    int network = -1;
+    int action = network_popup_action_hit(&app->top, app, app->pointer_x, app->pointer_y, &network);
+    if (action == NETWORK_POPUP_ACTION_TOGGLE
+    && network >= 0 && network < (int)app->quick_network_count) {
+        if (app->quick_network_expanded == network) {
+            reset_network_popup_state(app);
+        } else {
+            network_popup_select(app, network);
+        }
+        request_top_panel_size(app);
+        panel_draw(&app->top);
+        return;
+    }
+    if (action == NETWORK_POPUP_ACTION_CONNECT
+    && network >= 0 && network < (int)app->quick_network_count) {
+        network_popup_perform_connect(app, network);
+        return;
+    }
+    if (action == NETWORK_POPUP_ACTION_DETAILS
+    && network == app->quick_network_expanded) {
+        if (!app->quick_network_show_details) {
+            network_popup_load_metadata(app, network);
+        }
+        app->quick_network_show_details = !app->quick_network_show_details;
+        request_top_panel_size(app);
+        panel_draw(&app->top);
+        return;
+    }
+    if (action == NETWORK_POPUP_ACTION_PASSWORD_FIELD
+    && network == app->quick_network_expanded) {
+        request_top_panel_size(app);
         panel_draw(&app->top);
         return;
     }
 double button_y = ny + nh - 50.0;
 double button_w = (nw - 42.0) / 2.0;
 if (point_in_rect(app->pointer_x, app->pointer_y, nx + 16.0, button_y, button_w, 34.0)
-|| point_in_rect(app->pointer_x, app->pointer_y, nx + 26.0 + button_w, button_y, button_w, 34.0)) {
+&& !point_in_rect(app->pointer_x, app->pointer_y, nx + 26.0 + button_w, button_y, button_w, 34.0)) {
+app->quick_status_updated = 0;
+refresh_quick_status(app);
+reset_network_popup_state(app);
+request_top_panel_size(app);
+panel_draw(&app->top);
+return;
+}
+if (point_in_rect(app->pointer_x, app->pointer_y, nx + 26.0 + button_w, button_y, button_w, 34.0)) {
 open_settings_page("network");
 return;
 }
@@ -8691,6 +9304,63 @@ launcher_close(app);
 }
 
 static void
+handle_top_network_password_escape(struct app *app)
+{
+if (!app) {
+return;
+}
+
+app->quick_network_password_visible = false;
+app->quick_network_password[0] = '\0';
+app->quick_network_error[0] = '\0';
+request_top_panel_size(app);
+panel_draw(&app->top);
+}
+
+static bool
+handle_top_network_password_key(struct app *app, xkb_keysym_t sym, xkb_keycode_t keycode)
+{
+if (!top_popup_accepts_keyboard(app) || !app->xkb_state) {
+return false;
+}
+
+if (sym == XKB_KEY_Escape) {
+handle_top_network_password_escape(app);
+return true;
+}
+if (sym == XKB_KEY_BackSpace) {
+launcher_query_backspace(app->quick_network_password);
+app->quick_network_error[0] = '\0';
+panel_draw(&app->top);
+return true;
+}
+if (sym == XKB_KEY_Return || sym == XKB_KEY_KP_Enter) {
+network_popup_perform_connect(app, app->quick_network_expanded);
+return true;
+}
+
+char utf8[16] = { 0 };
+int n = xkb_state_key_get_utf8(app->xkb_state, keycode, utf8, sizeof(utf8));
+if (n <= 0) {
+return true;
+}
+if ((unsigned char)utf8[0] < 0x20) {
+return true;
+}
+
+size_t len = strlen(app->quick_network_password);
+if (len + (size_t)n >= sizeof(app->quick_network_password)) {
+return true;
+}
+
+memcpy(app->quick_network_password + len, utf8, (size_t)n);
+app->quick_network_password[len + (size_t)n] = '\0';
+app->quick_network_error[0] = '\0';
+panel_draw(&app->top);
+return true;
+}
+
+static void
 keyboard_key(void *data, struct wl_keyboard *wl_keyboard,
 uint32_t serial, uint32_t time, uint32_t key, uint32_t state)
 {
@@ -8699,12 +9369,20 @@ struct app *app = data;
 (void)serial;
 (void)time;
 
-if (state != WL_KEYBOARD_KEY_STATE_PRESSED || !app->launcher_open || !app->xkb_state) {
+if (state != WL_KEYBOARD_KEY_STATE_PRESSED || !app->xkb_state) {
 return;
 }
 
 xkb_keycode_t keycode = key + 8;
 xkb_keysym_t sym = xkb_state_key_get_one_sym(app->xkb_state, keycode);
+
+if (handle_top_network_password_key(app, sym, keycode)) {
+return;
+}
+
+if (!app->launcher_open) {
+return;
+}
 
 if (sym == XKB_KEY_Escape) {
 launcher_close(app);
@@ -9233,6 +9911,47 @@ return 1;
 }
 
 while (app.running) {
+int pending_rc = wl_display_dispatch_pending(app.display);
+if (pending_rc == -1) {
+if (errno == EINTR) {
+process_runtime_signals(&app);
+continue;
+}
+break;
+}
+
+process_runtime_signals(&app);
+if (need_top && pending_rc > 0) {
+panel_draw(&app.top);
+}
+
+if (wl_display_flush(app.display) == -1 && errno != EAGAIN) {
+break;
+}
+
+struct pollfd pfd = {
+.fd = wl_display_get_fd(app.display),
+.events = POLLIN,
+};
+int poll_rc = poll(&pfd, 1, 200);
+if (poll_rc == -1) {
+if (errno == EINTR) {
+process_runtime_signals(&app);
+continue;
+}
+break;
+}
+if (poll_rc == 0) {
+process_runtime_signals(&app);
+continue;
+}
+if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+break;
+}
+if (!(pfd.revents & POLLIN)) {
+continue;
+}
+
 int dispatch_rc = wl_display_dispatch(app.display);
 if (dispatch_rc == -1) {
 if (errno == EINTR) {

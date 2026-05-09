@@ -497,6 +497,138 @@ msgid "Default"
 msgstr "Domyślne"
 
 #: src/karton-shell.c
+msgid "Could not change the default device"
+msgstr "Nie udało się zmienić domyślnego urządzenia"
+
+#: src/karton-shell.c
+msgid "Wi-Fi password"
+msgstr "Hasło Wi-Fi"
+
+#: src/karton-shell.c
+msgid "Enter the password for %s"
+msgstr "Wpisz hasło do %s"
+
+#: src/karton-shell.c
+msgid "selected network"
+msgstr "wybranej sieci"
+
+#: src/karton-shell.c
+msgid "Wrong password or connection failed"
+msgstr "Błędne hasło lub nie udało się połączyć"
+
+#: src/karton-shell.c
+msgid "Enable Wi-Fi before connecting to a network"
+msgstr "Włącz Wi-Fi przed połączeniem z siecią"
+
+#: src/karton-shell.c
+msgid "Enter the password to connect"
+msgstr "Wpisz hasło, aby się połączyć"
+
+#: src/karton-shell.c
+msgid "Invalid password. Try again."
+msgstr "Błędne hasło, spróbuj ponownie"
+
+#: src/karton-dialogd.c
+msgid "Question"
+msgstr "Pytanie"
+
+#: src/karton-dialogd.c
+msgid "Proceed?"
+msgstr "Kontynuować?"
+
+#: src/karton-dialogd.c
+msgid "Cancel"
+msgstr "Anuluj"
+
+#: src/karton-dialogd.c
+msgid "OK"
+msgstr "OK"
+
+#: src/karton-dialogd.c
+msgid "Yes"
+msgstr "Tak"
+
+#: src/karton-shell.c
+msgid "Connected now"
+msgstr "Połączono teraz"
+
+#: src/karton-shell.c
+msgid "Saved password available"
+msgstr "Zapisane hasło jest dostępne"
+
+#: src/karton-shell.c
+msgid "Password required before connecting"
+msgstr "Przed połączeniem wymagane jest hasło"
+
+#: src/karton-shell.c
+msgid "Tap to open actions"
+msgstr "Kliknij, aby otworzyć akcje"
+
+#: src/karton-shell.c
+msgid "Password"
+msgstr "Hasło"
+
+#: src/karton-shell.c
+msgid "Security:"
+msgstr "Zabezpieczenia:"
+
+#: src/karton-shell.c
+msgid "Unknown"
+msgstr "Nieznane"
+
+#: src/karton-shell.c
+msgid "Signal:"
+msgstr "Sygnał:"
+
+#: src/karton-shell.c
+msgid "Signal unavailable"
+msgstr "Sygnał niedostępny"
+
+#: src/karton-shell.c
+msgid "NetworkManager secret:"
+msgstr "Sekret NetworkManagera:"
+
+#: src/karton-shell.c
+msgid "Saved"
+msgstr "Zapisane"
+
+#: src/karton-shell.c
+msgid "Missing"
+msgstr "Brak"
+
+#: src/karton-shell.c
+msgid "Connected"
+msgstr "Połączono"
+
+#: src/karton-shell.c
+msgid "Connect now"
+msgstr "Połącz teraz"
+
+#: src/karton-shell.c
+msgid "Enter password"
+msgstr "Wpisz hasło"
+
+#: src/karton-shell.c
+msgid "Connect"
+msgstr "Połącz"
+
+#: src/karton-shell.c
+msgid "Hide details"
+msgstr "Ukryj szczegóły"
+
+#: src/karton-shell.c
+msgid "Show details"
+msgstr "Pokaż szczegóły"
+
+#: src/karton-shell.c
+msgid "No nearby Wi-Fi networks"
+msgstr "Brak pobliskich sieci Wi-Fi"
+
+#: src/karton-shell.c
+msgid "Refresh"
+msgstr "Odśwież"
+
+#: src/karton-shell.c
 msgid "Mounted devices"
 msgstr "Zamontowane urządzenia"
 

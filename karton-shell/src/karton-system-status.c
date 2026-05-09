@@ -35,14 +35,6 @@ struct pulse_volume_target {
 	uint8_t channels;
 };
 
-struct pulse_device_target {
-	bool input_device;
-	size_t desired_index;
-	size_t current_index;
-	bool found;
-	char device_name[256];
-};
-
 static GVariant *
 get_property_value(GDBusConnection *conn, const char *bus_name,
 const char *object_path, const char *interface_name,
@@ -382,50 +374,6 @@ pulse_source_lookup_cb(pa_context *context, const pa_source_info *info, int eol,
 	target->channels = info->channel_map.channels > 0 ? info->channel_map.channels : 1;
 }
 
-static void
-pulse_device_list_pick_cb(pa_context *context, const pa_sink_info *info, int eol, void *userdata)
-{
-	(void)context;
-	if (eol != 0 || !info) {
-		return;
-	}
-
-	struct pulse_device_target *target = userdata;
-	if (!target || target->input_device) {
-		return;
-	}
-
-	if (target->current_index == target->desired_index && info->name && info->name[0]) {
-		target->found = true;
-		snprintf(target->device_name, sizeof(target->device_name), "%s", info->name);
-		return;
-	}
-
-	target->current_index++;
-}
-
-static void
-pulse_source_list_pick_cb(pa_context *context, const pa_source_info *info, int eol, void *userdata)
-{
-	(void)context;
-	if (eol != 0 || !info || info->monitor_of_sink != PA_INVALID_INDEX) {
-		return;
-	}
-
-	struct pulse_device_target *target = userdata;
-	if (!target || !target->input_device) {
-		return;
-	}
-
-	if (target->current_index == target->desired_index && info->name && info->name[0]) {
-		target->found = true;
-		snprintf(target->device_name, sizeof(target->device_name), "%s", info->name);
-		return;
-	}
-
-	target->current_index++;
-}
-
 static bool
 pulse_load_audio_state(char output_devices[MAX_AUDIO_DEVICES][96], size_t *output_count,
 	char *default_output, size_t default_output_size, int *output_volume,
@@ -541,41 +489,110 @@ cleanup:
 }
 
 static bool
-pulse_set_default_device(bool input_device, size_t index)
+run_argv_ok(char **argv)
 {
+	if (!argv || !argv[0]) {
+		return false;
+	}
+
+	gint wait_status = 0;
+	GError *error = NULL;
+	gboolean spawned = g_spawn_sync(NULL, argv, NULL, G_SPAWN_SEARCH_PATH,
+		NULL, NULL, NULL, NULL, &wait_status, &error);
+	if (error) {
+		g_clear_error(&error);
+	}
+	if (!spawned) {
+		return false;
+	}
+
+	return g_spawn_check_wait_status(wait_status, NULL);
+}
+
+static bool
+set_default_device_with_cli(bool input_device, const char *device_name)
+{
+	if (!device_name || !device_name[0]) {
+		return false;
+	}
+
+	char *pactl_argv[] = {
+		"pactl",
+		input_device ? "set-default-source" : "set-default-sink",
+		(char *)device_name,
+		NULL,
+	};
+	return run_argv_ok(pactl_argv);
+}
+
+static bool
+resolve_device_name_by_index(bool input_device, size_t index, char *name_out, size_t name_out_size)
+{
+	if (!name_out || name_out_size == 0) {
+		return false;
+	}
+
+	name_out[0] = '\0';
 	struct pulse_audio_state state;
 	if (!pulse_connect(&state)) {
 		return false;
 	}
 
 	bool ok = false;
-	struct pulse_device_target target = {
-		.input_device = input_device,
-		.desired_index = index,
-	};
-	pa_operation *op = NULL;
-
-	if (input_device) {
-		op = pa_context_get_source_info_list(state.context, pulse_source_list_pick_cb, &target);
-	} else {
-		op = pa_context_get_sink_info_list(state.context, pulse_device_list_pick_cb, &target);
-	}
-	if (!pulse_wait_for_operation(&state, op) || !target.found || !target.device_name[0]) {
-		goto cleanup;
-	}
-
-	if (input_device) {
-		op = pa_context_set_default_source(state.context, target.device_name, NULL, NULL);
-	} else {
-		op = pa_context_set_default_sink(state.context, target.device_name, NULL, NULL);
-	}
+	pa_operation *op = pa_context_get_server_info(state.context, pulse_server_info_cb, &state);
 	if (!pulse_wait_for_operation(&state, op)) {
 		goto cleanup;
+	}
+
+	if (input_device) {
+		op = pa_context_get_source_info_list(state.context, pulse_source_info_cb, &state);
+		if (!pulse_wait_for_operation(&state, op) || index >= state.input_count || !state.input_names[index][0]) {
+			goto cleanup;
+		}
+		snprintf(name_out, name_out_size, "%s", state.input_names[index]);
+	} else {
+		op = pa_context_get_sink_info_list(state.context, pulse_sink_info_cb, &state);
+		if (!pulse_wait_for_operation(&state, op) || index >= state.output_count || !state.output_names[index][0]) {
+			goto cleanup;
+		}
+		snprintf(name_out, name_out_size, "%s", state.output_names[index]);
 	}
 
 	ok = true;
 
 cleanup:
+	pulse_disconnect(&state);
+	return ok;
+}
+
+static bool
+pulse_set_default_device(bool input_device, size_t index)
+{
+	char device_name[256] = { 0 };
+	if (!resolve_device_name_by_index(input_device, index, device_name, sizeof(device_name))) {
+		return false;
+	}
+
+	if (set_default_device_with_cli(input_device, device_name)) {
+		return true;
+	}
+
+	struct pulse_audio_state state;
+	if (!pulse_connect(&state)) {
+		return false;
+	}
+
+	bool ok = false;
+	pa_operation *op = NULL;
+	if (input_device) {
+		op = pa_context_set_default_source(state.context, device_name, NULL, NULL);
+	} else {
+		op = pa_context_set_default_sink(state.context, device_name, NULL, NULL);
+	}
+	if (pulse_wait_for_operation(&state, op)) {
+		ok = true;
+	}
+
 	pulse_disconnect(&state);
 	return ok;
 }

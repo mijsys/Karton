@@ -53,6 +53,19 @@ read_mode_from_file() {
   printf '%s\n' "$mode"
 }
 
+read_accent_override() {
+  accent_file="$config_root/accent-color"
+  [ -r "$accent_file" ] || return 1
+  accent="$(tr -d '[:space:]' < "$accent_file")"
+  case "$accent" in
+    \#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f])
+      printf '%s\n' "$accent"
+      return 0
+      ;;
+  esac
+  return 1
+}
+
 toml_get() {
   file="$1"
   section="$2"
@@ -404,6 +417,9 @@ side_separator="$(token_or_default "$theme_tokens" "$palette_section" "side_sepa
 side_launcher_bg="$(token_or_default "$theme_tokens" "$palette_section" "side_launcher_bg" "#8b78f6")"
 side_slot_active="$(token_or_default "$theme_tokens" "$palette_section" "side_slot_active" "#74c7c2")"
 side_slot_inactive="$(token_or_default "$theme_tokens" "$palette_section" "side_slot_inactive" "#8b84b7")"
+if accent_override="$(read_accent_override 2>/dev/null || true)" && [ -n "$accent_override" ]; then
+  side_launcher_bg="$accent_override"
+fi
 surface_raised="$quick_panel_bg"
 surface_subtle="$quick_tile_bg"
 surface_overlay="$side_popup_bg"

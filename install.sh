@@ -56,6 +56,49 @@ die() {
   exit 1
 }
 
+copy_optional_user_data() {
+  local src="$1"
+  local dest="$2"
+  local dest_dir
+
+  [[ -f "$src" ]] || return 0
+
+  dest_dir="$(dirname "$dest")"
+  if mkdir -p "$dest_dir" 2>/dev/null && cp "$src" "$dest" 2>/dev/null; then
+    return 0
+  fi
+
+  log "Skipping optional user data copy (destination not writable): $dest"
+  return 0
+}
+
+copy_user_desktop_file() {
+  local src="$1"
+  local dest="$2"
+  local icon_path="$3"
+  local dest_dir
+  local tmp_file
+
+  [[ -f "$src" ]] || return 0
+
+  dest_dir="$(dirname "$dest")"
+  if ! mkdir -p "$dest_dir" 2>/dev/null; then
+    log "Skipping optional user data copy (destination not writable): $dest"
+    return 0
+  fi
+
+  tmp_file="$(mktemp)"
+  sed "s|^Icon=.*$|Icon=$icon_path|" "$src" > "$tmp_file"
+  if cp "$tmp_file" "$dest" 2>/dev/null; then
+    rm -f "$tmp_file"
+    return 0
+  fi
+
+  rm -f "$tmp_file"
+  log "Skipping optional user data copy (destination not writable): $dest"
+  return 0
+}
+
 need_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
 }
@@ -197,7 +240,11 @@ ensure_user_config() {
   local rcxml_file="$config_dir/rc.xml"
   local environment_file="$config_dir/environment"
   local desktop_src="$PREFIX/share/applications/karton-settings.desktop"
+  local desktop_src_appid="$PREFIX/share/applications/io.karton.Settings.desktop"
   local desktop_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+  local icon_src="$PREFIX/share/icons/hicolor/scalable/apps/karton-settings.svg"
+  local icon_src_appid="$PREFIX/share/icons/hicolor/scalable/apps/io.karton.Settings.svg"
+  local icon_dir="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor/scalable/apps"
   local managed_ssd_block
   local xkb_layout=""
   local xkb_model=""
@@ -406,10 +453,10 @@ EOF
     "$theme_sync_bin" --sync-from-css || true
   fi
 
-  if [[ -f "$desktop_src" ]]; then
-    mkdir -p "$desktop_dir"
-    cp "$desktop_src" "$desktop_dir/karton-settings.desktop"
-  fi
+  copy_user_desktop_file "$desktop_src" "$desktop_dir/karton-settings.desktop" "$icon_src_appid"
+  copy_user_desktop_file "$desktop_src_appid" "$desktop_dir/io.karton.Settings.desktop" "$icon_src_appid"
+  copy_optional_user_data "$icon_src" "$icon_dir/karton-settings.svg"
+  copy_optional_user_data "$icon_src_appid" "$icon_dir/io.karton.Settings.svg"
 }
 
 migrate_legacy_config() {
