@@ -1,0 +1,4 @@
+.srcdest/
+.srcpkgdest/
+src/
+pkg/

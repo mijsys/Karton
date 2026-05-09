@@ -19,5 +19,3 @@ makepkg --syncdeps --cleanbuild --force
 
 rm -f "$pkg_dir/kartonde.db" "$pkg_dir/kartonde.db.tar.gz" "$pkg_dir/kartonde.files" "$pkg_dir/kartonde.files.tar.gz"
 repo-add "$pkg_dir/kartonde.db.tar.gz" "$pkg_dir"/*.pkg.tar.*
-cp "$pkg_dir/kartonde.db.tar.gz" "$pkg_dir/kartonde.db"
-cp "$pkg_dir/kartonde.files.tar.gz" "$pkg_dir/kartonde.files"
