@@ -10,16 +10,15 @@ makedepends=(
   'cairo' 'pango' 'glib2' 'gtk3' 'gtk4' 'libpulse' 'libxkbcommon' 'libinput'
   'libxml2' 'pixman' 'scdoc' 'gdk-pixbuf2' 'librsvg' 'xorg-xwayland' 'systemd'
 )
-source_repo_url="${KARTONDE_REPO_URL:-https://github.com/mijsys/Tektura-i-Karton}"
-source=("kartonde::git+${source_repo_url}.git")
+source_repo_url="${KARTONDE_REPO_URL:-https://github.com/mijsys/Tektura-i-Karton.git}"
+source=("kartonde::git+${source_repo_url}")
 sha256sums=('SKIP')
-
-_srcroot="$srcdir/kartonde"
 
 _setup_component() {
   local name="$1"
   shift || true
-  local src_dir="$_srcroot/$name"
+  local src_root="$srcdir/kartonde"
+  local src_dir="$src_root/$name"
   local build_dir="$src_dir/builddir-pkg"
 
   meson setup "$build_dir" "$src_dir" --prefix=/usr "$@"
@@ -27,17 +26,19 @@ _setup_component() {
 
 _build_component() {
   local name="$1"
-  meson compile -C "$_srcroot/$name/builddir-pkg"
+  local src_root="$srcdir/kartonde"
+  meson compile -C "$src_root/$name/builddir-pkg"
 }
 
 _install_component() {
   local name="$1"
   local destdir="$2"
-  DESTDIR="$destdir" meson install -C "$_srcroot/$name/builddir-pkg" --no-rebuild
+  local src_root="$srcdir/kartonde"
+  DESTDIR="$destdir" meson install -C "$src_root/$name/builddir-pkg" --no-rebuild
 }
 
 prepare() {
-  cd "$_srcroot"
+  cd "$srcdir/kartonde"
 }
 
 build() {
@@ -96,10 +97,12 @@ package_kartonde() {
   )
   install='kartonde.install'
 
-  install -Dm755 "$_srcroot/repo/archlinux/config/autostart" "$pkgdir/etc/xdg/karton/autostart"
-  install -Dm644 "$_srcroot/repo/archlinux/config/environment" "$pkgdir/etc/xdg/karton/environment"
-  install -Dm644 "$_srcroot/repo/archlinux/config/rc.xml" "$pkgdir/etc/xdg/karton/rc.xml"
-  install -Dm644 "$_srcroot/repo/archlinux/config/theme.toml" "$pkgdir/etc/xdg/karton/theme.toml"
-  install -Dm644 "$_srcroot/README.md" "$pkgdir/usr/share/doc/kartonde/README.md"
-  install -Dm644 "$_srcroot/repo/archlinux/pacman.conf.example" "$pkgdir/usr/share/doc/kartonde/pacman.conf.example"
+  local src_root="$srcdir/kartonde"
+
+  install -Dm755 "$src_root/repo/archlinux/config/autostart" "$pkgdir/etc/xdg/karton/autostart"
+  install -Dm644 "$src_root/repo/archlinux/config/environment" "$pkgdir/etc/xdg/karton/environment"
+  install -Dm644 "$src_root/repo/archlinux/config/rc.xml" "$pkgdir/etc/xdg/karton/rc.xml"
+  install -Dm644 "$src_root/repo/archlinux/config/theme.toml" "$pkgdir/etc/xdg/karton/theme.toml"
+  install -Dm644 "$src_root/README.md" "$pkgdir/usr/share/doc/kartonde/README.md"
+  install -Dm644 "$src_root/repo/archlinux/pacman.conf.example" "$pkgdir/usr/share/doc/kartonde/pacman.conf.example"
 }

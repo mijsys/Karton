@@ -10,7 +10,9 @@ mkdir -p "$pkg_dir"
 export PKGDEST="$pkg_dir"
 export SRCDEST="$script_dir/.srcdest"
 export SRCPKGDEST="$script_dir/.srcpkgdest"
-export KARTONDE_REPO_URL="${KARTONDE_REPO_URL:-file://$project_root}"
+export KARTONDE_REPO_URL="${KARTONDE_REPO_URL:-https://github.com/mijsys/Tektura-i-Karton.git}"
+
+rm -rf "$SRCDEST/kartonde"
 
 cd "$script_dir"
 makepkg --syncdeps --cleanbuild --force
