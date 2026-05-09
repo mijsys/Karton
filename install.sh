@@ -197,25 +197,67 @@ ensure_user_config() {
   local rcxml_file="$config_dir/rc.xml"
   local desktop_src="$PREFIX/share/applications/karton-settings.desktop"
   local desktop_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+  local managed_ssd_block
 
-  inject_ssd_block() {
+  managed_ssd_block="$(cat <<'EOF'
+  <!-- BEGIN KartON managed SSD rules -->
+  <core>
+    <decoration>server</decoration>
+  </core>
+
+  <windowRules>
+    <windowRule identifier="*" serverDecoration="yes" />
+    <windowRule identifier="firefox*" serverDecoration="no" />
+    <windowRule identifier="Navigator*" serverDecoration="no" />
+    <windowRule identifier="code*" serverDecoration="no" />
+    <windowRule identifier="Code*" serverDecoration="no" />
+    <windowRule identifier="code-oss*" serverDecoration="no" />
+    <windowRule identifier="Code - OSS*" serverDecoration="no" />
+    <windowRule identifier="codium*" serverDecoration="no" />
+    <windowRule identifier="VSCodium*" serverDecoration="no" />
+    <windowRule identifier="cursor*" serverDecoration="no" />
+    <windowRule identifier="Cursor*" serverDecoration="no" />
+    <windowRule identifier="chromium*" serverDecoration="no" />
+    <windowRule identifier="google-chrome*" serverDecoration="no" />
+    <windowRule identifier="microsoft-edge*" serverDecoration="no" />
+    <windowRule identifier="zen*" serverDecoration="no" />
+  </windowRules>
+  <!-- END KartON managed SSD rules -->
+EOF
+)"
+
+  write_managed_ssd_block() {
     local file="$1"
     local tmp_file
 
     tmp_file="$(mktemp)"
-    awk '
-      BEGIN { inserted = 0 }
+    awk -v block="$managed_ssd_block" '
+      BEGIN { inserted = 0; skip = 0; skip_legacy = 0 }
+      /<!--[[:space:]]*BEGIN KartON managed SSD rules[[:space:]]*-->/ {
+        skip = 1
+        next
+      }
+      /<!--[[:space:]]*END KartON managed SSD rules[[:space:]]*-->/ {
+        skip = 0
+        next
+      }
+      skip {
+        next
+      }
+      /<!--[[:space:]]*Managed by KartON installer: force server-side decorations[[:space:]]*-->/ {
+        skip_legacy = 1
+        next
+      }
+      skip_legacy {
+        if ($0 ~ /<\/windowRules>/) {
+          skip_legacy = 0
+        }
+        next
+      }
       /^<labwc_config>/ || /^<openbox_config>/ {
         print
         if (!inserted) {
-          print "  <!-- Managed by KartON installer: force server-side decorations -->"
-          print "  <core>"
-          print "    <decoration>server</decoration>"
-          print "  </core>"
-          print ""
-          print "  <windowRules>"
-          print "    <windowRule identifier=\"*\" serverDecoration=\"yes\" />"
-          print "  </windowRules>"
+          print block
           inserted = 1
         }
         next
@@ -262,9 +304,7 @@ EOF
     cat > "$rcxml_file" <<EOF
 <?xml version="1.0"?>
 <labwc_config>
-  <core>
-    <decoration>server</decoration>
-  </core>
+$managed_ssd_block
 
   <theme>
     <cornerRadius>14</cornerRadius>
@@ -274,15 +314,11 @@ EOF
       <showTitle>yes</showTitle>
     </titlebar>
   </theme>
-
-  <windowRules>
-    <windowRule identifier="*" serverDecoration="yes" />
-  </windowRules>
 </labwc_config>
 EOF
-  elif ! grep -q 'serverDecoration="yes"' "$rcxml_file" || ! grep -q '<decoration>server</decoration>' "$rcxml_file"; then
-    log "Patching existing Tektura config for server-side decorations: $rcxml_file"
-    inject_ssd_block "$rcxml_file"
+  else
+    log "Refreshing managed Tektura decoration rules: $rcxml_file"
+    write_managed_ssd_block "$rcxml_file"
   fi
 
   local theme_sync_bin="$PREFIX/bin/karton-apply-theme"
