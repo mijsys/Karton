@@ -1,10 +1,11 @@
 project('karton-files', 'c',
-  version: '0.1',
+  version: '0.7.5',
   default_options: ['warning_level=2', 'c_std=c11']
 )
 
 localedir_abs = join_paths(get_option('prefix'), get_option('localedir'))
 add_project_arguments('-DLOCALEDIR="@0@"'.format(localedir_abs), language: 'c')
+add_project_arguments('-Wno-deprecated-declarations', language: 'c')
 
 gtk4_dep = dependency('gtk4')
 glib_dep = dependency('glib-2.0')

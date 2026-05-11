@@ -1,5 +1,5 @@
 project('karton-settings', 'c',
-  version: '0.2',
+  version: '0.7.5',
   default_options: ['warning_level=2', 'c_std=c11']
 )
 
@@ -13,6 +13,22 @@ gio_dep = dependency('gio-2.0')
 src_files = [
   'src/page-appearance.c',
   'src/page-display.c',
+  'src/page-audio.c',
+  'src/page-input.c',
+  'src/page-network.c',
+  'src/page-bluetooth.c',
+  'src/page-power.c',
+  'src/page-users.c',
+  'src/page-security.c',
+  'src/page-notifications.c',
+  'src/page-default-apps.c',
+  'src/page-updates.c',
+  'src/page-region.c',
+  'src/page-accessibility.c',
+  'src/page-files-disks.c',
+  'src/page-session-startup.c',
+  'src/page-system-info.c',
+  'src/page-advanced.c',
   'src/main.c',
   'src/window.c'
 ]

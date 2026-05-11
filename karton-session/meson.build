@@ -2,7 +2,7 @@
 project(
   'karton-session',
   'c',
-  version: '0.2',
+  version: '0.7.5',
   meson_version: '>=0.59.0',
 )
 
@@ -17,6 +17,7 @@ executable(
 install_data(
   [
     'bin/karton-launcher',
+    'bin/karton-login-manager',
     'bin/karton-notifyd',
     'bin/karton-notify-log',
     'bin/karton-apply-theme',
