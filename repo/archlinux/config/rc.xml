@@ -66,23 +66,7 @@
       <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot full'" />
     </keybind>
 
-    <keybind key="SysRq">
-      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot full'" />
-    </keybind>
-
-    <keybind key="Sys_Req">
-      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot full'" />
-    </keybind>
-
     <keybind key="S-Print">
-      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot area'" />
-    </keybind>
-
-    <keybind key="S-SysRq">
-      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot area'" />
-    </keybind>
-
-    <keybind key="S-Sys_Req">
       <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot area'" />
     </keybind>
 
@@ -90,23 +74,7 @@
       <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot full-copy'" />
     </keybind>
 
-    <keybind key="C-SysRq">
-      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot full-copy'" />
-    </keybind>
-
-    <keybind key="C-Sys_Req">
-      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot full-copy'" />
-    </keybind>
-
     <keybind key="C-S-Print">
-      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot area-copy'" />
-    </keybind>
-
-    <keybind key="C-S-SysRq">
-      <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot area-copy'" />
-    </keybind>
-
-    <keybind key="C-S-Sys_Req">
       <action name="Execute" command="sh -lc '$HOME/.local-karton/bin/karton-screenshot area-copy'" />
     </keybind>
   </keyboard>

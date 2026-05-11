@@ -166,6 +166,10 @@ keybind_create(const char *keybind)
 			}
 			symname = "-";
 		}
+		if (!g_ascii_strcasecmp(symname, "SysRq")
+				|| !g_ascii_strcasecmp(symname, "Sys_Req")) {
+			symname = "Print";
+		}
 		uint32_t modifier = parse_modifier(symname);
 		if (modifier != 0) {
 			k->modifiers |= modifier;

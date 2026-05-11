@@ -91,35 +91,7 @@ static struct key_combos {
 			.value = "sh -lc '$HOME/.local-karton/bin/karton-screenshot full'",
 		},
 	}, {
-		.binding = "SysRq",
-		.action = "Execute",
-		.attributes[0] = {
-			.name = "command",
-			.value = "sh -lc '$HOME/.local-karton/bin/karton-screenshot full'",
-		},
-	}, {
-		.binding = "Sys_Req",
-		.action = "Execute",
-		.attributes[0] = {
-			.name = "command",
-			.value = "sh -lc '$HOME/.local-karton/bin/karton-screenshot full'",
-		},
-	}, {
 		.binding = "S-Print",
-		.action = "Execute",
-		.attributes[0] = {
-			.name = "command",
-			.value = "sh -lc '$HOME/.local-karton/bin/karton-screenshot area'",
-		},
-	}, {
-		.binding = "S-SysRq",
-		.action = "Execute",
-		.attributes[0] = {
-			.name = "command",
-			.value = "sh -lc '$HOME/.local-karton/bin/karton-screenshot area'",
-		},
-	}, {
-		.binding = "S-Sys_Req",
 		.action = "Execute",
 		.attributes[0] = {
 			.name = "command",
@@ -133,35 +105,7 @@ static struct key_combos {
 			.value = "sh -lc '$HOME/.local-karton/bin/karton-screenshot full-copy'",
 		},
 	}, {
-		.binding = "C-SysRq",
-		.action = "Execute",
-		.attributes[0] = {
-			.name = "command",
-			.value = "sh -lc '$HOME/.local-karton/bin/karton-screenshot full-copy'",
-		},
-	}, {
-		.binding = "C-Sys_Req",
-		.action = "Execute",
-		.attributes[0] = {
-			.name = "command",
-			.value = "sh -lc '$HOME/.local-karton/bin/karton-screenshot full-copy'",
-		},
-	}, {
 		.binding = "C-S-Print",
-		.action = "Execute",
-		.attributes[0] = {
-			.name = "command",
-			.value = "sh -lc '$HOME/.local-karton/bin/karton-screenshot area-copy'",
-		},
-	}, {
-		.binding = "C-S-SysRq",
-		.action = "Execute",
-		.attributes[0] = {
-			.name = "command",
-			.value = "sh -lc '$HOME/.local-karton/bin/karton-screenshot area-copy'",
-		},
-	}, {
-		.binding = "C-S-Sys_Req",
 		.action = "Execute",
 		.attributes[0] = {
 			.name = "command",
