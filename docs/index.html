@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="pl" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -11,16 +11,42 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
-      --bg: #0e0e0d;
-      --surface: #161614;
-      --border: #2a2a27;
-      --text: #e8e5dc;
-      --muted: #7a7870;
-      --accent: #c8a96e;
-      --accent2: #6e9ec8;
-      --accent3: #7ec88a;
-      --fold: #1a1a18;
+    /* ── DARK THEME (default) ── */
+    :root, [data-theme="dark"] {
+      --bg:       #0e0e0d;
+      --surface:  #161614;
+      --fold:     #1e1e1b;
+      --border:   #2e2e2b;
+      --text:     #f0ece0;       /* brighter than before */
+      --muted:    #a09a8e;       /* brighter muted */
+      --sub:      #c8c2b4;       /* new: subtitles, descriptions */
+      --accent:   #d4b06a;
+      --accent3:  #7ec88a;
+      --nav-bg:   rgba(14,14,13,0.93);
+      --status-bg:#0e0e0d;
+      --card-hover:#222220;
+      --hero-g1:  rgba(212,176,106,0.07);
+      --hero-g2:  rgba(110,158,200,0.06);
+      --tag-color:#8a8478;
+    }
+
+    /* ── LIGHT THEME ── */
+    [data-theme="light"] {
+      --bg:       #f5f2eb;
+      --surface:  #fffefb;
+      --fold:     #edeae2;
+      --border:   #d8d3c8;
+      --text:     #1a1916;
+      --muted:    #5a5650;
+      --sub:      #3a3834;
+      --accent:   #a07830;
+      --accent3:  #2e8a42;
+      --nav-bg:   rgba(245,242,235,0.94);
+      --status-bg:#f5f2eb;
+      --card-hover:#f0ece2;
+      --hero-g1:  rgba(160,120,48,0.06);
+      --hero-g2:  rgba(80,130,180,0.05);
+      --tag-color:#6a6560;
     }
 
     html { scroll-behavior: smooth; }
@@ -33,8 +59,10 @@
       line-height: 1.7;
       font-size: 15px;
       min-height: 100vh;
+      transition: background 0.3s, color 0.3s;
     }
 
+    /* ── NAV ── */
     nav {
       position: fixed;
       top: 0; left: 0; right: 0;
@@ -45,8 +73,9 @@
       padding: 0 3rem;
       height: 60px;
       border-bottom: 1px solid var(--border);
-      background: rgba(14,14,13,0.92);
-      backdrop-filter: blur(12px);
+      background: var(--nav-bg);
+      backdrop-filter: blur(14px);
+      transition: background 0.3s, border-color 0.3s;
     }
 
     .nav-logo {
@@ -67,24 +96,41 @@
     .nav-links a {
       color: var(--muted);
       text-decoration: none;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       letter-spacing: 0.1em;
       text-transform: uppercase;
       transition: color 0.2s;
     }
     .nav-links a:hover { color: var(--text); }
 
-    .lang-switcher {
+    .nav-right {
       display: flex;
-      gap: 0.5rem;
       align-items: center;
+      gap: 1rem;
     }
+
+    /* Theme toggle */
+    .theme-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.9rem;
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Language switcher */
+    .lang-switcher { display: flex; gap: 0.4rem; align-items: center; }
     .lang-btn {
       background: none;
       border: 1px solid var(--border);
       color: var(--muted);
       font-family: 'DM Mono', monospace;
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       letter-spacing: 0.08em;
       padding: 3px 8px;
       cursor: pointer;
@@ -95,6 +141,7 @@
       color: var(--accent);
     }
 
+    /* ── HERO ── */
     .hero {
       min-height: 100vh;
       display: flex;
@@ -110,14 +157,14 @@
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
       background:
-        radial-gradient(ellipse 60% 50% at 80% 40%, rgba(200,169,110,0.06) 0%, transparent 60%),
-        radial-gradient(ellipse 40% 60% at 10% 70%, rgba(110,158,200,0.05) 0%, transparent 60%);
+        radial-gradient(ellipse 60% 50% at 80% 40%, var(--hero-g1) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 60% at 10% 70%, var(--hero-g2) 0%, transparent 60%);
       pointer-events: none;
     }
 
     .hero-label {
-      font-size: 0.7rem;
-      letter-spacing: 0.2em;
+      font-size: 0.68rem;
+      letter-spacing: 0.22em;
       text-transform: uppercase;
       color: var(--muted);
       margin-bottom: 1.5rem;
@@ -129,23 +176,19 @@
       line-height: 0.95;
       letter-spacing: -0.02em;
       margin-bottom: 2rem;
+      color: var(--text);
     }
-
     .hero-title .accent { color: var(--accent); }
 
     .hero-desc {
       max-width: 540px;
-      color: var(--muted);
-      font-size: 0.9rem;
-      line-height: 1.8;
+      color: var(--sub);
+      font-size: 0.92rem;
+      line-height: 1.85;
       margin-bottom: 3rem;
     }
 
-    .hero-cta {
-      display: flex;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
+    .hero-cta { display: flex; gap: 1rem; flex-wrap: wrap; }
 
     .btn {
       display: inline-flex;
@@ -161,13 +204,9 @@
       border: none;
       transition: all 0.2s;
     }
-
-    .btn-primary {
-      background: var(--accent);
-      color: #0e0e0d;
-    }
+    .btn-primary { background: var(--accent); color: #fff; font-weight: 500; }
+    [data-theme="dark"] .btn-primary { color: #0e0e0d; }
     .btn-primary:hover { opacity: 0.85; }
-
     .btn-ghost {
       background: transparent;
       color: var(--text);
@@ -183,7 +222,7 @@
       letter-spacing: 0.15em;
       text-transform: uppercase;
       color: var(--accent3);
-      border: 1px solid rgba(126,200,138,0.3);
+      border: 1px solid rgba(126,200,138,0.35);
       padding: 3px 10px;
       margin-top: 1rem;
       align-self: flex-start;
@@ -194,24 +233,16 @@
       background: var(--accent3);
       animation: pulse 2s infinite;
     }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-    .section-divider {
-      width: 100%;
-      height: 1px;
-      background: var(--border);
-    }
+    /* ── LAYOUT ── */
+    .section-divider { width:100%; height:1px; background:var(--border); }
 
-    section {
-      padding: 6rem 3rem;
-    }
+    section { padding: 6rem 3rem; }
 
     .section-label {
       font-size: 0.65rem;
-      letter-spacing: 0.2em;
+      letter-spacing: 0.22em;
       text-transform: uppercase;
       color: var(--accent);
       margin-bottom: 1rem;
@@ -222,14 +253,42 @@
       font-size: clamp(2rem, 4vw, 3rem);
       line-height: 1.1;
       margin-bottom: 1.5rem;
+      color: var(--text);
     }
 
     .section-body {
-      color: var(--muted);
+      color: var(--sub);
       max-width: 600px;
       line-height: 1.9;
+      font-size: 0.92rem;
     }
 
+    /* ── FEATURES ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 2rem;
+      margin-top: 3rem;
+    }
+
+    .feature { padding-top: 1.5rem; border-top: 1px solid var(--border); }
+
+    .feature-title {
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .feature-desc {
+      font-size: 0.84rem;
+      color: var(--sub);
+      line-height: 1.8;
+    }
+
+    /* ── PROJECT CARDS ── */
     .projects {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -243,18 +302,15 @@
       padding: 2.5rem;
       transition: background 0.2s;
     }
-    .project-card:hover { background: var(--fold); }
+    .project-card:hover { background: var(--card-hover); }
 
-    .project-icon {
-      font-size: 1.8rem;
-      margin-bottom: 1.5rem;
-      line-height: 1;
-    }
+    .project-icon { font-size: 1.8rem; margin-bottom: 1.5rem; line-height: 1; }
 
     .project-name {
       font-family: 'DM Serif Display', serif;
       font-size: 1.5rem;
       margin-bottom: 0.5rem;
+      color: var(--text);
     }
 
     .project-tech {
@@ -266,37 +322,22 @@
     }
 
     .project-desc {
-      color: var(--muted);
-      font-size: 0.85rem;
-      line-height: 1.8;
+      color: var(--sub);
+      font-size: 0.86rem;
+      line-height: 1.85;
     }
 
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 2rem;
-      margin-top: 3rem;
-    }
-
-    .feature {
-      padding-top: 1.5rem;
-      border-top: 1px solid var(--border);
-    }
-
-    .feature-title {
-      font-size: 0.8rem;
+    /* ── TECH TAGS ── */
+    .tech-list { display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:2rem; }
+    .tech-tag {
+      font-size: 0.7rem;
       letter-spacing: 0.1em;
-      text-transform: uppercase;
-      margin-bottom: 0.5rem;
-      color: var(--text);
+      padding: 4px 12px;
+      border: 1px solid var(--border);
+      color: var(--tag-color);
     }
 
-    .feature-desc {
-      font-size: 0.82rem;
-      color: var(--muted);
-      line-height: 1.75;
-    }
-
+    /* ── STATUS ── */
     .status-section {
       background: var(--surface);
       border-top: 1px solid var(--border);
@@ -312,7 +353,7 @@
     }
 
     .status-item {
-      background: var(--bg);
+      background: var(--status-bg);
       padding: 2rem;
       display: flex;
       flex-direction: column;
@@ -320,7 +361,7 @@
     }
 
     .status-name {
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       letter-spacing: 0.15em;
       text-transform: uppercase;
       color: var(--muted);
@@ -328,49 +369,22 @@
 
     .status-value {
       font-family: 'DM Serif Display', serif;
-      font-size: 1.3rem;
+      font-size: 1.4rem;
+      color: var(--text);
     }
 
-    .status-bar {
-      height: 2px;
-      background: var(--border);
-      margin-top: 0.5rem;
-    }
+    .status-bar { height: 2px; background: var(--border); margin-top: 0.5rem; }
+    .status-fill { height: 100%; background: var(--accent3); }
 
-    .status-fill {
-      height: 100%;
-      background: var(--accent3);
-    }
-
-    .tech-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-top: 2rem;
-    }
-
-    .tech-tag {
-      font-size: 0.7rem;
-      letter-spacing: 0.1em;
-      padding: 4px 12px;
-      border: 1px solid var(--border);
-      color: var(--muted);
-    }
-
+    /* ── GITHUB ── */
     .github-section {
       text-align: center;
       padding: 6rem 3rem;
     }
+    .github-section .section-title { margin-bottom: 1rem; }
+    .github-section .section-body { margin: 0 auto 2.5rem; text-align: center; }
 
-    .github-section .section-title {
-      margin-bottom: 1rem;
-    }
-
-    .github-section .section-body {
-      margin: 0 auto 2.5rem;
-      text-align: center;
-    }
-
+    /* ── FOOTER ── */
     footer {
       border-top: 1px solid var(--border);
       padding: 2rem 3rem;
@@ -380,23 +394,9 @@
       gap: 1rem;
       flex-wrap: wrap;
     }
-
-    .footer-brand {
-      font-family: 'DM Serif Display', serif;
-      color: var(--accent);
-    }
-
-    .footer-note {
-      font-size: 0.72rem;
-      color: var(--muted);
-      letter-spacing: 0.05em;
-    }
-
-    .footer-links {
-      display: flex;
-      gap: 1.5rem;
-    }
-
+    .footer-brand { font-family: 'DM Serif Display', serif; color: var(--accent); }
+    .footer-note { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.05em; }
+    .footer-links { display: flex; gap: 1.5rem; }
     .footer-links a {
       font-size: 0.72rem;
       color: var(--muted);
@@ -406,42 +406,46 @@
     }
     .footer-links a:hover { color: var(--accent); }
 
-    @media (max-width: 640px) {
-      nav { padding: 0 1.5rem; }
+    /* ── RESPONSIVE ── */
+    @media (max-width: 700px) {
+      nav { padding: 0 1.25rem; }
       .nav-links { display: none; }
       section, .github-section, .status-section { padding: 4rem 1.5rem; }
       .hero { padding: 100px 1.5rem 4rem; }
       footer { padding: 1.5rem; }
     }
 
+    /* ── FADE IN ── */
     .fade-in {
       opacity: 0;
-      transform: translateY(20px);
-      transition: opacity 0.6s ease, transform 0.6s ease;
+      transform: translateY(18px);
+      transition: opacity 0.55s ease, transform 0.55s ease;
     }
-    .fade-in.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
   </style>
 </head>
 <body>
 
+<!-- NAV -->
 <nav>
   <a href="#top" class="nav-logo">Karton</a>
   <ul class="nav-links">
-    <li><a href="#about" data-i18n="nav_about">O projekcie</a></li>
+    <li><a href="#about"    data-i18n="nav_about">O projekcie</a></li>
     <li><a href="#projects" data-i18n="nav_projects">Projekty</a></li>
-    <li><a href="#status" data-i18n="nav_status">Status</a></li>
-    <li><a href="#github" data-i18n="nav_github">GitHub</a></li>
+    <li><a href="#status"   data-i18n="nav_status">Status</a></li>
+    <li><a href="#github"   data-i18n="nav_github">GitHub</a></li>
   </ul>
-  <div class="lang-switcher">
-    <button class="lang-btn active" onclick="setLang('pl')">PL</button>
-    <button class="lang-btn" onclick="setLang('en')">EN</button>
-    <button class="lang-btn" onclick="setLang('de')">DE</button>
+  <div class="nav-right">
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">☀</button>
+    <div class="lang-switcher">
+      <button class="lang-btn active" onclick="setLang('pl')">PL</button>
+      <button class="lang-btn"        onclick="setLang('en')">EN</button>
+      <button class="lang-btn"        onclick="setLang('de')">DE</button>
+    </div>
   </div>
 </nav>
 
+<!-- HERO -->
 <section class="hero" id="top">
   <p class="hero-label" data-i18n="hero_label">Compositor · Środowisko graficzne · Dystrybucja</p>
   <h1 class="hero-title">
@@ -464,6 +468,7 @@
 
 <div class="section-divider"></div>
 
+<!-- ABOUT -->
 <section id="about">
   <div class="fade-in">
     <p class="section-label" data-i18n="about_label">O projekcie</p>
@@ -477,19 +482,19 @@
     <div class="features-grid">
       <div class="feature">
         <div class="feature-title" data-i18n="feat1_title">Wayland-native</div>
-        <div class="feature-desc" data-i18n="feat1_desc">Compositor zbudowany bezpośrednio na labwc i wlroots — żadnych warstw kompatybilności X11.</div>
+        <div class="feature-desc"  data-i18n="feat1_desc">Compositor zbudowany bezpośrednio na labwc i wlroots — żadnych warstw kompatybilności X11.</div>
       </div>
       <div class="feature">
         <div class="feature-title" data-i18n="feat2_title">Niskie zużycie zasobów</div>
-        <div class="feature-desc" data-i18n="feat2_desc">Projekt kładzie nacisk na minimalną ilość procesów i bibliotek w tle.</div>
+        <div class="feature-desc"  data-i18n="feat2_desc">Projekt kładzie nacisk na minimalną ilość procesów i bibliotek w tle.</div>
       </div>
       <div class="feature">
         <div class="feature-title" data-i18n="feat3_title">Otwarte standardy</div>
-        <div class="feature-desc" data-i18n="feat3_desc">Pełna zgodność z XDG, zgodność z wolnym oprogramowaniem, otwarte licencje.</div>
+        <div class="feature-desc"  data-i18n="feat3_desc">Pełna zgodność z XDG, zgodność z wolnym oprogramowaniem, otwarte licencje.</div>
       </div>
       <div class="feature">
         <div class="feature-title" data-i18n="feat4_title">Fundament openSUSE</div>
-        <div class="feature-desc" data-i18n="feat4_desc">FoldOS dziedziczy stabilność i ekosystem pakietów RPM od openSUSE.</div>
+        <div class="feature-desc"  data-i18n="feat4_desc">FoldOS dziedziczy stabilność i ekosystem pakietów RPM od openSUSE.</div>
       </div>
     </div>
   </div>
@@ -497,6 +502,7 @@
 
 <div class="section-divider"></div>
 
+<!-- PROJECTS -->
 <section id="projects">
   <div class="fade-in">
     <p class="section-label" data-i18n="proj_label">Projekty</p>
@@ -554,6 +560,7 @@
   </div>
 </section>
 
+<!-- STATUS -->
 <section class="status-section" id="status">
   <div class="fade-in">
     <p class="section-label" data-i18n="status_label">Status</p>
@@ -564,22 +571,22 @@
     </p>
     <div class="status-grid">
       <div class="status-item">
-        <span class="status-name" data-i18n="stat1">Compositor (Karton)</span>
+        <span class="status-name"  data-i18n="stat1">Compositor (Karton)</span>
         <span class="status-value">α</span>
         <div class="status-bar"><div class="status-fill" style="width:55%"></div></div>
       </div>
       <div class="status-item">
-        <span class="status-name" data-i18n="stat2">Karton DE</span>
+        <span class="status-name"  data-i18n="stat2">Karton DE</span>
         <span class="status-value">pre-α</span>
         <div class="status-bar"><div class="status-fill" style="width:25%"></div></div>
       </div>
       <div class="status-item">
-        <span class="status-name" data-i18n="stat3">FoldOS</span>
+        <span class="status-name"  data-i18n="stat3">FoldOS</span>
         <span class="status-value">WIP</span>
         <div class="status-bar"><div class="status-fill" style="width:10%"></div></div>
       </div>
       <div class="status-item">
-        <span class="status-name" data-i18n="stat4">Dokumentacja</span>
+        <span class="status-name"  data-i18n="stat4">Dokumentacja</span>
         <span class="status-value">→</span>
         <div class="status-bar"><div class="status-fill" style="width:20%"></div></div>
       </div>
@@ -587,6 +594,7 @@
   </div>
 </section>
 
+<!-- GITHUB -->
 <div class="github-section fade-in" id="github">
   <p class="section-label" data-i18n="gh_label">Otwarte źródło</p>
   <h2 class="section-title" data-i18n="gh_title">Kod jest publiczny</h2>
@@ -594,11 +602,12 @@
     Wszystkie projekty rozwijane są otwarcie. Zapraszamy do obserwowania repozytoriów,
     zgłaszania błędów oraz współtworzenia kodu.
   </p>
-  <a href="https://github.com/mijsys/Tektura-i-Karton/" target="_blank" class="btn btn-primary" data-i18n="gh_btn">
+  <a href="https://github.com" target="_blank" class="btn btn-primary" data-i18n="gh_btn">
     Przejdź do GitHub →
   </a>
 </div>
 
+<!-- FOOTER -->
 <footer>
   <span class="footer-brand">Karton &amp; FoldOS</span>
   <span class="footer-note" data-i18n="footer_note">Projekt open-source · Prace w toku</span>
@@ -609,6 +618,7 @@
 </footer>
 
 <script>
+/* ── TRANSLATIONS ── */
 const i18n = {
   pl: {
     nav_about:"O projekcie",nav_projects:"Projekty",nav_status:"Status",nav_github:"GitHub",
@@ -693,10 +703,34 @@ function setLang(lang) {
   document.documentElement.lang = lang;
 }
 
-const observer = new IntersectionObserver((entries) => {
+/* ── THEME TOGGLE ── */
+const html = document.documentElement;
+const toggleBtn = document.getElementById('themeToggle');
+let dark = true;
+
+function applyTheme(isDark) {
+  html.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  toggleBtn.textContent = isDark ? '☀' : '☾';
+  toggleBtn.title = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+  try { localStorage.setItem('karton-theme', isDark ? 'dark' : 'light'); } catch(e){}
+}
+
+toggleBtn.addEventListener('click', () => {
+  dark = !dark;
+  applyTheme(dark);
+});
+
+// Restore saved theme
+try {
+  const saved = localStorage.getItem('karton-theme');
+  if (saved === 'light') { dark = false; applyTheme(false); }
+} catch(e){}
+
+/* ── SCROLL FADE ── */
+const obs = new IntersectionObserver(entries => {
   entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
 }, { threshold: 0.08 });
-document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
 
 setLang('pl');
 </script>
