@@ -15,7 +15,7 @@ KartONDE łączy kompozytor Wayland Tektura z panelem Karton, usługami sesji i 
 
 ![Widok pulpitu](docs/images/desktop-overview.png)
 
-![Szybkie ustawienia](docs/images/quick-settings.png)
+![ustawienia](docs/images/settings.png)
 
 ### Zawartość repozytorium
 
@@ -133,7 +133,7 @@ KartONDE combines the Tektura Wayland compositor with the Karton shell, session 
 
 ![Desktop overview](docs/images/desktop-overview.png)
 
-![Quick settings](docs/images/quick-settings.png)
+![Settings](docs/images/settings.png)
 
 ### Repository layout
 
@@ -251,7 +251,7 @@ KartONDE kombiniert den Tektura-Wayland-Compositor mit der Karton-Shell, den Sit
 
 ![Desktop-Ansicht](docs/images/desktop-overview.png)
 
-![Schnelleinstellungen](docs/images/quick-settings.png)
+![Schnelleinstellungen](docs/images/settings.png)
 
 ### Repository-Struktur
 
