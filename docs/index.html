@@ -4,10 +4,546 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FoldOS | Minimalistyczna dystrybucja Wayland</title>
-    <link rel="stylesheet" href="assets/styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <styles>/* ===== Zmienne CSS ===== */
+:root {
+    /* Kolory główne */
+    --primary: #4a6fa5;
+    --primary-dark: #2c4a73;
+    --secondary: #ff6b6b;
+    --accent: #6c757d;
+    --light: #f8f9fa;
+    --dark: #212529;
+    --text: #333;
+    --text-light: #666;
+    --white: #ffffff;
+    --black: #000000;
+
+    /* Odstępy i rozmiary */
+    --container-width: 1200px;
+    --border-radius: 12px;
+    --box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    --box-shadow-hover: 0 15px 30px rgba(0, 0, 0, 0.15);
+    --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+
+    /* Czcionki */
+    --font-family: 'Inter', sans-serif;
+    --font-size-sm: 0.9rem;
+    --font-size-md: 1rem;
+    --font-size-lg: 1.1rem;
+    --font-size-xl: 1.5rem;
+    --font-size-xxl: 2.5rem;
+}
+
+/* ===== Reset i bazowe style ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-family);
+    line-height: 1.6;
+    color: var(--text);
+    background-color: var(--light);
+    overflow-x: hidden;
+}
+
+.container {
+    width: 100%;
+    max-width: var(--container-width);
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+    transition: var(--transition);
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* ===== Nagłówek ===== */
+.header {
+    background-color: var(--white);
+    box-shadow: var(--box-shadow);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    padding: 15px 0;
+}
+
+.header .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: var(--font-size-lg);
+    color: var(--dark);
+}
+
+.logo-text {
+    color: var(--primary);
+}
+
+.nav {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+}
+
+.nav-link {
+    font-weight: 500;
+    color: var(--text);
+}
+
+.nav-link:hover {
+    color: var(--primary);
+}
+
+/* Menu hamburger (ukryte na desktop) */
+.hamburger {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.hamburger span {
+    width: 25px;
+    height: 3px;
+    background-color: var(--dark);
+    border-radius: 3px;
+    transition: var(--transition);
+}
+
+.hamburger-active span:nth-child(1) {
+    transform: rotate(45deg) translate(5px, 5px);
+}
+
+.hamburger-active span:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger-active span:nth-child(3) {
+    transform: rotate(-45deg) translate(5px, -5px);
+}
+
+/* ===== Przyciski ===== */
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border-radius: var(--border-radius);
+    font-weight: 600;
+    transition: var(--transition);
+    cursor: pointer;
+    border: none;
+    text-align: center;
+}
+
+.btn-primary {
+    background-color: var(--primary);
+    color: var(--white);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--box-shadow-hover);
+}
+
+.btn-secondary {
+    background-color: var(--secondary);
+    color: var(--white);
+}
+
+.btn-secondary:hover {
+    background-color: #ff5252;
+    transform: translateY(-2px);
+    box-shadow: var(--box-shadow-hover);
+}
+
+.btn-small {
+    padding: 8px 16px;
+    font-size: var(--font-size-sm);
+}
+
+.btn-large {
+    padding: 14px 28px;
+    font-size: var(--font-size-md);
+}
+
+/* ===== Sekcja Hero ===== */
+.hero {
+    padding: 80px 0;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: var(--white);
+}
+
+.hero .container {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+}
+
+.hero-content {
+    flex: 1;
+}
+
+.hero-title {
+    font-size: var(--font-size-xxl);
+    margin-bottom: 20px;
+    line-height: 1.2;
+}
+
+.hero-accent {
+    color: var(--secondary);
+}
+
+.hero-subtitle {
+    font-size: var(--font-size-lg);
+    margin-bottom: 30px;
+    max-width: 600px;
+    opacity: 0.9;
+}
+
+.hero-buttons {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.hero-image {
+    flex: 1;
+    text-align: center;
+}
+
+.hero-screenshot {
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    max-width: 100%;
+}
+
+/* ===== Sekcje ogólne ===== */
+section {
+    padding: 80px 0;
+}
+
+.section-title {
+    text-align: center;
+    font-size: var(--font-size-xxl);
+    margin-bottom: 50px;
+    color: var(--dark);
+}
+
+/* ===== Sekcja Cechy ===== */
+.features {
+    background-color: var(--white);
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 25px;
+}
+
+.feature-card {
+    background-color: var(--light);
+    padding: 30px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    transition: var(--transition);
+}
+
+.feature-card:hover {
+    transform: translateY(-10px);
+    box-shadow: var(--box-shadow-hover);
+}
+
+.feature-icon {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+}
+
+.feature-card h3 {
+    margin-bottom: 10px;
+    color: var(--primary);
+    font-size: var(--font-size-lg);
+}
+
+/* ===== Sekcja Zrzuty ekranu ===== */
+.screenshots {
+    background-color: #f0f2f5;
+}
+
+.screenshots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 25px;
+}
+
+.screenshot-item {
+    background-color: var(--white);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    overflow: hidden;
+    transition: var(--transition);
+}
+
+.screenshot-item:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--box-shadow-hover);
+}
+
+.screenshot-img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: var(--border-radius);
+}
+
+.screenshot-item p {
+    padding: 15px;
+    text-align: center;
+    color: var(--text-light);
+}
+
+/* ===== Sekcja Dokumentacja ===== */
+.docs {
+    background-color: var(--white);
+}
+
+.docs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 25px;
+}
+
+.doc-card {
+    background-color: var(--light);
+    padding: 30px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    transition: var(--transition);
+    text-align: center;
+}
+
+.doc-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--box-shadow-hover);
+}
+
+.doc-icon {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+}
+
+.doc-card h3 {
+    margin-bottom: 10px;
+    color: var(--primary);
+    font-size: var(--font-size-lg);
+}
+
+.doc-card p {
+    margin-bottom: 20px;
+    color: var(--text-light);
+}
+
+/* ===== Sekcja Download ===== */
+.download {
+    background: linear-gradient(135deg, var(--accent) 0%, #5a6268 100%);
+    color: var(--white);
+    text-align: center;
+}
+
+.download-content {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.download-version {
+    font-size: var(--font-size-lg);
+    margin-bottom: 30px;
+}
+
+.download-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+}
+
+.download-requirements {
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    border-radius: var(--border-radius);
+    text-align: left;
+}
+
+.download-requirements h4 {
+    margin-bottom: 15px;
+    color: var(--white);
+}
+
+.download-requirements ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.download-requirements li {
+    margin-bottom: 8px;
+    padding-left: 20px;
+    position: relative;
+}
+
+.download-requirements li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: var(--secondary);
+}
+
+/* ===== Stopka ===== */
+.footer {
+    background-color: var(--dark);
+    color: var(--light);
+    padding: 50px 0 20px;
+}
+
+.footer-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 30px;
+    margin-bottom: 40px;
+}
+
+.footer-brand .logo {
+    margin-bottom: 15px;
+}
+
+.footer-brand p {
+    color: var(--text-light);
+    font-size: var(--font-size-sm);
+}
+
+.footer-links h4,
+.footer-legal h4 {
+    margin-bottom: 15px;
+    color: var(--white);
+}
+
+.footer-links a {
+    display: block;
+    color: var(--text-light);
+    margin-bottom: 8px;
+    transition: var(--transition);
+}
+
+.footer-links a:hover {
+    color: var(--primary);
+}
+
+.footer-legal p {
+    color: var(--text-light);
+    font-size: var(--font-size-sm);
+}
+
+.footer-bottom {
+    text-align: center;
+    padding-top: 20px;
+    border-top: 1px solid #444;
+    color: var(--text-light);
+    font-size: var(--font-size-sm);
+}
+
+/* ===== Responsywność ===== */
+@media (max-width: 992px) {
+    .hero .container {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .hero-content {
+        margin-bottom: 40px;
+    }
+
+    .hero-buttons {
+        justify-content: center;
+    }
+
+    .hero-image {
+        margin-top: 30px;
+    }
+}
+
+@media (max-width: 768px) {
+    .nav {
+        position: fixed;
+        top: 70px;
+        left: 0;
+        width: 100%;
+        background-color: var(--white);
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        gap: 15px;
+        box-shadow: var(--box-shadow);
+        transform: translateY(-150%);
+        transition: var(--transition);
+    }
+
+    .nav.nav-active {
+        transform: translateY(0);
+    }
+
+    .hamburger {
+        display: flex;
+    }
+
+    .hero-title {
+        font-size: 2rem;
+    }
+
+    .section-title {
+        font-size: 1.8rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .hero-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .btn-large {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    .features-grid,
+    .screenshots-grid,
+    .docs-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</styles>
 </head>
 <body>
     <!-- Nagłówek -->
