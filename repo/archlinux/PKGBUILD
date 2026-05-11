@@ -1,7 +1,7 @@
 pkgbase=kartonde
 pkgname=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-session' 'kartonde')
 pkgver=0.7.4
-pkgrel=1
+pkgrel=2
 arch=('x86_64')
 url='https://github.com/mijsys/Tektura-i-Karton'
 license=('GPL-2.0-only')
@@ -74,8 +74,15 @@ package_karton-shell() {
 }
 
 package_karton-settings() {
-  pkgdesc='KartonDE desktop settings application'
+  pkgdesc='KartonDE desktop settings application (WIP build)'
   depends=('glib2' 'gtk4')
+  optdepends=(
+    'wlr-randr: monitor layout backend for display settings'
+    'brightnessctl: brightness backend for internal displays'
+    'ddcutil: brightness fallback backend for external displays'
+    'gammastep: night light backend'
+    'wlsunset: alternative night light backend'
+  )
 
   _install_component karton-settings "$pkgdir"
 }
@@ -99,7 +106,16 @@ package_karton-session() {
 package_kartonde() {
   pkgdesc='Complete KartONDE desktop environment metapackage'
   depends=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-session')
-  optdepends=('grim: screenshot backend' 'slurp: area screenshot selection' 'wl-clipboard: copy screenshots to clipboard')
+  optdepends=(
+    'wlr-randr: monitor layout backend for display settings'
+    'brightnessctl: brightness backend for internal displays'
+    'ddcutil: brightness fallback backend for external displays'
+    'gammastep: night light backend'
+    'wlsunset: alternative night light backend'
+    'grim: screenshot backend'
+    'slurp: area screenshot selection'
+    'wl-clipboard: copy screenshots to clipboard'
+  )
   backup=(
     'etc/xdg/karton/autostart'
     'etc/xdg/karton/environment'

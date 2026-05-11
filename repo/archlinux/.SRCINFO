@@ -1,6 +1,6 @@
 pkgbase = kartonde
 	pkgver = 0.7.4
-	pkgrel = 1
+	pkgrel = 2
 	url = https://github.com/mijsys/Tektura-i-Karton
 	arch = x86_64
 	license = GPL-2.0-only
@@ -57,9 +57,14 @@ pkgname = karton-shell
 	depends = wayland
 
 pkgname = karton-settings
-	pkgdesc = KartonDE desktop settings application
+	pkgdesc = KartonDE desktop settings application (WIP build)
 	depends = glib2
 	depends = gtk4
+	optdepends = wlr-randr: monitor layout backend for display settings
+	optdepends = brightnessctl: brightness backend for internal displays
+	optdepends = ddcutil: brightness fallback backend for external displays
+	optdepends = gammastep: night light backend
+	optdepends = wlsunset: alternative night light backend
 
 pkgname = karton-files
 	pkgdesc = KartonDE GTK file manager
@@ -82,6 +87,11 @@ pkgname = kartonde
 	depends = karton-settings
 	depends = karton-files
 	depends = karton-session
+	optdepends = wlr-randr: monitor layout backend for display settings
+	optdepends = brightnessctl: brightness backend for internal displays
+	optdepends = ddcutil: brightness fallback backend for external displays
+	optdepends = gammastep: night light backend
+	optdepends = wlsunset: alternative night light backend
 	optdepends = grim: screenshot backend
 	optdepends = slurp: area screenshot selection
 	optdepends = wl-clipboard: copy screenshots to clipboard
