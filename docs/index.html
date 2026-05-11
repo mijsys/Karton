@@ -1,941 +1,204 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-<title>Karton Desktop Environment</title>
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-<style>
-
-:root{
-    --bg:#0c0c0f;
-    --surface:#f4f4f6;
-    --surface-2:#ececf1;
-    --text:#1b1b22;
-    --muted:#6d6d78;
-
-    --primary:#9d8cff;
-    --primary-2:#7b68ee;
-
-    --blue:#6ea6ff;
-    --orange:#f0b14f;
-    --green:#7ad59b;
-
-    --radius:28px;
-    --radius-small:18px;
-}
-
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-}
-
-html{
-    scroll-behavior:smooth;
-}
-
-body{
-    font-family:"Inter",sans-serif;
-    background:var(--bg);
-    color:white;
-    overflow-x:hidden;
-}
-
-a{
-    text-decoration:none;
-    color:inherit;
-}
-
-.container{
-    width:min(1250px,92%);
-    margin:auto;
-}
-
-/* NAVBAR */
-
-.navbar{
-    position:fixed;
-    top:0;
-    left:0;
-    width:100%;
-    z-index:100;
-    backdrop-filter:blur(14px);
-    background:rgba(12,12,15,.55);
-    border-bottom:1px solid rgba(255,255,255,.05);
-}
-
-.nav-inner{
-    height:76px;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-}
-
-.logo{
-    display:flex;
-    align-items:center;
-    gap:14px;
-    font-size:1.1rem;
-    font-weight:700;
-}
-
-.logo-box{
-    width:42px;
-    height:42px;
-    border-radius:14px;
-    background:linear-gradient(135deg,var(--primary),#bfaeff);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    box-shadow:0 10px 30px rgba(157,140,255,.35);
-}
-
-.nav-links{
-    display:flex;
-    gap:28px;
-    color:#cfcfda;
-    font-size:.96rem;
-}
-
-.nav-links a:hover{
-    color:white;
-}
-
-.nav-right{
-    display:flex;
-    align-items:center;
-    gap:12px;
-}
-
-.lang-switch{
-    border:none;
-    background:#18181d;
-    color:white;
-    border-radius:14px;
-    padding:10px 16px;
-    cursor:pointer;
-}
-
-.download-btn{
-    background:linear-gradient(135deg,var(--primary),var(--primary-2));
-    color:white;
-    border:none;
-    border-radius:16px;
-    padding:12px 22px;
-    font-weight:600;
-    cursor:pointer;
-    transition:.2s;
-}
-
-.download-btn:hover{
-    transform:translateY(-2px);
-}
-
-/* HERO */
-
-.hero{
-    min-height:100vh;
-    display:flex;
-    align-items:center;
-    position:relative;
-    overflow:hidden;
-}
-
-.hero::before{
-    content:"";
-    position:absolute;
-    width:700px;
-    height:700px;
-    background:radial-gradient(circle,var(--primary-2),transparent 70%);
-    opacity:.18;
-    top:-240px;
-    right:-160px;
-}
-
-.hero-grid{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:60px;
-    align-items:center;
-    padding-top:100px;
-}
-
-.hero-left h1{
-    font-size:4.5rem;
-    line-height:1;
-    margin-bottom:26px;
-    font-weight:800;
-}
-
-.gradient{
-    background:linear-gradient(135deg,#ffffff,var(--primary));
-    -webkit-background-clip:text;
-    -webkit-text-fill-color:transparent;
-}
-
-.hero-left p{
-    color:#b8b8c5;
-    font-size:1.1rem;
-    line-height:1.8;
-    margin-bottom:38px;
-    max-width:620px;
-}
-
-.hero-buttons{
-    display:flex;
-    gap:18px;
-    flex-wrap:wrap;
-}
-
-.primary-btn{
-    background:linear-gradient(135deg,var(--primary),var(--primary-2));
-    border:none;
-    color:white;
-    padding:16px 28px;
-    border-radius:18px;
-    font-weight:700;
-    cursor:pointer;
-}
-
-.secondary-btn{
-    background:#18181d;
-    border:1px solid rgba(255,255,255,.08);
-    color:white;
-    padding:16px 28px;
-    border-radius:18px;
-    font-weight:600;
-    cursor:pointer;
-}
-
-/* MOCKUP */
-
-.mockup-wrapper{
-    position:relative;
-}
-
-.desktop-mockup{
-    width:100%;
-    border-radius:34px;
-    background:#0b0b0d;
-    border:1px solid rgba(255,255,255,.06);
-    overflow:hidden;
-    box-shadow:
-        0 50px 120px rgba(0,0,0,.5),
-        0 0 0 1px rgba(255,255,255,.04);
-}
-
-.topbar{
-    height:38px;
-    background:#f4f4f7;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    color:#222;
-    font-size:.82rem;
-    font-weight:600;
-}
-
-.desktop-content{
-    position:relative;
-    height:560px;
-    background:#070707;
-}
-
-.sidebar{
-    position:absolute;
-    top:18px;
-    left:18px;
-    width:62px;
-    background:#f5f5f7;
-    border-radius:24px;
-    padding:14px 0;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:18px;
-}
-
-.side-icon{
-    width:42px;
-    height:42px;
-    border-radius:14px;
-    background:#ececf2;
-}
-
-.launcher{
-    position:absolute;
-    top:26px;
-    left:90px;
-    width:370px;
-    height:470px;
-    background:#f4f4f6;
-    border-radius:28px;
-    padding:22px;
-    color:#1b1b22;
-}
-
-.search{
-    height:44px;
-    border-radius:16px;
-    background:#ebebf0;
-    margin-bottom:28px;
-}
-
-.apps{
-    display:grid;
-    grid-template-columns:repeat(4,1fr);
-    gap:20px;
-}
-
-.app{
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:8px;
-    font-size:.72rem;
-    color:#4f4f58;
-}
-
-.app-icon{
-    width:52px;
-    height:52px;
-    border-radius:18px;
-    background:linear-gradient(135deg,var(--primary),#d4ccff);
-}
-
-.quick-panel{
-    position:absolute;
-    top:30px;
-    right:30px;
-    width:360px;
-    background:#f4f4f6;
-    border-radius:28px;
-    padding:26px;
-    color:#1b1b22;
-}
-
-.quick-panel h3{
-    margin-bottom:18px;
-}
-
-.slider{
-    height:14px;
-    background:#d9dde8;
-    border-radius:99px;
-    margin-bottom:22px;
-    overflow:hidden;
-}
-
-.slider span{
-    display:block;
-    height:100%;
-    width:72%;
-    background:var(--orange);
-    border-radius:99px;
-}
-
-.slider.blue span{
-    background:var(--blue);
-    width:82%;
-}
-
-.cards{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:14px;
-}
-
-.card{
-    background:#ececf2;
-    border-radius:20px;
-    padding:18px;
-    min-height:90px;
-}
-
-/* FEATURES */
-
-.section{
-    padding:120px 0;
-}
-
-.section-title{
-    text-align:center;
-    margin-bottom:70px;
-}
-
-.section-title h2{
-    font-size:3rem;
-    margin-bottom:18px;
-}
-
-.section-title p{
-    color:#aaaab7;
-    max-width:700px;
-    margin:auto;
-    line-height:1.8;
-}
-
-.features{
-    display:grid;
-    grid-template-columns:repeat(3,1fr);
-    gap:26px;
-}
-
-.feature{
-    background:#141419;
-    border:1px solid rgba(255,255,255,.05);
-    border-radius:30px;
-    padding:34px;
-    transition:.25s;
-}
-
-.feature:hover{
-    transform:translateY(-6px);
-    border-color:rgba(157,140,255,.4);
-}
-
-.feature-icon{
-    width:62px;
-    height:62px;
-    border-radius:20px;
-    margin-bottom:24px;
-    background:linear-gradient(135deg,var(--primary),#c9beff);
-}
-
-.feature h3{
-    margin-bottom:14px;
-    font-size:1.35rem;
-}
-
-.feature p{
-    color:#adadba;
-    line-height:1.7;
-}
-
-/* SHOWCASE */
-
-.showcase{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:40px;
-}
-
-.showcase-card{
-    background:#141419;
-    border-radius:34px;
-    overflow:hidden;
-    border:1px solid rgba(255,255,255,.05);
-}
-
-.showcase-top{
-    height:280px;
-    background:linear-gradient(145deg,#202028,#101014);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-}
-
-.show-window{
-    width:75%;
-    height:70%;
-    background:#f4f4f6;
-    border-radius:24px;
-}
-
-.showcase-content{
-    padding:30px;
-}
-
-.showcase-content h3{
-    margin-bottom:12px;
-    font-size:1.5rem;
-}
-
-.showcase-content p{
-    color:#b1b1be;
-    line-height:1.7;
-}
-
-/* FOOTER */
-
-.footer{
-    padding:70px 0;
-    border-top:1px solid rgba(255,255,255,.05);
-}
-
-.footer-inner{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:20px;
-    flex-wrap:wrap;
-}
-
-.footer p{
-    color:#9999a7;
-}
-
-/* RESPONSIVE */
-
-@media(max-width:1100px){
-
-    .hero-grid,
-    .showcase{
-        grid-template-columns:1fr;
-    }
-
-    .features{
-        grid-template-columns:1fr;
-    }
-
-    .hero-left{
-        text-align:center;
-    }
-
-    .hero-left p{
-        margin:auto auto 38px;
-    }
-
-    .hero-buttons{
-        justify-content:center;
-    }
-}
-
-@media(max-width:768px){
-
-    .nav-links{
-        display:none;
-    }
-
-    .hero-left h1{
-        font-size:3.2rem;
-    }
-
-    .desktop-content{
-        height:480px;
-    }
-
-    .launcher{
-        transform:scale(.85);
-        transform-origin:left top;
-    }
-
-    .quick-panel{
-        transform:scale(.82);
-        transform-origin:right top;
-    }
-}
-
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoldOS | Minimalistyczna dystrybucja Wayland</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-
 <body>
-
-<nav class="navbar">
-    <div class="container nav-inner">
-
-        <div class="logo">
-            <div class="logo-box">K</div>
-            <span>Karton</span>
-        </div>
-
-        <div class="nav-links">
-            <a href="#features" data-i18n="nav_features">Funkcje</a>
-            <a href="#tektuta" data-i18n="nav_compositor">Kompozytor</a>
-            <a href="#showcase" data-i18n="nav_showcase">Wygląd</a>
-            <a href="#download" data-i18n="nav_download">Pobierz</a>
-        </div>
-
-        <div class="nav-right">
-            <button class="lang-switch" id="langBtn">EN</button>
-            <a href="https://github.com/mijsys/Tektura-i-Karton" class="download-btn" data-i18n="download">
-              Pobierz
+    <!-- Nagłówek -->
+    <header class="header">
+        <div class="container">
+            <a href="#" class="logo">
+                <img src="assets/foldos-logo.svg" alt="FoldOS Logo" width="40" height="40">
+                <span class="logo-text">FoldOS</span>
             </a>
+            <nav class="nav">
+                <a href="#features" class="nav-link">Cechy</a>
+                <a href="#screenshots" class="nav-link">Zrzuty</a>
+                <a href="#docs" class="nav-link">Dokumentacja</a>
+                <a href="#download" class="btn btn-primary">Pobierz</a>
+            </nav>
+            <button class="hamburger" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
         </div>
+    </header>
 
-    </div>
-</nav>
-
-<section class="hero">
-
-    <div class="container hero-grid">
-
-        <div class="hero-left">
-
-            <h1>
-                <span class="gradient">Karton</span><br>
-                Desktop Environment
-            </h1>
-
-            <p data-i18n="hero_desc">
-                Nowoczesne środowisko graficzne dla Linuxa z minimalistycznym
-                podejściem, pastelowym interfejsem oraz lekkim kompozytorem
-                Tektuta opartym o nowoczesny stack Wayland.
-            </p>
-
-            <div class="hero-buttons">
-                <button class="primary-btn" data-i18n="hero_btn_1">
-                    Rozpocznij
-                </button>
-
-                <button class="secondary-btn" data-i18n="hero_btn_2">
-                    Dokumentacja
-                </button>
-            </div>
-
-        </div>
-
-        <div class="mockup-wrapper">
-
-            <div class="desktop-mockup">
-
-                <div class="topbar">
-                  <span id="datetime"></span>
-                </div>
-                
-                <script>
-                  function updateDateTime() {
-                    const now = new Date();
-                    const days = ['nie.', 'pon.', 'wt.', 'śr.', 'czw.', 'pt.', 'sob.'];
-                    const months = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
-                    
-                    const dayName = days[now.getDay()];
-                    const day = now.getDate();
-                    const month = months[now.getMonth()];
-                    const hours = String(now.getHours()).padStart(2, '0');
-                    const minutes = String(now.getMinutes()).padStart(2, '0');
-                    
-                    document.getElementById('datetime').textContent = 
-                      `${dayName} ${day} ${month} ${hours}:${minutes}`;
-                  }
-                  
-                  updateDateTime();
-                  setInterval(updateDateTime, 1000);
-                </script>
-
-                <div class="desktop-content">
-
-                    <div class="sidebar">
-
-                        <div class="side-icon"></div>
-                        <div class="side-icon"></div>
-                        <div class="side-icon"></div>
-                        <div class="side-icon"></div>
-
-                    </div>
-
-                    <div class="launcher">
-
-                        <div class="search"></div>
-
-                        <div class="apps">
-
-                            <div class="app">
-                                <div class="app-icon"></div>
-                                <span>Ark</span>
-                            </div>
-
-                            <div class="app">
-                                <div class="app-icon"></div>
-                                <span>Files</span>
-                            </div>
-
-                            <div class="app">
-                                <div class="app-icon"></div>
-                                <span>Firefox</span>
-                            </div>
-
-                            <div class="app">
-                                <div class="app-icon"></div>
-                                <span>Root</span>
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                    <div class="quick-panel">
-
-                        <h3>Szybkie ustawienia</h3>
-
-                        <div class="slider">
-                            <span></span>
-                        </div>
-
-                        <div class="slider blue">
-                            <span></span>
-                        </div>
-
-                        <div class="cards">
-
-                            <div class="card"></div>
-                            <div class="card"></div>
-                            <div class="card"></div>
-                            <div class="card"></div>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-</section>
-
-<section class="section" id="features">
-
-    <div class="container">
-
-        <div class="section-title">
-            <h2 data-i18n="features_title">
-                Zaprojektowany dla nowoczesnego desktopu
-            </h2>
-
-            <p data-i18n="features_desc">
-                Karton skupia się na prostocie, szybkości oraz spójnym
-                doświadczeniu użytkownika bez zbędnego przeładowania funkcjami.
-            </p>
-        </div>
-
-        <div class="features">
-
-            <div class="feature">
-                <div class="feature-icon"></div>
-                <h3>Wayland Native</h3>
-                <p>
-                    Tektuta wykorzystuje nowoczesny rendering oraz płynne
-                    animacje przy zachowaniu niskiego użycia zasobów.
+    <!-- Sekcja Hero -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="hero-title">Przyszłość Linuxa jest <span class="hero-accent">złożona</span>.</h1>
+                <p class="hero-subtitle">
+                    FoldOS to **ultra-lekka dystrybucja** oparta o środowisko **Karton** i kompozytor **Tektura** na **Wayland**.
+                    Zaprojektowana dla **wydajności**, **minimalizmu** i **łatwej konfiguracji**.
                 </p>
-            </div>
-
-            <div class="feature">
-                <div class="feature-icon"></div>
-                <h3>Flat Pastel UI</h3>
-                <p>
-                    Interfejs inspirowany minimalistycznym designem oraz
-                    lekkimi środowiskami nowej generacji.
-                </p>
-            </div>
-
-            <div class="feature">
-                <div class="feature-icon"></div>
-                <h3>Modularność</h3>
-                <p>
-                    Możliwość wymiany komponentów, paneli oraz rozszerzeń
-                    bez przebudowy całego środowiska.
-                </p>
-            </div>
-
-        </div>
-
-    </div>
-
-</section>
-
-<section class="section" id="showcase">
-
-    <div class="container">
-
-        <div class="section-title">
-            <h2 data-i18n="showcase_title">
-                Spójny wygląd całego systemu
-            </h2>
-
-            <p data-i18n="showcase_desc">
-                Launcher, panel, ustawienia oraz aplikacje tworzą jednolity
-                język projektowy Kartona.
-            </p>
-        </div>
-
-        <div class="showcase">
-
-            <div class="showcase-card">
-
-                <div class="showcase-top">
-                    <div class="show-window"></div>
+                <div class="hero-buttons">
+                    <a href="#download" class="btn btn-primary btn-large">Pobierz FoldOS</a>
+                    <a href="#docs" class="btn btn-secondary btn-large">Zobacz dokumentację</a>
                 </div>
-
-                <div class="showcase-content">
-                    <h3>Launcher</h3>
-                    <p>
-                        Intuicyjny launcher z szybkim wyszukiwaniem aplikacji,
-                        kategoriami i nowoczesnym układem.
-                    </p>
-                </div>
-
             </div>
-
-            <div class="showcase-card">
-
-                <div class="showcase-top">
-                    <div class="show-window"></div>
-                </div>
-
-                <div class="showcase-content">
-                    <h3>Tektuta Compositor</h3>
-                    <p>
-                        Lekki kompozytor oparty o LabWC 
-                    </p>
-                </div>
-
+            <div class="hero-image">
+                <img src="assets/screenshot1.png" alt="FoldOS Desktop" class="hero-screenshot">
             </div>
-
         </div>
+    </section>
 
-    </div>
-
-</section>
-
-<section class="section" id="download">
-
-    <div class="container">
-
-      <div class="section-title">
-
-        <p data-i18n="download_desc">
-          Pobierz i wypróbuj Karton oraz Tektuta już dziś, dostępne na GitHubie jako open-source!
-        </p>
-      </div>
-
-      <div style="display:flex; justify-content:center; margin-top:40px;">
-        <a href="https://github.com/mijsys/Tektura-i-Karton" style="display:flex; align-items:center; gap:12px; background:linear-gradient(135deg,var(--primary),var(--primary-2)); color:white; padding:16px 32px; border-radius:18px; font-weight:700; transition:.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.017 12.017 0 0024 12c0-6.63-5.37-12-12-12z"/>
-          </svg>
-          <span>GitHub</span>
-        </a>
-      </div>
-
-    </div>
-
-</section>
-
-<footer class="footer">
-
-    <div class="container footer-inner">
-
-        <div class="logo">
-            <div class="logo-box">K</div>
-            <span>Karton</span>
+    <!-- Sekcja Cechy -->
+    <section id="features" class="features">
+        <div class="container">
+            <h2 class="section-title">Dlaczego FoldOS?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🖥️</div>
+                    <h3>Środowisko Karton</h3>
+                    <p>Minimalistyczne, lekkie i szybkie środowisko graficzne bez zbędnych elementów.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎨</div>
+                    <h3>Kompozytor Tektura</h3>
+                    <p>Waylandowy kompozytor z płynnymi animacjami i niskim zużyciem RAM.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Wydajność</h3>
+                    <p>Działa sprawnie nawet na starszym sprzęcie (1GB RAM, 10GB dysku).</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔧</div>
+                    <h3>Konfigurowalność</h3>
+                    <p>Dostosuj system do swoich potrzeb za pomocą prostych plików YAML.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h3>Bezpieczeństwo</h3>
+                    <p>Wayland domyślnie oferuje lepszą izolację aplikacji i ochronę przed keyloggerami.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📦</div>
+                    <h3>Pakiety</h3>
+                    <p>Dostęp do bogatej bazy oprogramowania (Flatpak, AUR, repozytoria FoldOS).</p>
+                </div>
+            </div>
         </div>
+    </section>
 
-        <p>
-            Karton Desktop Environment © 2026
-        </p>
+    <!-- Sekcja Zrzuty ekranu -->
+    <section id="screenshots" class="screenshots">
+        <div class="container">
+            <h2 class="section-title">Zobacz w działaniu</h2>
+            <div class="screenshots-grid">
+                <div class="screenshot-item">
+                    <img src="assets/screenshot1.png" alt="Pulpit FoldOS" class="screenshot-img">
+                    <p>Minimalistyczny pulpit Karton</p>
+                </div>
+                <div class="screenshot-item">
+                    <img src="assets/screenshot2.png" alt="Menu FoldOS" class="screenshot-img">
+                    <p>Menu aplikacji i Tektura</p>
+                </div>
+                <div class="screenshot-item">
+                    <img src="assets/screenshot1.png" alt="Terminal FoldOS" class="screenshot-img">
+                    <p>Terminal z motywem FoldOS</p>
+                </div>
+            </div>
+        </div>
+    </section>
 
-    </div>
+    <!-- Sekcja Dokumentacja -->
+    <section id="docs" class="docs">
+        <div class="container">
+            <h2 class="section-title">Dokumentacja</h2>
+            <div class="docs-grid">
+                <div class="doc-card">
+                    <div class="doc-icon">📖</div>
+                    <h3>Instalacja</h3>
+                    <p>Przewodnik krok po kroku, jak zainstalować FoldOS na swoim komputerze.</p>
+                    <a href="#" class="btn btn-small">Czytaj więcej</a>
+                </div>
+                <div class="doc-card">
+                    <div class="doc-icon">⚙️</div>
+                    <h3>Konfiguracja</h3>
+                    <p>Jak dostosować środowisko Karton i kompozytor Tektura do swoich potrzeb.</p>
+                    <a href="#" class="btn btn-small">Czytaj więcej</a>
+                </div>
+                <div class="doc-card">
+                    <div class="doc-icon">🐛</div>
+                    <h3>Rozwiązywanie problemów</h3>
+                    <p>Najczęstsze problemy i ich rozwiązania (FAQ, forum, GitHub).</p>
+                    <a href="#" class="btn btn-small">Czytaj więcej</a>
+                </div>
+            </div>
+        </div>
+    </section>
 
-</footer>
+    <!-- Sekcja Download -->
+    <section id="download" class="download">
+        <div class="container">
+            <h2 class="section-title">Pobierz FoldOS</h2>
+            <div class="download-content">
+                <p class="download-version">Najnowsza stabilna wersja: <strong>v1.0.0</strong> (11 maja 2026)</p>
+                <div class="download-buttons">
+                    <a href="#" class="btn btn-primary btn-large">Pobierz ISO (64-bit)</a>
+                    <a href="#" class="btn btn-secondary btn-large">Sprawdź sumę kontrolną</a>
+                </div>
+                <div class="download-requirements">
+                    <h4>Wymagania systemowe</h4>
+                    <ul>
+                        <li>Procesor: 1 GHz (x86_64)</li>
+                        <li>RAM: 1 GB (2 GB zalecane)</li>
+                        <li>Dysk: 10 GB wolnego miejsca</li>
+                        <li>Karta graficzna: Obsługa Wayland</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
 
-<script>
+    <!-- Stopka -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <a href="#" class="logo">
+                        <img src="assets/foldos-logo.svg" alt="FoldOS Logo" width="30" height="30">
+                        <span class="logo-text">FoldOS</span>
+                    </a>
+                    <p>Minimalistyczna dystrybucja Linux oparta o Wayland.</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Linki</h4>
+                    <a href="#">GitHub</a>
+                    <a href="#">Wiki</a>
+                    <a href="#">Forum</a>
+                    <a href="#">Discord</a>
+                </div>
+                <div class="footer-legal">
+                    <h4>Licencja</h4>
+                    <p>FoldOS jest dystrybuowany na licencji <a href="#">GPLv3</a>.</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 FoldOS. Wszelkie prawa zastrzeżone.</p>
+            </div>
+        </div>
+    </footer>
 
-const translations = {
+    <!-- Skrypt dla menu hamburger (mobile) -->
+    <script>
+        const hamburger = document.querySelector('.hamburger');
+        const nav = document.querySelector('.nav');
 
-    pl: {
-
-        nav_features: "Funkcje",
-        nav_compositor: "Kompozytor",
-        nav_showcase: "Wygląd",
-        nav_download: "Pobierz",
-
-        download: "Pobierz",
-
-        hero_desc:
-        "Nowoczesne środowisko graficzne dla Linuxa z minimalistycznym podejściem, pastelowym interfejsem oraz lekkim kompozytorem Tektuta opartym o nowoczesny stack Wayland.",
-
-        hero_btn_1: "Rozpocznij",
-        hero_btn_2: "Dokumentacja",
-
-        features_title:
-        "Zaprojektowany dla nowoczesnego desktopu",
-
-        features_desc:
-        "Karton skupia się na prostocie, szybkości oraz spójnym doświadczeniu użytkownika bez zbędnego przeładowania funkcjami.",
-
-        showcase_title:
-        "Spójny wygląd całego systemu",
-
-        showcase_desc:
-        "Launcher, panel, ustawienia oraz aplikacje tworzą jednolity język projektowy Kartona.",
-
-        download_title:
-        "Gotowy na GitHub Pages",
-
-        download_desc:
-        "Pobierz i wypróbuj Karton oraz Tektuta już dziś, dostępne na GitHubie jako open-source!"
-    },
-
-    en: {
-
-        nav_features: "Features",
-        nav_compositor: "Compositor",
-        nav_showcase: "Showcase",
-        nav_download: "Download",
-
-        download: "Download",
-
-        hero_desc:
-        "Modern Linux desktop environment focused on minimalism, pastel UI aesthetics and the lightweight Tektuta compositor powered by Wayland.",
-
-        hero_btn_1: "Get Started",
-        hero_btn_2: "Documentation",
-
-        features_title:
-        "Designed for modern desktop workflows",
-
-        features_desc:
-        "Karton focuses on simplicity, performance and a clean desktop experience without unnecessary complexity.",
-
-        showcase_title:
-        "Consistent visual language",
-
-        showcase_desc:
-        "Launcher, panel, quick settings and applications share one cohesive design system.",
-
-        download_title:
-        "Ready for GitHub Pages",
-
-        download_desc:
-        "Download and try Karton and Tektuta today, available on GitHub as open-source!"
-    }
-};
-
-let currentLang = "pl";
-
-const switcher = document.getElementById("langBtn");
-
-function updateLanguage(){
-
-    document.querySelectorAll("[data-i18n]").forEach(el => {
-
-        const key = el.getAttribute("data-i18n");
-
-        el.textContent = translations[currentLang][key];
-    });
-
-    switcher.textContent = currentLang === "pl" ? "EN" : "PL";
-}
-
-switcher.addEventListener("click", () => {
-
-    currentLang = currentLang === "pl" ? "en" : "pl";
-
-    updateLanguage();
-});
-
-updateLanguage();
-
-</script>
-
+        hamburger.addEventListener('click', () => {
+            nav.classList.toggle('nav-active');
+            hamburger.classList.toggle('hamburger-active');
+        });
+    </script>
 </body>
 </html>
