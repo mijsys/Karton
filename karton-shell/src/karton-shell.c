@@ -2171,38 +2171,35 @@ if (!strcmp(app->quick_connection_type, "wifi")
     return;
 }
 
-const char *password = NULL;
-if (app->quick_network_password_visible && app->quick_network_password[0]) {
-password = app->quick_network_password;
-} else if (app->quick_network_requires_password && !app->quick_network_has_saved_password) {
-app->quick_network_password_visible = true;
-app->quick_network_error[0] = '\0';
-request_top_panel_size(app);
-panel_draw(&app->top);
-return;
-}
+retry_connect:;
+    const char *password = NULL;
+    char pw_buf[512] = {0};
+    
+    if (app->quick_network_requires_password && !app->quick_network_has_saved_password) {
+        char cmd[1024];
+        snprintf(cmd, sizeof(cmd), "zenity --entry --title='%s' --text='%s' 2>/dev/null", _("Wi-Fi"), _("Podaj hasło do wybranej sieci (hasło widoczne w celu weryfikacji):"));
+        if (read_command_first_line(cmd, pw_buf, sizeof(pw_buf)) && pw_buf[0]) {
+            password = pw_buf;
+        } else {
+            reset_network_popup_state(app);
+            request_top_panel_size(app);
+            panel_draw(&app->top);
+            return;
+        }
+    }
 
-if (try_connect_wifi_network(app, ssid, password, error_text, sizeof(error_text))) {
-reset_network_popup_state(app);
-request_top_panel_size(app);
-panel_draw(&app->top);
-return;
-}
+    if (try_connect_wifi_network(app, ssid, password, error_text, sizeof(error_text))) {
+        reset_network_popup_state(app);
+        request_top_panel_size(app);
+        panel_draw(&app->top);
+        return;
+    }
 
-if (app->quick_network_requires_password
-|| app->quick_network_password_visible
-|| contains_nocase(error_text, "password")
-|| contains_nocase(error_text, "secret")) {
-app->quick_network_requires_password = true;
-app->quick_network_has_saved_password = false;
-app->quick_network_password_visible = true;
-snprintf(app->quick_network_error, sizeof(app->quick_network_error), "%.*s",
-         (int)sizeof(app->quick_network_error) - 1,
-         error_text[0] ? error_text : _("Invalid password. Try again."));
-request_top_panel_size(app);
-panel_draw(&app->top);
-return;
-}
+    if (app->quick_network_requires_password || contains_nocase(error_text, "password") || contains_nocase(error_text, "secret")) {
+        app->quick_network_requires_password = true;
+        app->quick_network_has_saved_password = false;
+        goto retry_connect;
+    }
 
 snprintf(app->quick_network_error, sizeof(app->quick_network_error), "%.*s",
          (int)sizeof(app->quick_network_error) - 1,

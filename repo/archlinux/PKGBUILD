@@ -68,7 +68,7 @@ package_tektura() {
 
 package_karton-shell() {
   pkgdesc='KartonDE shell with top panel, side dock and desktop popups'
-  depends=('cairo' 'gdk-pixbuf2' 'glib2' 'gtk4' 'libpulse' 'libxkbcommon' 'pango' 'wayland')
+  depends=('cairo' 'gdk-pixbuf2' 'glib2' 'gtk4' 'libpulse' 'libxkbcommon' 'pango' 'wayland' 'zenity')
 
   _install_component karton-shell "$pkgdir"
 }
