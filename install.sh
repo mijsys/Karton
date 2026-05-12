@@ -8,13 +8,15 @@ SHELL_DIR="$SCRIPT_DIR/karton-shell"
 SESSION_DIR="$SCRIPT_DIR/karton-session"
 SETTINGS_DIR="$SCRIPT_DIR/karton-settings"
 FILES_DIR="$SCRIPT_DIR/karton-files"
+TERMINAL_DIR="$SCRIPT_DIR/karton-terminal"
 
 PREFIX="${HOME}/.local-karton"
 USE_SUDO=0
 SYSTEM_MODE=0
 RESTART_SESSION=1
 DEV_SHELL_MODE=0
-SETUP_GREETD=0
+LOGIN_MANAGER_CHOICE="${KARTON_LOGIN_MANAGER:-}"
+LOGIN_MANAGER_EXPLICIT=0
 CONFIG_NAME="karton"
 ACTION="install"
 CURRENT_SESSION_TYPE="${XDG_SESSION_TYPE:-}"
@@ -25,7 +27,7 @@ print_usage() {
 Usage: ./install.sh [options] [command]
 
 Configure, build, and optionally install the Karton compositor, shell, session,
-and settings components.
+settings, files, and terminal components.
 
 Commands:
   install             Configure, build, and install all components (default)
@@ -36,6 +38,10 @@ Options:
   --prefix <path>     Install prefix (default: ~/.local-karton)
   --system            Install system-wide to /usr/local (uses sudo)
   --dev-shell         Point the running session to karton-shell/builddir-user
+  --setup-login-manager <name>
+                      Configure login manager: greetd|lightdm|sddm|gdm|ly|none
+  --no-setup-login-manager
+                      Skip login manager setup (equivalent to: --setup-login-manager none)
   --setup-greetd      Install and configure greetd + gtkgreet KartON theme
   --no-setup-greetd   Skip greetd/gtkgreet setup (default in system mode: enabled)
   --no-restart        Do not restart running karton session modules after install
@@ -47,6 +53,8 @@ Examples:
   ./install.sh compile
   ./install.sh --prefix "$HOME/.local-karton"
   ./install.sh --dev-shell
+  ./install.sh --setup-login-manager lightdm
+  ./install.sh --setup-login-manager none
   ./install.sh --setup-greetd
   ./install.sh --system --no-setup-greetd
   ./install.sh --system
@@ -134,6 +142,85 @@ warn_screenshot_runtime_deps() {
   fi
 }
 
+warn_monitor_runtime_deps() {
+  if command -v wlr-randr >/dev/null 2>&1; then
+    return
+  fi
+
+  log "Warning: monitor controls in karton-settings may run in limited mode; missing recommended tool: wlr-randr"
+
+  if command -v swaymsg >/dev/null 2>&1; then
+    log "Info: swaymsg is available as a fallback backend, but wlr-randr is recommended for wlroots compositors"
+  fi
+
+  if command -v pacman >/dev/null 2>&1; then
+    log "Install hint (Arch): sudo pacman -S --needed wlr-randr"
+  elif command -v apt >/dev/null 2>&1; then
+    log "Install hint (Debian/Ubuntu): sudo apt install wlr-randr"
+  elif command -v dnf >/dev/null 2>&1; then
+    log "Install hint (Fedora): sudo dnf install wlr-randr"
+  elif command -v zypper >/dev/null 2>&1; then
+    log "Install hint (openSUSE): sudo zypper install wlr-randr"
+  fi
+}
+
+warn_display_tweak_runtime_deps() {
+  local has_brightness_backend=0
+  local has_night_light_backend=0
+
+  if command -v karton-system-status >/dev/null 2>&1 \
+      || command -v brightnessctl >/dev/null 2>&1 \
+      || command -v ddcutil >/dev/null 2>&1; then
+    has_brightness_backend=1
+  fi
+
+  if command -v gammastep >/dev/null 2>&1 || command -v wlsunset >/dev/null 2>&1; then
+    has_night_light_backend=1
+  fi
+
+  if [[ "$has_brightness_backend" -eq 1 && "$has_night_light_backend" -eq 1 ]]; then
+    return
+  fi
+
+  if [[ "$has_brightness_backend" -eq 0 ]]; then
+    log "Warning: brightness controls may not work (missing backend: karton-system-status, brightnessctl or ddcutil)"
+  fi
+
+  if [[ "$has_night_light_backend" -eq 0 ]]; then
+    log "Warning: night light may not work (missing backend: gammastep or wlsunset)"
+  fi
+
+  if command -v pacman >/dev/null 2>&1; then
+    log "Install hint (Arch): sudo pacman -S --needed brightnessctl ddcutil gammastep"
+  elif command -v apt >/dev/null 2>&1; then
+    log "Install hint (Debian/Ubuntu): sudo apt install brightnessctl ddcutil gammastep"
+  elif command -v dnf >/dev/null 2>&1; then
+    log "Install hint (Fedora): sudo dnf install brightnessctl ddcutil gammastep"
+  elif command -v zypper >/dev/null 2>&1; then
+    log "Install hint (openSUSE): sudo zypper install brightnessctl ddcutil gammastep"
+  fi
+}
+
+warn_portal_runtime_deps() {
+  if command -v xdg-desktop-portal >/dev/null 2>&1 \
+      && (command -v xdg-desktop-portal-gtk >/dev/null 2>&1 \
+          || command -v xdg-desktop-portal-gnome >/dev/null 2>&1); then
+    return
+  fi
+
+  log "Warning: portal Inhibit interface may be unavailable (missing xdg-desktop-portal and/or GTK/GNOME backend)"
+
+  if command -v pacman >/dev/null 2>&1; then
+    log "Install hint (Arch): sudo pacman -S --needed xdg-desktop-portal xdg-desktop-portal-gtk"
+  elif command -v apt >/dev/null 2>&1; then
+    log "Install hint (Debian/Ubuntu): sudo apt install xdg-desktop-portal xdg-desktop-portal-gtk"
+  elif command -v dnf >/dev/null 2>&1; then
+    log "Install hint (Fedora): sudo dnf install xdg-desktop-portal xdg-desktop-portal-gtk"
+  elif command -v zypper >/dev/null 2>&1; then
+    log "Install hint (openSUSE): sudo zypper install xdg-desktop-portal xdg-desktop-portal-gtk"
+  fi
+}
+
 run_install() {
   if [[ "$USE_SUDO" -eq 1 ]]; then
     sudo meson install -C "$1"
@@ -184,10 +271,109 @@ pick_zypper_pkg() {
   return 1
 }
 
+normalize_login_manager_choice() {
+  local choice="${1,,}"
+
+  case "$choice" in
+    greetd|gtkgreet)
+      printf 'greetd\n'
+      return 0
+      ;;
+    lightdm|lightdm-gtk|lightdm-gtk-greeter)
+      printf 'lightdm\n'
+      return 0
+      ;;
+    sddm)
+      printf 'sddm\n'
+      return 0
+      ;;
+    gdm|gdm3)
+      printf 'gdm\n'
+      return 0
+      ;;
+    ly)
+      printf 'ly\n'
+      return 0
+      ;;
+    none|skip|brak|existing|system)
+      printf 'none\n'
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+prompt_login_manager_choice() {
+  log "Defaulting login manager setup to: lightdm"
+  LOGIN_MANAGER_CHOICE="lightdm"
+  return 0
+}
+
+resolve_login_manager_choice() {
+  local default_option
+
+  if [[ "$ACTION" != "install" ]]; then
+    if [[ -n "$LOGIN_MANAGER_CHOICE" ]]; then
+      if ! LOGIN_MANAGER_CHOICE="$(normalize_login_manager_choice "$LOGIN_MANAGER_CHOICE")"; then
+        die "Invalid login manager value: $LOGIN_MANAGER_CHOICE (expected: greetd|lightdm|sddm|gdm|ly|none)"
+      fi
+    else
+      LOGIN_MANAGER_CHOICE="none"
+    fi
+    return 0
+  fi
+
+  if [[ -n "$LOGIN_MANAGER_CHOICE" ]]; then
+    if ! LOGIN_MANAGER_CHOICE="$(normalize_login_manager_choice "$LOGIN_MANAGER_CHOICE")"; then
+      die "Invalid login manager value: $LOGIN_MANAGER_CHOICE (expected: greetd|lightdm|sddm|gdm|ly|none)"
+    fi
+    return 0
+  fi
+
+  if [[ "$SYSTEM_MODE" -eq 1 ]]; then
+    default_option=1
+  else
+    default_option=6
+  fi
+
+  if [[ ! -t 0 || ! -t 1 ]]; then
+    case "$default_option" in
+      1) LOGIN_MANAGER_CHOICE="lightdm" ;;
+      *) LOGIN_MANAGER_CHOICE="none" ;;
+    esac
+    log "No TTY detected, defaulting login manager setup to: $LOGIN_MANAGER_CHOICE"
+    return 0
+  fi
+
+  prompt_login_manager_choice "$default_option"
+}
+
+should_setup_greetd() {
+  [[ "$LOGIN_MANAGER_CHOICE" == "greetd" ]]
+}
+
+should_setup_lightdm() {
+  [[ "$LOGIN_MANAGER_CHOICE" == "lightdm" ]]
+}
+
+should_setup_sddm() {
+  [[ "$LOGIN_MANAGER_CHOICE" == "sddm" ]]
+}
+
+should_setup_gdm() {
+  [[ "$LOGIN_MANAGER_CHOICE" == "gdm" ]]
+}
+
+should_setup_ly() {
+  [[ "$LOGIN_MANAGER_CHOICE" == "ly" ]]
+}
+
 install_greetd_packages() {
   local gtk_greeter_pkg=""
 
-  [[ "$SETUP_GREETD" -eq 1 ]] || return 0
+  should_setup_greetd || return 0
 
   if command -v pacman >/dev/null 2>&1; then
     gtk_greeter_pkg="$(pick_pacman_pkg greetd-gtkgreet gtkgreet greetd-gtk-greeter greettdgtk greetdgtk || true)"
@@ -281,6 +467,184 @@ install_greetd_packages() {
   return 0
 }
 
+install_lightdm_packages() {
+  local greeter_pkg=""
+
+  should_setup_lightdm || return 0
+
+  if command -v pacman >/dev/null 2>&1; then
+    greeter_pkg="$(pick_pacman_pkg lightdm-gtk-greeter lightdm-slick-greeter || true)"
+    local pacman_packages=(lightdm)
+    if [[ -n "$greeter_pkg" ]]; then
+      pacman_packages+=("$greeter_pkg")
+    else
+      log "Warning: no LightDM greeter package found (lightdm-gtk-greeter/lightdm-slick-greeter)"
+    fi
+
+    log "Installing LightDM dependencies via pacman"
+    run_sudo_or_warn pacman -S --needed --noconfirm "${pacman_packages[@]}" || true
+    return 0
+  fi
+
+  if command -v apt >/dev/null 2>&1; then
+    local lightdm_pkg
+    lightdm_pkg="$(pick_apt_pkg lightdm || true)"
+    greeter_pkg="$(pick_apt_pkg lightdm-gtk-greeter slick-greeter || true)"
+    local apt_packages=()
+
+    [[ -n "$lightdm_pkg" ]] && apt_packages+=("$lightdm_pkg") || log "Warning: lightdm package not found in apt repositories"
+    [[ -n "$greeter_pkg" ]] && apt_packages+=("$greeter_pkg") || log "Warning: no LightDM greeter package found (lightdm-gtk-greeter/slick-greeter)"
+
+    if [[ "${#apt_packages[@]}" -gt 0 ]]; then
+      log "Installing LightDM dependencies via apt"
+      run_sudo_or_warn apt update || true
+      run_sudo_or_warn apt install -y "${apt_packages[@]}" || true
+    fi
+    return 0
+  fi
+
+  if command -v zypper >/dev/null 2>&1; then
+    local lightdm_pkg
+    lightdm_pkg="$(pick_zypper_pkg lightdm || true)"
+    greeter_pkg="$(pick_zypper_pkg lightdm-gtk-greeter lightdm-slick-greeter || true)"
+    local zypper_packages=()
+
+    [[ -n "$lightdm_pkg" ]] && zypper_packages+=("$lightdm_pkg") || log "Warning: lightdm package not found in zypper repositories"
+    [[ -n "$greeter_pkg" ]] && zypper_packages+=("$greeter_pkg") || log "Warning: no LightDM greeter package found (lightdm-gtk-greeter/lightdm-slick-greeter)"
+
+    if [[ "${#zypper_packages[@]}" -gt 0 ]]; then
+      log "Installing LightDM dependencies via zypper"
+      run_sudo_or_warn zypper install -y "${zypper_packages[@]}" || true
+    fi
+    return 0
+  fi
+
+  log "Warning: unsupported package manager; skipping LightDM package installation"
+  return 0
+}
+
+install_sddm_packages() {
+  should_setup_sddm || return 0
+
+  if command -v pacman >/dev/null 2>&1; then
+    log "Installing SDDM via pacman"
+    run_sudo_or_warn pacman -S --needed --noconfirm sddm || true
+    return 0
+  fi
+
+  if command -v apt >/dev/null 2>&1; then
+    local sddm_pkg
+    sddm_pkg="$(pick_apt_pkg sddm || true)"
+    if [[ -n "$sddm_pkg" ]]; then
+      log "Installing SDDM via apt"
+      run_sudo_or_warn apt update || true
+      run_sudo_or_warn apt install -y "$sddm_pkg" || true
+    else
+      log "Warning: sddm package not found in apt repositories"
+    fi
+    return 0
+  fi
+
+  if command -v zypper >/dev/null 2>&1; then
+    local sddm_pkg
+    sddm_pkg="$(pick_zypper_pkg sddm || true)"
+    if [[ -n "$sddm_pkg" ]]; then
+      log "Installing SDDM via zypper"
+      run_sudo_or_warn zypper install -y "$sddm_pkg" || true
+    else
+      log "Warning: sddm package not found in zypper repositories"
+    fi
+    return 0
+  fi
+
+  log "Warning: unsupported package manager; skipping SDDM package installation"
+  return 0
+}
+
+install_gdm_packages() {
+  should_setup_gdm || return 0
+
+  if command -v pacman >/dev/null 2>&1; then
+    log "Installing GDM via pacman"
+    run_sudo_or_warn pacman -S --needed --noconfirm gdm || true
+    return 0
+  fi
+
+  if command -v apt >/dev/null 2>&1; then
+    local gdm_pkg
+    gdm_pkg="$(pick_apt_pkg gdm3 gdm || true)"
+    if [[ -n "$gdm_pkg" ]]; then
+      log "Installing GDM via apt"
+      run_sudo_or_warn apt update || true
+      run_sudo_or_warn apt install -y "$gdm_pkg" || true
+    else
+      log "Warning: gdm/gdm3 package not found in apt repositories"
+    fi
+    return 0
+  fi
+
+  if command -v zypper >/dev/null 2>&1; then
+    local gdm_pkg
+    gdm_pkg="$(pick_zypper_pkg gdm gdm3 || true)"
+    if [[ -n "$gdm_pkg" ]]; then
+      log "Installing GDM via zypper"
+      run_sudo_or_warn zypper install -y "$gdm_pkg" || true
+    else
+      log "Warning: gdm/gdm3 package not found in zypper repositories"
+    fi
+    return 0
+  fi
+
+  log "Warning: unsupported package manager; skipping GDM package installation"
+  return 0
+}
+
+install_ly_packages() {
+  should_setup_ly || return 0
+
+  if command -v pacman >/dev/null 2>&1; then
+    log "Installing Ly via pacman"
+    run_sudo_or_warn pacman -S --needed --noconfirm ly || true
+    return 0
+  fi
+
+  if command -v apt >/dev/null 2>&1; then
+    local ly_pkg
+    ly_pkg="$(pick_apt_pkg ly || true)"
+    if [[ -n "$ly_pkg" ]]; then
+      log "Installing Ly via apt"
+      run_sudo_or_warn apt update || true
+      run_sudo_or_warn apt install -y "$ly_pkg" || true
+    else
+      log "Warning: ly package not found in apt repositories"
+    fi
+    return 0
+  fi
+
+  if command -v zypper >/dev/null 2>&1; then
+    local ly_pkg
+    ly_pkg="$(pick_zypper_pkg ly || true)"
+    if [[ -n "$ly_pkg" ]]; then
+      log "Installing Ly via zypper"
+      run_sudo_or_warn zypper install -y "$ly_pkg" || true
+    else
+      log "Warning: ly package not found in zypper repositories"
+    fi
+    return 0
+  fi
+
+  log "Warning: unsupported package manager; skipping Ly package installation"
+  return 0
+}
+
+install_login_manager_packages() {
+  install_greetd_packages
+  install_lightdm_packages
+  install_sddm_packages
+  install_gdm_packages
+  install_ly_packages
+}
+
 setup_greetd_workspace_config() {
   local greetd_dir="/etc/greetd"
   local greetd_cfg="$greetd_dir/config.toml"
@@ -299,7 +663,7 @@ setup_greetd_workspace_config() {
   local stripped_tmp
   local backup_file
 
-  [[ "$SETUP_GREETD" -eq 1 ]] || return 0
+  should_setup_greetd || return 0
 
   [[ -f "$src_cfg" ]] || die "Missing greetd config template: $src_cfg"
   [[ -f "$src_css" ]] || die "Missing greetd style template: $src_css"
@@ -332,9 +696,9 @@ setup_greetd_workspace_config() {
     return 0
   fi
 
-  session_command="$gtkgreet_bin --config $gtkgreet_cfg --style $gtkgreet_css"
+  session_command="$gtkgreet_bin  --style $gtkgreet_css"
   if command -v cage >/dev/null 2>&1; then
-    session_command="cage -s -- $session_command"
+    session_command="env WLR_NO_HARDWARE_CURSORS=1 WLR_DRM_NO_ATOMIC=1 cage -s -- $session_command"
   fi
 
   tmp_file="$(mktemp)"
@@ -423,6 +787,133 @@ EOF
   fi
 }
 
+setup_lightdm_workspace_config() {
+  local lightdm_dir="/etc/lightdm"
+  local lightdm_conf_dir="$lightdm_dir/lightdm.conf.d"
+  local lightdm_conf="$lightdm_conf_dir/90-karton.conf"
+  local greeter_conf="$lightdm_dir/lightdm-gtk-greeter.conf"
+  local src_conf="$SCRIPT_DIR/repo/lightdm/90-karton.conf"
+  local src_greeter_conf="$SCRIPT_DIR/repo/lightdm/lightdm-gtk-greeter.conf"
+
+  should_setup_lightdm || return 0
+
+  log "Configuring LightDM for KartON session"
+  run_sudo_or_warn install -d -m 755 "$lightdm_conf_dir" || return 0
+
+  if [[ -f "$src_conf" ]]; then
+    if ! run_sudo_or_warn install -m 644 "$src_conf" "$lightdm_conf"; then
+      log "Warning: cannot install $lightdm_conf"
+      return 0
+    fi
+  else
+    log "Warning: missing repo lightdm config template: $src_conf"
+  fi
+
+  if [[ -f "$src_greeter_conf" ]]; then
+    run_sudo_or_warn install -m 644 "$src_greeter_conf" "$greeter_conf" || true
+  else
+    log "Warning: missing repo lightdm greeter template: $src_greeter_conf"
+  fi
+
+  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files lightdm.service >/dev/null 2>&1; then
+    log "Enabling lightdm service"
+    sudo systemctl enable lightdm.service >/dev/null 2>&1 || true
+  fi
+}
+
+setup_sddm_workspace_config() {
+  local sddm_conf_dir="/etc/sddm.conf.d"
+  local sddm_conf="$sddm_conf_dir/90-karton.conf"
+  local src_conf="$SCRIPT_DIR/repo/sddm/90-karton.conf"
+
+  should_setup_sddm || return 0
+
+  log "Configuring SDDM for KartON session"
+  run_sudo_or_warn install -d -m 755 "$sddm_conf_dir" || return 0
+  if [[ -f "$src_conf" ]]; then
+    run_sudo_or_warn install -m 644 "$src_conf" "$sddm_conf" || true
+  else
+    log "Warning: missing repo sddm config template: $src_conf"
+  fi
+
+  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files sddm.service >/dev/null 2>&1; then
+    log "Enabling sddm service"
+    sudo systemctl enable sddm.service >/dev/null 2>&1 || true
+  fi
+}
+
+setup_gdm_workspace_config() {
+  local gdm_assets_dir="/usr/local/share/karton/gdm"
+  local src_css="$SCRIPT_DIR/repo/gdm/karton-shell.css"
+  local src_readme="$SCRIPT_DIR/repo/gdm/README.md"
+
+  should_setup_gdm || return 0
+
+  log "Configuring GDM for KartON session"
+  if run_sudo_or_warn install -d -m 755 "$gdm_assets_dir"; then
+    [[ -f "$src_css" ]] && run_sudo_or_warn install -m 644 "$src_css" "$gdm_assets_dir/karton-shell.css" || true
+    [[ -f "$src_readme" ]] && run_sudo_or_warn install -m 644 "$src_readme" "$gdm_assets_dir/README.md" || true
+  fi
+
+  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files gdm.service >/dev/null 2>&1; then
+    log "Enabling gdm service"
+    sudo systemctl enable gdm.service >/dev/null 2>&1 || true
+  elif command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files gdm3.service >/dev/null 2>&1; then
+    log "Enabling gdm3 service"
+    sudo systemctl enable gdm3.service >/dev/null 2>&1 || true
+  else
+    log "Warning: gdm service unit not found"
+  fi
+}
+
+setup_ly_workspace_config() {
+  local ly_conf="/etc/ly/config.ini"
+  local src_ly_conf="$SCRIPT_DIR/repo/ly/config.ini"
+
+  should_setup_ly || return 0
+
+  log "Configuring Ly for KartON session"
+  if [[ -f "$src_ly_conf" ]]; then
+    run_sudo_or_warn install -d -m 755 /etc/ly || true
+    run_sudo_or_warn install -m 644 "$src_ly_conf" "$ly_conf" || true
+  else
+    log "Warning: missing repo Ly config template: $src_ly_conf"
+  fi
+
+  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files ly.service >/dev/null 2>&1; then
+    log "Enabling ly service"
+    sudo systemctl enable ly.service >/dev/null 2>&1 || true
+  else
+    log "Warning: ly service unit not found"
+  fi
+}
+
+setup_selected_login_manager() {
+  case "$LOGIN_MANAGER_CHOICE" in
+    greetd)
+      setup_greetd_workspace_config
+      ;;
+    lightdm)
+      setup_lightdm_workspace_config
+      ;;
+    sddm)
+      setup_sddm_workspace_config
+      ;;
+    gdm)
+      setup_gdm_workspace_config
+      ;;
+    ly)
+      setup_ly_workspace_config
+      ;;
+    none)
+      log "Skipping login manager setup"
+      ;;
+    *)
+      log "Warning: unknown login manager choice: $LOGIN_MANAGER_CHOICE"
+      ;;
+  esac
+}
+
 prepare_installed_shell_targets() {
   if [[ "$ACTION" != "install" || "$SYSTEM_MODE" -ne 0 || "$DEV_SHELL_MODE" -eq 1 ]]; then
     return
@@ -431,7 +922,7 @@ prepare_installed_shell_targets() {
   mkdir -p "$PREFIX/bin"
 
   local name target_bin backup_bin
-  for name in karton-shell karton-system-status karton-dialog karton-dialogd; do
+  for name in karton-shell karton-system-status; do
     target_bin="$PREFIX/bin/$name"
     backup_bin="$PREFIX/bin/$name.installed"
 
@@ -448,7 +939,7 @@ cleanup_installed_shell_backups() {
   fi
 
   local name target_bin backup_bin
-  for name in karton-shell karton-system-status karton-dialog karton-dialogd; do
+  for name in karton-shell karton-system-status; do
     target_bin="$PREFIX/bin/$name"
     backup_bin="$PREFIX/bin/$name.installed"
 
@@ -475,6 +966,76 @@ install_shell_icons() {
     else
       mkdir -p "$dest"
       cp "$SCRIPT_DIR"/icons/*.svg "$dest/"
+    fi
+  done
+}
+
+install_cursor_build_tool() {
+  if command -v xcursorgen >/dev/null 2>&1; then
+    return 0
+  fi
+
+  log "xcursorgen not found, attempting to install cursor build dependency"
+
+  if command -v pacman >/dev/null 2>&1; then
+    # Arch Linux: pakiet to xorg-xcursorgen
+    run_sudo_or_warn pacman -S --needed --noconfirm xorg-xcursorgen || true
+  elif command -v apt >/dev/null 2>&1; then
+    # Debian/Ubuntu: pakiet to x11-apps (zawiera xcursorgen)
+    run_sudo_or_warn apt update || true
+    run_sudo_or_warn apt install -y x11-apps || true
+  elif command -v zypper >/dev/null 2>&1; then
+    # openSUSE: pakiet to xcursorgen
+    run_sudo_or_warn zypper install -y xcursorgen || true
+  elif command -v dnf >/dev/null 2>&1; then
+    # Fedora/RHEL: pakiet to xorg-x11-apps
+    run_sudo_or_warn dnf install -y xorg-x11-apps || true
+  fi
+
+  # Ponowne sprawdzenie po próbie instalacji
+  if ! command -v xcursorgen >/dev/null 2>&1; then
+    log "Warning: xcursorgen still unavailable, KartON cursor theme will use inherited fallbacks"
+  fi
+}
+
+install_cursor_themes() {
+  if [[ "$ACTION" != "install" ]]; then
+    return
+  fi
+
+  local src_root="$SCRIPT_DIR/repo/cursors"
+  [[ -d "$src_root" ]] || return
+
+  install_cursor_build_tool
+
+  local build_script="$src_root/build-karton-cursors.sh"
+  if [[ -f "$build_script" ]]; then
+    log "Building KartON cursor binaries"
+    if ! "$build_script"; then
+      log "Warning: failed to build KartON cursor binaries, continuing with inherited cursor fallback"
+    fi
+  fi
+
+  local themes=(KartONCursorLight KartONCursorDark)
+  local theme
+
+  log "Installing KartON cursor themes"
+  for theme in "${themes[@]}"; do
+    local src_dir="$src_root/$theme"
+    [[ -d "$src_dir" ]] || continue
+
+    if [[ "$USE_SUDO" -eq 1 ]]; then
+      local dst_sys="/usr/local/share/icons/$theme"
+      sudo mkdir -p "$dst_sys"
+      sudo cp -R "$src_dir"/. "$dst_sys"/
+    else
+      local dst_user="${XDG_DATA_HOME:-$HOME/.local/share}/icons/$theme"
+      mkdir -p "$dst_user"
+      cp -R "$src_dir"/. "$dst_user"/
+
+      local dst_prefix="$PREFIX/share/icons/$theme"
+      mkdir -p "$dst_prefix"
+      cp -R "$src_dir"/. "$dst_prefix"/
     fi
   done
 }
@@ -533,10 +1094,12 @@ ensure_user_config() {
   local desktop_src="$PREFIX/share/applications/karton-settings.desktop"
   local desktop_src_appid="$PREFIX/share/applications/io.karton.Settings.desktop"
   local files_desktop_src_appid="$PREFIX/share/applications/io.karton.Files.desktop"
+  local terminal_desktop_src_appid="$PREFIX/share/applications/io.karton.Terminal.desktop"
   local desktop_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
   local icon_src="$PREFIX/share/icons/hicolor/scalable/apps/karton-settings.svg"
   local icon_src_appid="$PREFIX/share/icons/hicolor/scalable/apps/io.karton.Settings.svg"
   local files_icon_src_appid="$PREFIX/share/icons/hicolor/scalable/apps/io.karton.Files.svg"
+  local terminal_icon_src_appid="$PREFIX/share/icons/hicolor/scalable/apps/io.karton.Terminal.svg"
   local icon_dir="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor/scalable/apps"
   local managed_ssd_block
   local xkb_layout=""
@@ -762,9 +1325,11 @@ EOF
   copy_user_desktop_file "$desktop_src" "$desktop_dir/karton-settings.desktop" "$icon_src_appid"
   copy_user_desktop_file "$desktop_src_appid" "$desktop_dir/io.karton.Settings.desktop" "$icon_src_appid"
   copy_user_desktop_file "$files_desktop_src_appid" "$desktop_dir/io.karton.Files.desktop" "$files_icon_src_appid"
+  copy_user_desktop_file "$terminal_desktop_src_appid" "$desktop_dir/io.karton.Terminal.desktop" "$terminal_icon_src_appid"
   copy_optional_user_data "$icon_src" "$icon_dir/karton-settings.svg"
   copy_optional_user_data "$icon_src_appid" "$icon_dir/io.karton.Settings.svg"
   copy_optional_user_data "$files_icon_src_appid" "$icon_dir/io.karton.Files.svg"
+  copy_optional_user_data "$terminal_icon_src_appid" "$icon_dir/io.karton.Terminal.svg"
 }
 
 migrate_legacy_config() {
@@ -823,6 +1388,11 @@ EOF
 
   cat <<EOF
 
+Selected login manager setup: ${LOGIN_MANAGER_CHOICE:-none}
+EOF
+
+  cat <<EOF
+
 If you installed Karton while another desktop environment or compositor was already running,
 log out to your display manager (or your current login/session manager), then start a fresh
 Karton session so the new session files, binaries, and environment are picked up cleanly.
@@ -846,7 +1416,7 @@ switch_session_shell_to_dev() {
   local name dev_bin target_bin backup_bin
   local linked=0
 
-  for name in karton-shell karton-system-status karton-dialog karton-dialogd; do
+  for name in karton-shell karton-system-status; do
     dev_bin="$SCRIPT_DIR/karton-shell/builddir-user/$name"
     [[ -x "$dev_bin" ]] || die "Missing development binary: $dev_bin"
 
@@ -889,17 +1459,16 @@ restart_running_session() {
   pkill -f 'karton-settingsd' 2>/dev/null || true
   pkill -f 'karton-notifyd' 2>/dev/null || true
   pkill -f 'karton-notify-log' 2>/dev/null || true
-  pkill -x karton-dialogd 2>/dev/null || true
   pkill -f "dbus-monitor --session interface='org.freedesktop.Notifications',member='Notify'" 2>/dev/null || true
 
   local attempts=30
-  while pgrep -fa 'karton-sessiond|karton-shell --top-only|karton-shell --side-only|karton-screenshot --daemon|karton-settingsd|karton-notifyd|karton-notify-log|karton-dialogd' >/dev/null 2>&1 \
+  while pgrep -fa 'karton-sessiond|karton-shell --top-only|karton-shell --side-only|karton-screenshot --daemon|karton-settingsd|karton-notifyd|karton-notify-log' >/dev/null 2>&1 \
     && [[ "$attempts" -gt 0 ]]; do
     attempts=$((attempts - 1))
     sleep 0.1
   done
 
-  if pgrep -fa 'karton-sessiond|karton-shell --top-only|karton-shell --side-only|karton-screenshot --daemon|karton-settingsd|karton-notifyd|karton-notify-log|karton-dialogd' >/dev/null 2>&1; then
+  if pgrep -fa 'karton-sessiond|karton-shell --top-only|karton-shell --side-only|karton-screenshot --daemon|karton-settingsd|karton-notifyd|karton-notify-log' >/dev/null 2>&1; then
     log "Forcing shutdown of leftover karton session processes"
     pkill -KILL -f 'karton-shell --top-only' 2>/dev/null || true
     pkill -KILL -f 'karton-shell --side-only' 2>/dev/null || true
@@ -909,7 +1478,6 @@ restart_running_session() {
     pkill -KILL -f 'karton-settingsd' 2>/dev/null || true
     pkill -KILL -f 'karton-notifyd' 2>/dev/null || true
     pkill -KILL -f 'karton-notify-log' 2>/dev/null || true
-    pkill -KILL -x karton-dialogd 2>/dev/null || true
   fi
 
   if command -v karton >/dev/null 2>&1; then
@@ -950,19 +1518,36 @@ while [[ $# -gt 0 ]]; do
       SYSTEM_MODE=1
       PREFIX="/usr/local"
       USE_SUDO=1
-      SETUP_GREETD=1
+      if [[ "$LOGIN_MANAGER_EXPLICIT" -eq 0 && -z "$LOGIN_MANAGER_CHOICE" ]]; then
+        LOGIN_MANAGER_CHOICE="lightdm"
+      fi
       shift
       ;;
     --dev-shell)
       DEV_SHELL_MODE=1
       shift
       ;;
+    --setup-login-manager)
+      [[ $# -ge 2 ]] || die "--setup-login-manager requires a value"
+      if ! LOGIN_MANAGER_CHOICE="$(normalize_login_manager_choice "$2")"; then
+        die "Invalid login manager value: $2 (expected: greetd|lightdm|sddm|gdm|ly|none)"
+      fi
+      LOGIN_MANAGER_EXPLICIT=1
+      shift 2
+      ;;
+    --no-setup-login-manager)
+      LOGIN_MANAGER_CHOICE="none"
+      LOGIN_MANAGER_EXPLICIT=1
+      shift
+      ;;
     --setup-greetd)
-      SETUP_GREETD=1
+      LOGIN_MANAGER_CHOICE="lightdm"
+      LOGIN_MANAGER_EXPLICIT=1
       shift
       ;;
     --no-setup-greetd)
-      SETUP_GREETD=0
+      LOGIN_MANAGER_CHOICE="none"
+      LOGIN_MANAGER_EXPLICIT=1
       shift
       ;;
     --no-restart)
@@ -979,6 +1564,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+resolve_login_manager_choice
+
 if [[ "$SYSTEM_MODE" -eq 0 && "$EUID" -eq 0 ]]; then
   die "User mode install must not be run as root. Run ./install.sh (without sudo) or use --system."
 fi
@@ -991,12 +1578,13 @@ need_cmd ninja
 [[ -d "$SESSION_DIR" ]] || die "Missing directory: $SESSION_DIR"
 [[ -d "$SETTINGS_DIR" ]] || die "Missing directory: $SETTINGS_DIR"
 [[ -d "$FILES_DIR" ]] || die "Missing directory: $FILES_DIR"
+[[ -d "$TERMINAL_DIR" ]] || die "Missing directory: $TERMINAL_DIR"
 
 if [[ "$USE_SUDO" -eq 1 ]]; then
   need_cmd sudo
 fi
 
-if [[ "$SETUP_GREETD" -eq 1 ]]; then
+if [[ "$ACTION" == "install" && "$LOGIN_MANAGER_CHOICE" != "none" ]]; then
   need_cmd sudo
 fi
 
@@ -1012,15 +1600,21 @@ build_project "$SHELL_DIR"
 build_project "$SESSION_DIR"
 build_project "$SETTINGS_DIR"
 build_project "$FILES_DIR"
+build_project "$TERMINAL_DIR"
 
 if [[ "$ACTION" == "install" && "$SYSTEM_MODE" -eq 0 ]]; then
   migrate_legacy_config
   ensure_user_config
+  warn_monitor_runtime_deps
+  warn_display_tweak_runtime_deps
   warn_screenshot_runtime_deps
+  warn_portal_runtime_deps
 fi
 
 if [[ "$ACTION" == "install" ]]; then
-  setup_greetd_workspace_config
+  install_cursor_themes
+  install_login_manager_packages
+  setup_selected_login_manager
   switch_session_shell_to_dev
   restart_running_session
 
