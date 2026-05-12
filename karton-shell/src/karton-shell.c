@@ -1977,6 +1977,8 @@ char *argv[] = {
     "device",
     "wifi",
     "list",
+    "--rescan",
+    "no",
     NULL,
 };
 char output[8192] = { 0 };
@@ -9083,6 +9085,7 @@ panel_draw(&app->top);
 return;
 }
 if (point_in_rect(app->pointer_x, app->pointer_y, nx + 26.0 + button_w, button_y, button_w, 34.0)) {
+top_popup_close(app);
 open_settings_page("network");
 return;
 }
