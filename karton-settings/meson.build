@@ -9,6 +9,7 @@ add_project_arguments('-DLOCALEDIR="@0@"'.format(localedir_abs), language: 'c')
 gtk4_dep = dependency('gtk4')
 glib_dep = dependency('glib-2.0')
 gio_dep = dependency('gio-2.0')
+gio_unix_dep = dependency('gio-unix-2.0')
 
 src_files = [
   'src/page-appearance.c',
@@ -45,7 +46,7 @@ resources = gnome.compile_resources(
 
 executable('karton-settings',
   src_files, resources,
-  dependencies: [gtk4_dep, glib_dep, gio_dep],
+  dependencies: [gtk4_dep, glib_dep, gio_dep, gio_unix_dep],
   install: true
 )
 
