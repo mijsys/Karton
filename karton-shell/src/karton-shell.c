@@ -9139,7 +9139,7 @@ double px, py, pw, ph;
 if (top_quick_panel_rect(&app->top, &px, &py, &pw, &ph)) {
 double action_w = (pw - 42.0) / 2.0;
 double action_h = 42.0;
-double action_y = py + 136.0;
+double action_y = py + 196.0;
 for (int i = 0; i < 4; i++) {
 int row = i / 2;
 int col = i % 2;
