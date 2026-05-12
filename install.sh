@@ -800,6 +800,13 @@ setup_lightdm_workspace_config() {
   log "Configuring LightDM for KartON session"
   run_sudo_or_warn install -d -m 755 "$lightdm_conf_dir" || return 0
 
+  if [[ -d "$SCRIPT_DIR/repo/lightdm/Karton-LightDM" ]]; then
+    log "Installing GTK theme: Karton-LightDM"
+    run_sudo_or_warn install -d -m 755 /usr/share/themes/Karton-LightDM/gtk-3.0
+    run_sudo_or_warn install -m 644 "$SCRIPT_DIR/repo/lightdm/Karton-LightDM/index.theme" /usr/share/themes/Karton-LightDM/
+    run_sudo_or_warn install -m 644 "$SCRIPT_DIR/repo/lightdm/Karton-LightDM/gtk-3.0/gtk.css" /usr/share/themes/Karton-LightDM/gtk-3.0/
+  fi
+
   if [[ -f "$src_conf" ]]; then
     if ! run_sudo_or_warn install -m 644 "$src_conf" "$lightdm_conf"; then
       log "Warning: cannot install $lightdm_conf"

@@ -1,0 +1,67 @@
+/* KartON LightDM GTK Greeter Theme */
+@import url("resource:///org/gtk/libgtk/theme/Adwaita/gtk-contained-dark.css");
+
+window#greeter_host {
+    background-color: #101625;
+    background-image: none;
+}
+
+#login_window {
+    background-color: rgba(22, 28, 43, 0.9);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    padding: 24px;
+}
+
+#login_window entry {
+    border-radius: 6px;
+    background-color: #1f273b;
+    border: 1px solid #323d57;
+    color: #ffffff;
+    padding: 10px;
+    caret-color: #4a90e2;
+}
+
+#login_window entry:focus {
+    border-color: #4a90e2;
+    box-shadow: 0 0 5px rgba(74, 144, 226, 0.5);
+}
+
+#login_window button {
+    border-radius: 6px;
+    background-color: #4a90e2;
+    color: #ffffff;
+    font-weight: bold;
+    border: none;
+    padding: 10px 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+#login_window button:hover {
+    background-color: #5c9cea;
+}
+
+#login_window button:active {
+    background-color: #3b74b6;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+#user_image {
+    border-radius: 50%;
+    margin-bottom: 12px;
+}
+
+#panel {
+    background-color: rgba(16, 22, 37, 0.85);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#panel button, #panel menuitem {
+    color: #a0a6b5;
+}
+
+#panel button:hover, #panel menuitem:hover {
+    color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.1);
+}

@@ -83,6 +83,15 @@ setup_lightdm_karton_theme() {
 
     echo "==> Konfiguruje LightDM pod sesje KartON"
     sudo install -d -m 755 "$lightdm_conf_dir"
+    
+    # Kopiowanie motywu KartON-LightDM
+    if [[ -d "$project_root/repo/lightdm/Karton-LightDM" ]]; then
+        echo "==> Instalowanie motywu GTK: Karton-LightDM"
+        sudo install -d -m 755 /usr/share/themes/Karton-LightDM/gtk-3.0
+        sudo install -m 644 "$project_root/repo/lightdm/Karton-LightDM/index.theme" /usr/share/themes/Karton-LightDM/
+        sudo install -m 644 "$project_root/repo/lightdm/Karton-LightDM/gtk-3.0/gtk.css" /usr/share/themes/Karton-LightDM/gtk-3.0/
+    fi
+
     if [[ -f "$src_conf" ]]; then
         sudo install -m 644 "$src_conf" "$lightdm_conf"
     else
