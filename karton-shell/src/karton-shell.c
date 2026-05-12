@@ -6044,8 +6044,8 @@ top_quick_panel_content_height(const struct panel *panel, double avail_h)
     }
 
     if (app->top_popup_mode == TOP_POPUP_AUDIO) {
-        size_t shown_outputs = app->quick_output_count < 3 ? app->quick_output_count : 3;
-        size_t shown_inputs = app->quick_input_count < 3 ? app->quick_input_count : 3;
+        size_t shown_outputs = app->quick_output_count;
+        size_t shown_inputs = app->quick_input_count;
                 desired_h = 396.0 + (double)(shown_outputs + shown_inputs) * 24.0;
                 desired_h = clamp_double(desired_h, 430.0, avail_h);
         return desired_h;
@@ -6468,7 +6468,7 @@ return -1;
 }
 
 if (!input_device) {
-size_t shown = app->quick_output_count < 3 ? app->quick_output_count : 3;
+size_t shown = app->quick_output_count;
 for (size_t i = 0; i < shown; i++) {
 double row_y = qy + 290.0 + i * 24.0;
 if (point_in_rect(px, py, qx + 16.0, row_y, qw - 32.0, 20.0)) {
@@ -6478,9 +6478,9 @@ return (int)i;
 return -1;
 }
 
-size_t shown_outputs = app->quick_output_count < 3 ? app->quick_output_count : 3;
+size_t shown_outputs = app->quick_output_count;
 double inputs_y = qy + 290.0 + shown_outputs * 24.0 + 18.0;
-size_t shown_inputs = app->quick_input_count < 3 ? app->quick_input_count : 3;
+size_t shown_inputs = app->quick_input_count;
 for (size_t i = 0; i < shown_inputs; i++) {
 double row_y = inputs_y + 24.0 + i * 24.0;
 if (point_in_rect(px, py, qx + 16.0, row_y, qw - 32.0, 20.0)) {
@@ -7794,7 +7794,7 @@ for (int i = 0; i < 2; i++) {
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
 11.2, style->quick_title_text, 0.86, qx + 18.0, qy + 266.0,
 (int)qw - 36, PANGO_ALIGN_LEFT, _("Output devices"));
-size_t shown_outputs = panel->app->quick_output_count < 3 ? panel->app->quick_output_count : 3;
+size_t shown_outputs = panel->app->quick_output_count;
 for (size_t i = 0; i < shown_outputs; i++) {
 double row_y = qy + 290.0 + i * 24.0;
 set_source_hex_a(cairo, dark ? 0x253555 : 0xf7f9fd, 0.86);
@@ -7817,7 +7817,7 @@ double inputs_y = qy + 290.0 + shown_outputs * 24.0 + 18.0;
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
 11.2, style->quick_title_text, 0.86, qx + 18.0, inputs_y,
 (int)qw - 36, PANGO_ALIGN_LEFT, _("Input devices"));
-size_t shown_inputs = panel->app->quick_input_count < 3 ? panel->app->quick_input_count : 3;
+size_t shown_inputs = panel->app->quick_input_count;
 for (size_t i = 0; i < shown_inputs; i++) {
 double row_y = inputs_y + 24.0 + i * 24.0;
 set_source_hex_a(cairo, dark ? 0x253555 : 0xf7f9fd, 0.86);
