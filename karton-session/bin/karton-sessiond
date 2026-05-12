@@ -284,4 +284,9 @@ start_component_supervised karton-screenshot --daemon
 start_component karton-settingsd
 start_component karton-notifyd
 
-wait
+while :; do
+        wait || res=$?
+        if [ "${res:-0}" -le 128 ]; then
+                break
+        fi
+done

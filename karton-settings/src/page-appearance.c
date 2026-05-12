@@ -1082,7 +1082,7 @@ static gboolean apply_wallpaper_with_swaybg(const char *path) {
     g_free(swaybg);
 
     gchar *kill_argv[] = { "pkill", "-x", "swaybg", NULL };
-    g_spawn_async(NULL, kill_argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL);
+    g_spawn_sync(NULL, kill_argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, NULL);
 
     gchar *argv[] = { "swaybg", "-i", (gchar *)path, "-m", "fill", NULL };
     GError *error = NULL;
