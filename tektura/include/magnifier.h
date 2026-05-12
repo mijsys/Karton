@@ -15,6 +15,7 @@ enum magnify_dir {
 };
 
 void magnifier_toggle(void);
+void magnifier_set_enabled(bool enable);
 void magnifier_set_scale(enum magnify_dir dir);
 bool output_wants_magnification(struct output *output);
 void magnifier_draw(struct output *output, struct wlr_buffer *output_buffer,

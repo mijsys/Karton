@@ -245,16 +245,26 @@ enable_magnifier(bool enable)
 		: server.direct_scanout_enabled;
 }
 
-/* Toggles magnification on and off */
 void
-magnifier_toggle(void)
+magnifier_set_enabled(bool enable)
 {
-	enable_magnifier(!magnify_on);
+	if (magnify_on == enable) {
+		return;
+	}
+
+	enable_magnifier(enable);
 
 	struct output *output = output_nearest_to_cursor();
 	if (output) {
 		wlr_output_schedule_frame(output->wlr_output);
 	}
+}
+
+/* Toggles magnification on and off */
+void
+magnifier_toggle(void)
+{
+	magnifier_set_enabled(!magnify_on);
 }
 
 /* Increases and decreases magnification scale */

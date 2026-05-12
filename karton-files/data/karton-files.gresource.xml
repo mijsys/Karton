@@ -20,5 +20,13 @@
     <file alias="place-trash.svg">icons/manager-place-trash.svg</file>
     <file alias="place-drive.svg">icons/manager-place-drive.svg</file>
     <file alias="place-network.svg">icons/manager-place-network.svg</file>
+    <file alias="action-back.svg">icons/manager-action-back.svg</file>
+    <file alias="action-up.svg">icons/manager-action-up.svg</file>
+    <file alias="action-refresh.svg">icons/manager-action-refresh.svg</file>
+    <file alias="action-settings.svg">icons/manager-action-settings.svg</file>
+    <file alias="action-zoom.svg">icons/manager-action-zoom.svg</file>
+    <file alias="action-grid.svg">icons/manager-action-grid.svg</file>
+    <file alias="action-list.svg">icons/manager-action-list.svg</file>
+    <file alias="terminal.svg">icons/manager-terminal.svg</file>
   </gresource>
 </gresources>

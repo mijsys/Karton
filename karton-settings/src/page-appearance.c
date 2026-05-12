@@ -14,6 +14,8 @@ static GtkWidget *g_transparency_scale = NULL;
 static GtkWidget *g_text_scale_slider = NULL;
 static GtkWidget *g_animation_switch = NULL;
 static GtkWidget *g_font_dropdown = NULL;
+static GtkWidget *g_cursor_dropdown = NULL;
+static GtkWidget *g_cursor_size_slider = NULL;
 static GtkWidget *g_wallpaper_entry = NULL;
 static GtkWidget *g_lockscreen_entry = NULL;
 static GtkWidget *g_wallpaper_status_label = NULL;
@@ -24,12 +26,28 @@ static GSettings *g_interface_settings = NULL;
 static GSettings *g_background_settings = NULL;
 static GSettings *g_screensaver_settings = NULL;
 static GtkStringList *g_font_model = NULL;
+static GtkStringList *g_cursor_model = NULL;
+static GPtrArray *g_cursor_values = NULL;
 
 static guint g_theme_apply_timeout_id = 0;
+static guint g_file_sync_timeout_id = 0;
+static guint g_transparency_write_timeout_id = 0;
+static guint g_cursor_size_write_timeout_id = 0;
+static guint g_text_scale_write_timeout_id = 0;
 static gboolean g_block_runtime_handlers = FALSE;
+
+static int g_pending_transparency_value = 0;
+static int g_pending_cursor_size_value = 24;
+static double g_pending_text_scale_value = 1.0;
 
 static void schedule_apply_current_mode(void);
 static void sync_controls_from_gsettings(void);
+static void populate_installed_cursor_themes(const char *preferred_value);
+static guint cursor_index_from_value(const char *value);
+
+static gboolean flush_transparency_timeout(gpointer data);
+static gboolean flush_cursor_size_timeout(gpointer data);
+static gboolean flush_text_scale_timeout(gpointer data);
 
 typedef struct {
     GtkWidget *entry;
@@ -63,6 +81,14 @@ static char *transparency_path(void) {
 
 static char *desktop_effects_path(void) {
     return g_build_filename(g_get_home_dir(), ".config", "karton", "desktop-effects", NULL);
+}
+
+static char *cursor_theme_path(void) {
+    return g_build_filename(g_get_home_dir(), ".config", "karton", "cursor-theme", NULL);
+}
+
+static char *cursor_size_path(void) {
+    return g_build_filename(g_get_home_dir(), ".config", "karton", "cursor-size", NULL);
 }
 
 static char *wallpaper_override_path(void) {
@@ -157,6 +183,123 @@ static gint compare_string_ptrs(gconstpointer a, gconstpointer b) {
     const char *sa = *((char * const *)a);
     const char *sb = *((char * const *)b);
     return g_ascii_strcasecmp(sa, sb);
+}
+
+static gboolean dir_has_cursor_theme(const char *path) {
+    if (!path || !*path) {
+        return FALSE;
+    }
+
+    char *cursors = g_build_filename(path, "cursors", NULL);
+    gboolean has_cursors = g_file_test(cursors, G_FILE_TEST_IS_DIR);
+    g_free(cursors);
+
+    if (!has_cursors) {
+        return FALSE;
+    }
+
+    char *index_theme = g_build_filename(path, "index.theme", NULL);
+    gboolean has_index = g_file_test(index_theme, G_FILE_TEST_IS_REGULAR);
+    g_free(index_theme);
+
+    return has_index;
+}
+
+static void collect_cursor_themes_from_base(const char *base, GHashTable *seen, GPtrArray *names) {
+    if (!base || !*base || !g_file_test(base, G_FILE_TEST_IS_DIR)) {
+        return;
+    }
+
+    GDir *dir = g_dir_open(base, 0, NULL);
+    if (!dir) {
+        return;
+    }
+
+    const char *entry = NULL;
+    while ((entry = g_dir_read_name(dir)) != NULL) {
+        if (entry[0] == '.') {
+            continue;
+        }
+
+        char *theme_dir = g_build_filename(base, entry, NULL);
+        gboolean include = dir_has_cursor_theme(theme_dir);
+        g_free(theme_dir);
+        if (!include) {
+            continue;
+        }
+
+        char *norm = g_utf8_strdown(entry, -1);
+        if (g_hash_table_contains(seen, norm)) {
+            g_free(norm);
+            continue;
+        }
+
+        g_hash_table_add(seen, norm);
+        g_ptr_array_add(names, g_strdup(entry));
+    }
+
+    g_dir_close(dir);
+}
+
+static void clear_cursor_options(void) {
+    if (!g_cursor_model || !g_cursor_values) {
+        return;
+    }
+
+    while (g_list_model_get_n_items(G_LIST_MODEL(g_cursor_model)) > 0) {
+        guint last = g_list_model_get_n_items(G_LIST_MODEL(g_cursor_model)) - 1;
+        gtk_string_list_remove(g_cursor_model, last);
+    }
+    g_ptr_array_set_size(g_cursor_values, 0);
+}
+
+static void append_cursor_option(const char *label, const char *value) {
+    if (!g_cursor_model || !g_cursor_values || !label || !value) {
+        return;
+    }
+    gtk_string_list_append(g_cursor_model, label);
+    g_ptr_array_add(g_cursor_values, g_strdup(value));
+}
+
+static void populate_installed_cursor_themes(const char *preferred_value) {
+    if (!g_cursor_model || !g_cursor_values || !g_cursor_dropdown) {
+        return;
+    }
+
+    clear_cursor_options();
+    append_cursor_option(_("Automatic (KartON Light/Dark)"), "auto");
+
+    GPtrArray *names = g_ptr_array_new_with_free_func(g_free);
+    GHashTable *seen = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+
+    char *home_icons = g_build_filename(g_get_home_dir(), ".icons", NULL);
+    char *home_local_icons = g_build_filename(g_get_home_dir(), ".local", "share", "icons", NULL);
+
+    collect_cursor_themes_from_base("/usr/share/icons", seen, names);
+    collect_cursor_themes_from_base("/usr/local/share/icons", seen, names);
+    collect_cursor_themes_from_base(home_icons, seen, names);
+    collect_cursor_themes_from_base(home_local_icons, seen, names);
+
+    g_free(home_icons);
+    g_free(home_local_icons);
+
+    g_ptr_array_sort(names, compare_string_ptrs);
+    for (guint i = 0; i < names->len; i++) {
+        const char *name = g_ptr_array_index(names, i);
+        append_cursor_option(name, name);
+    }
+
+    guint selected = cursor_index_from_value(preferred_value);
+    if (selected == GTK_INVALID_LIST_POSITION) {
+        selected = 0;
+    }
+
+    g_block_runtime_handlers = TRUE;
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(g_cursor_dropdown), selected);
+    g_block_runtime_handlers = FALSE;
+
+    g_hash_table_unref(seen);
+    g_ptr_array_unref(names);
 }
 
 static void populate_system_fonts(const char *preferred_family) {
@@ -591,6 +734,54 @@ static void sync_controls_from_files(void) {
         g_free(raw);
     }
 
+    if (g_cursor_dropdown) {
+        char *cfg = cursor_theme_path();
+        char *value = read_text_file_trimmed(cfg);
+        g_free(cfg);
+
+        guint item_count = g_cursor_values ? g_cursor_values->len : 0;
+        if (item_count == 0) {
+            populate_installed_cursor_themes(value);
+        } else {
+            const char *wanted = (value && *value) ? value : "auto";
+            guint selected = cursor_index_from_value(wanted);
+            if (selected == GTK_INVALID_LIST_POSITION) {
+                populate_installed_cursor_themes(value);
+            } else if (gtk_drop_down_get_selected(GTK_DROP_DOWN(g_cursor_dropdown)) != selected) {
+                g_block_runtime_handlers = TRUE;
+                gtk_drop_down_set_selected(GTK_DROP_DOWN(g_cursor_dropdown), selected);
+                g_block_runtime_handlers = FALSE;
+            }
+        }
+        g_free(value);
+    }
+
+    if (g_cursor_size_slider) {
+        char *cfg = cursor_size_path();
+        char *raw = read_text_file_trimmed(cfg);
+        g_free(cfg);
+
+        int size = 24;
+        if (raw && *raw) {
+            char *end = NULL;
+            long parsed = strtol(raw, &end, 10);
+            if (end != raw && *end == '\0') {
+                if (parsed < 16) {
+                    parsed = 16;
+                }
+                if (parsed > 64) {
+                    parsed = 64;
+                }
+                size = (int)parsed;
+            }
+        }
+        g_free(raw);
+
+        g_block_runtime_handlers = TRUE;
+        gtk_range_set_value(GTK_RANGE(g_cursor_size_slider), (double)size);
+        g_block_runtime_handlers = FALSE;
+    }
+
 }
 
 static void read_initial_mode(void) {
@@ -598,6 +789,13 @@ static void read_initial_mode(void) {
     update_active_button(mode);
     g_free(mode);
     sync_controls_from_files();
+}
+
+static gboolean sync_from_files_timeout(gpointer data) {
+    (void)data;
+    read_initial_mode();
+    g_file_sync_timeout_id = 0;
+    return G_SOURCE_REMOVE;
 }
 
 static gboolean is_theme_mode_file(GFile *file) {
@@ -609,6 +807,8 @@ static gboolean is_theme_mode_file(GFile *file) {
         g_strcmp0(base, "theme-mode") == 0 ||
         g_strcmp0(base, "window-transparency") == 0 ||
         g_strcmp0(base, "desktop-effects") == 0 ||
+        g_strcmp0(base, "cursor-theme") == 0 ||
+        g_strcmp0(base, "cursor-size") == 0 ||
         g_strcmp0(base, "wallpaper-path") == 0 ||
         g_strcmp0(base, "lockscreen-path") == 0;
     g_free(base);
@@ -626,7 +826,11 @@ static void on_theme_file_changed(GFileMonitor *monitor, GFile *file, GFile *oth
         if (!is_theme_mode_file(file) && !is_theme_mode_file(other_file)) {
             return;
         }
-        read_initial_mode();
+        if (g_file_sync_timeout_id) {
+            g_source_remove(g_file_sync_timeout_id);
+            g_file_sync_timeout_id = 0;
+        }
+        g_file_sync_timeout_id = g_timeout_add(120, sync_from_files_timeout, NULL);
     }
 }
 
@@ -802,9 +1006,18 @@ static void on_transparency_changed(GtkRange *range, gpointer data) {
         return;
     }
 
-    int val = (int)gtk_range_get_value(range);
+    g_pending_transparency_value = (int)gtk_range_get_value(range);
+    if (g_transparency_write_timeout_id) {
+        g_source_remove(g_transparency_write_timeout_id);
+        g_transparency_write_timeout_id = 0;
+    }
+    g_transparency_write_timeout_id = g_timeout_add(140, flush_transparency_timeout, NULL);
+}
+
+static gboolean flush_transparency_timeout(gpointer data) {
+    (void)data;
     char *path = transparency_path();
-    char *txt = g_strdup_printf("%d\n", val);
+    char *txt = g_strdup_printf("%d\n", g_pending_transparency_value);
 
     if (write_text_file(path, txt)) {
         schedule_apply_current_mode();
@@ -812,6 +1025,8 @@ static void on_transparency_changed(GtkRange *range, gpointer data) {
 
     g_free(txt);
     g_free(path);
+    g_transparency_write_timeout_id = 0;
+    return G_SOURCE_REMOVE;
 }
 
 static void on_font_changed(GObject *obj, GParamSpec *pspec, gpointer data) {
@@ -970,7 +1185,19 @@ static void on_text_scale_changed(GtkRange *range, gpointer data) {
         return;
     }
 
-    set_text_scale_value(gtk_range_get_value(range), TRUE);
+    g_pending_text_scale_value = gtk_range_get_value(range);
+    if (g_text_scale_write_timeout_id) {
+        g_source_remove(g_text_scale_write_timeout_id);
+        g_text_scale_write_timeout_id = 0;
+    }
+    g_text_scale_write_timeout_id = g_timeout_add(120, flush_text_scale_timeout, NULL);
+}
+
+static gboolean flush_text_scale_timeout(gpointer data) {
+    (void)data;
+    set_text_scale_value(g_pending_text_scale_value, TRUE);
+    g_text_scale_write_timeout_id = 0;
+    return G_SOURCE_REMOVE;
 }
 
 static void on_text_scale_default_clicked(GtkButton *btn, gpointer data) {
@@ -998,6 +1225,72 @@ static void on_animation_toggled(GObject *obj, GParamSpec *pspec, gpointer data)
         schedule_apply_current_mode();
     }
     g_free(cfg);
+}
+
+static const char *cursor_value_from_index(guint idx) {
+    if (!g_cursor_values || idx >= g_cursor_values->len) {
+        return "auto";
+    }
+    return g_ptr_array_index(g_cursor_values, idx);
+}
+
+static guint cursor_index_from_value(const char *value) {
+    if (!g_cursor_values || g_cursor_values->len == 0 || !value || !*value) {
+        return 0;
+    }
+
+    for (guint i = 0; i < g_cursor_values->len; i++) {
+        const char *item = g_ptr_array_index(g_cursor_values, i);
+        if (g_ascii_strcasecmp(item, value) == 0) {
+            return i;
+        }
+    }
+
+    return GTK_INVALID_LIST_POSITION;
+}
+
+static void on_cursor_changed(GObject *obj, GParamSpec *pspec, gpointer data) {
+    (void)obj;
+    (void)pspec;
+    (void)data;
+    if (g_block_runtime_handlers || !g_cursor_dropdown) {
+        return;
+    }
+
+    guint idx = gtk_drop_down_get_selected(GTK_DROP_DOWN(g_cursor_dropdown));
+    const char *value = cursor_value_from_index(idx);
+    char *cfg = cursor_theme_path();
+    if (write_text_file(cfg, value)) {
+        schedule_apply_current_mode();
+    }
+    g_free(cfg);
+}
+
+static void on_cursor_size_changed(GtkRange *range, gpointer data) {
+    (void)data;
+    if (g_block_runtime_handlers) {
+        return;
+    }
+
+    g_pending_cursor_size_value = (int)gtk_range_get_value(range);
+    if (g_cursor_size_write_timeout_id) {
+        g_source_remove(g_cursor_size_write_timeout_id);
+        g_cursor_size_write_timeout_id = 0;
+    }
+    g_cursor_size_write_timeout_id = g_timeout_add(140, flush_cursor_size_timeout, NULL);
+}
+
+static gboolean flush_cursor_size_timeout(gpointer data) {
+    (void)data;
+    char *cfg = cursor_size_path();
+    char *txt = g_strdup_printf("%d\n", g_pending_cursor_size_value);
+    if (write_text_file(cfg, txt)) {
+        schedule_apply_current_mode();
+    }
+    g_free(txt);
+    g_free(cfg);
+    g_cursor_size_write_timeout_id = 0;
+    return G_SOURCE_REMOVE;
 }
 
 static void sync_controls_from_gsettings(void) {
@@ -1063,6 +1356,30 @@ static void on_page_destroy(GtkWidget *widget, gpointer data) {
     if (g_theme_apply_timeout_id) {
         g_source_remove(g_theme_apply_timeout_id);
         g_theme_apply_timeout_id = 0;
+    }
+    if (g_file_sync_timeout_id) {
+        g_source_remove(g_file_sync_timeout_id);
+        g_file_sync_timeout_id = 0;
+    }
+    if (g_transparency_write_timeout_id) {
+        g_source_remove(g_transparency_write_timeout_id);
+        g_transparency_write_timeout_id = 0;
+    }
+    if (g_cursor_size_write_timeout_id) {
+        g_source_remove(g_cursor_size_write_timeout_id);
+        g_cursor_size_write_timeout_id = 0;
+    }
+    if (g_text_scale_write_timeout_id) {
+        g_source_remove(g_text_scale_write_timeout_id);
+        g_text_scale_write_timeout_id = 0;
+    }
+    if (g_cursor_model) {
+        g_object_unref(g_cursor_model);
+        g_cursor_model = NULL;
+    }
+    if (g_cursor_values) {
+        g_ptr_array_unref(g_cursor_values);
+        g_cursor_values = NULL;
     }
 }
 
@@ -1180,6 +1497,19 @@ GtkWidget *page_appearance_new(void) {
     g_animation_switch = gtk_switch_new();
     g_signal_connect(g_animation_switch, "notify::active", G_CALLBACK(on_animation_toggled), NULL);
     gtk_box_append(GTK_BOX(ux_box), create_row(_("Animations"), g_animation_switch));
+
+    gtk_box_append(GTK_BOX(ux_box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
+    g_cursor_model = gtk_string_list_new(NULL);
+    g_cursor_values = g_ptr_array_new_with_free_func(g_free);
+    g_cursor_dropdown = gtk_drop_down_new(G_LIST_MODEL(g_cursor_model), NULL);
+    g_signal_connect(g_cursor_dropdown, "notify::selected", G_CALLBACK(on_cursor_changed), NULL);
+    gtk_box_append(GTK_BOX(ux_box), create_row(_("Cursor theme"), g_cursor_dropdown));
+
+    g_cursor_size_slider = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 16, 64, 1);
+    gtk_scale_set_digits(GTK_SCALE(g_cursor_size_slider), 0);
+    gtk_scale_set_draw_value(GTK_SCALE(g_cursor_size_slider), TRUE);
+    g_signal_connect(g_cursor_size_slider, "value-changed", G_CALLBACK(on_cursor_size_changed), NULL);
+    gtk_box_append(GTK_BOX(ux_box), create_slider_row(_("Cursor size"), _("Pointer size in pixels"), g_cursor_size_slider));
 
     gtk_box_append(GTK_BOX(box), ux_frame);
 

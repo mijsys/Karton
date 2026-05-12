@@ -10,6 +10,11 @@
 #define N_(s) s
 #define MOUSE_BUTTON_BACK 8
 #define MOUSE_BUTTON_FORWARD 9
+#define UI_ICON_SIZE 16
+#define NAV_ICON_SIZE 14
+#define STATUS_ICON_SIZE 14
+#define PLACE_ICON_SIZE 15
+#define SEARCH_MAX_RESULTS 400
 
 #define PLACE_TOKEN_RECENT "@recent"
 #define PLACE_TOKEN_FAVORITES "@favorites"
@@ -49,12 +54,16 @@ typedef struct {
     GtkWidget *settings_button;
     GtkWidget *back_button;
     GtkWidget *up_button;
+    GtkWidget *grid_mode_button;
+    GtkWidget *list_mode_button;
     GtkAdjustment *zoom_adjustment;
     GPtrArray *history;
     guint history_index;
     char *current_token;
     char *active_item_token;
+    char *selection_anchor_token;
     gboolean active_item_is_dir;
+    GHashTable *selected_tokens;
     char *clipboard_token;
     gboolean clipboard_cut;
     ActionRecord last_action;
@@ -63,8 +72,7 @@ typedef struct {
     gboolean has_redo_action;
     gboolean show_hidden_files;
     gboolean open_files_on_single_click;
-    char *last_click_token;
-    gint64 last_click_time_us;
+    gboolean list_view;
     int icon_size;
     gboolean suppress_sidebar_signal;
     GVolumeMonitor *volume_monitor;
@@ -93,6 +101,8 @@ typedef struct {
     GtkWidget *entry;
 } NewFileDialogContext;
 
+static void on_volume_mount_done(GObject *source_object, GAsyncResult *result, gpointer user_data);
+
 static gboolean navigate_to_token(FilesState *state, const char *raw_token, gboolean add_history);
 static void refresh_current_view(FilesState *state);
 static void rebuild_sidebar(FilesState *state);
@@ -104,6 +114,18 @@ static gboolean redo_last_action(FilesState *state);
 static void on_back_clicked(GtkButton *button, gpointer user_data);
 static void on_up_clicked(GtkButton *button, gpointer user_data);
 static void apply_window_theme_class(GtkWidget *window);
+static gboolean token_points_to_directory(const char *token);
+static gboolean search_in_current_location(FilesState *state, const char *query);
+static void apply_view_mode(FilesState *state);
+
+static gboolean copy_token_to_directory(const char *src_token, const char *dest_dir_token, char **out_dst_token, gboolean *out_is_dir, GError **error);
+static gboolean copy_drop_value_to_destination(FilesState *state, const GValue *value, const char *dest_dir_token);
+static GdkContentProvider *on_tile_drag_prepare(GtkDragSource *source, double x, double y, gpointer user_data);
+static gboolean on_tile_drop(GtkDropTarget *target, const GValue *value, double x, double y, gpointer user_data);
+static gboolean on_flowbox_drop(GtkDropTarget *target, const GValue *value, double x, double y, gpointer user_data);
+static void refresh_tile_selection_visuals(FilesState *state);
+static void clear_selected_items(FilesState *state);
+static void select_all_visible_items(FilesState *state);
 
 static gboolean is_recent_token(const char *token) {
     return g_strcmp0(token, PLACE_TOKEN_RECENT) == 0;
@@ -127,6 +149,20 @@ static gboolean is_local_path_token(const char *token) {
 
 static gboolean is_browsable_token(const char *token) {
     return is_local_path_token(token) || is_uri_token(token);
+}
+
+static gboolean is_trash_token(const char *token) {
+    if (!token || !is_local_path_token(token)) {
+        return FALSE;
+    }
+
+    char *trash_root = g_build_filename(g_get_home_dir(), ".local", "share", "Trash", "files", NULL);
+    size_t root_len = strlen(trash_root);
+    gboolean is_match = g_str_has_prefix(token, trash_root)
+        && (token[root_len] == '\0' || token[root_len] == '/');
+    g_free(trash_root);
+
+    return is_match;
 }
 
 static GFile *file_from_token(const char *token) {
@@ -156,6 +192,50 @@ static char *token_from_file(GFile *file) {
     }
 
     return g_file_get_uri(file);
+}
+
+static GtkWidget *create_icon_button(const char *icon_name, const char *tooltip) {
+    GtkWidget *button = gtk_button_new();
+    GtkWidget *icon = NULL;
+
+    if (icon_name && g_str_has_prefix(icon_name, "/io/karton/Files/icons/")) {
+        icon = gtk_picture_new_for_resource(icon_name);
+        gtk_picture_set_content_fit(GTK_PICTURE(icon), GTK_CONTENT_FIT_CONTAIN);
+        gtk_picture_set_can_shrink(GTK_PICTURE(icon), TRUE);
+        gtk_widget_set_size_request(icon, NAV_ICON_SIZE, NAV_ICON_SIZE);
+    } else {
+        icon = gtk_image_new_from_icon_name(icon_name);
+        gtk_image_set_pixel_size(GTK_IMAGE(icon), NAV_ICON_SIZE);
+    }
+
+    gtk_widget_add_css_class(icon, "toolbar-icon");
+
+    gtk_button_set_child(GTK_BUTTON(button), icon);
+    gtk_widget_add_css_class(button, "nav-button");
+
+    if (tooltip && *tooltip) {
+        gtk_widget_set_tooltip_text(button, tooltip);
+    }
+
+    return button;
+}
+
+static void open_directory_in_new_tab(FilesState *state, const char *token) {
+    if (!state || !token || !token_points_to_directory(token)) {
+        return;
+    }
+
+    GtkApplication *app = gtk_window_get_application(GTK_WINDOW(state->window));
+    if (!app) {
+        return;
+    }
+
+    GtkWidget *new_window = karton_files_window_new(app);
+    FilesState *new_state = g_object_get_data(G_OBJECT(new_window), "files-state");
+    if (new_state) {
+        navigate_to_token(new_state, token, TRUE);
+    }
+    gtk_window_present(GTK_WINDOW(new_window));
 }
 
 static void file_item_free(gpointer data) {
@@ -205,7 +285,11 @@ static void clear_box(GtkWidget *box) {
     GtkWidget *child = gtk_widget_get_first_child(box);
     while (child) {
         GtkWidget *next = gtk_widget_get_next_sibling(child);
-        gtk_box_remove(GTK_BOX(box), child);
+        if (GTK_IS_LIST_BOX(box)) {
+            gtk_list_box_remove(GTK_LIST_BOX(box), child);
+        } else {
+            gtk_box_remove(GTK_BOX(box), child);
+        }
         child = next;
     }
 }
@@ -235,6 +319,15 @@ static void action_record_copy(ActionRecord *dest, const ActionRecord *src) {
     dest->is_dir = src->is_dir;
 }
 
+static void set_selection_anchor(FilesState *state, const char *token) {
+    if (!state) {
+        return;
+    }
+
+    g_free(state->selection_anchor_token);
+    state->selection_anchor_token = (token && *token) ? g_strdup(token) : NULL;
+}
+
 static void remember_action(FilesState *state, ActionType type, const char *src_token, const char *dst_token, gboolean is_dir) {
     action_record_clear(&state->last_action);
     state->last_action.type = type;
@@ -251,6 +344,220 @@ static void set_active_item(FilesState *state, const char *token, gboolean is_di
     g_free(state->active_item_token);
     state->active_item_token = g_strdup(token);
     state->active_item_is_dir = is_dir;
+}
+
+static GHashTable *ensure_selected_tokens(FilesState *state) {
+    if (!state) {
+        return NULL;
+    }
+
+    if (!state->selected_tokens) {
+        state->selected_tokens = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+    }
+
+    return state->selected_tokens;
+}
+
+static guint selected_items_count(FilesState *state) {
+    if (!state || !state->selected_tokens) {
+        return 0;
+    }
+
+    return g_hash_table_size(state->selected_tokens);
+}
+
+static gboolean is_item_selected(FilesState *state, const char *token) {
+    if (!state || !state->selected_tokens || !token || !*token) {
+        return FALSE;
+    }
+
+    return g_hash_table_contains(state->selected_tokens, token);
+}
+
+static void clear_selected_items(FilesState *state) {
+    if (!state || !state->selected_tokens) {
+        return;
+    }
+
+    g_hash_table_remove_all(state->selected_tokens);
+}
+
+static void refresh_tile_selection_visuals(FilesState *state) {
+    if (!state || !state->flowbox) {
+        return;
+    }
+
+    GtkWidget *child = gtk_widget_get_first_child(state->flowbox);
+    while (child) {
+        GtkWidget *next = gtk_widget_get_next_sibling(child);
+        GtkWidget *tile = GTK_IS_FLOW_BOX_CHILD(child) ? gtk_flow_box_child_get_child(GTK_FLOW_BOX_CHILD(child)) : child;
+
+        if (tile) {
+            const char *token = g_object_get_data(G_OBJECT(tile), "item-token");
+            if (is_item_selected(state, token)) {
+                gtk_widget_add_css_class(tile, "file-tile-selected");
+            } else {
+                gtk_widget_remove_css_class(tile, "file-tile-selected");
+            }
+        }
+
+        child = next;
+    }
+}
+
+static void select_single_item(FilesState *state, const char *token, gboolean is_dir) {
+    if (!state || !token || !*token) {
+        return;
+    }
+
+    GHashTable *selected = ensure_selected_tokens(state);
+    if (!selected) {
+        return;
+    }
+
+    g_hash_table_remove_all(selected);
+    g_hash_table_add(selected, g_strdup(token));
+    set_active_item(state, token, is_dir);
+    set_selection_anchor(state, token);
+}
+
+static gboolean select_range_between_tokens(FilesState *state,
+                                            const char *anchor_token,
+                                            const char *target_token,
+                                            gboolean preserve_existing) {
+    if (!state || !state->flowbox || !anchor_token || !*anchor_token || !target_token || !*target_token) {
+        return FALSE;
+    }
+
+    GHashTable *selected = ensure_selected_tokens(state);
+    if (!selected) {
+        return FALSE;
+    }
+
+    gint anchor_index = -1;
+    gint target_index = -1;
+    gint index = 0;
+
+    GtkWidget *child = gtk_widget_get_first_child(state->flowbox);
+    while (child) {
+        GtkWidget *tile = GTK_IS_FLOW_BOX_CHILD(child) ? gtk_flow_box_child_get_child(GTK_FLOW_BOX_CHILD(child)) : child;
+        const char *token = tile ? g_object_get_data(G_OBJECT(tile), "item-token") : NULL;
+
+        if (token && anchor_index < 0 && g_strcmp0(token, anchor_token) == 0) {
+            anchor_index = index;
+        }
+        if (token && target_index < 0 && g_strcmp0(token, target_token) == 0) {
+            target_index = index;
+        }
+
+        child = gtk_widget_get_next_sibling(child);
+        index++;
+    }
+
+    if (anchor_index < 0 || target_index < 0) {
+        return FALSE;
+    }
+
+    gint start = MIN(anchor_index, target_index);
+    gint end = MAX(anchor_index, target_index);
+
+    if (!preserve_existing) {
+        g_hash_table_remove_all(selected);
+    }
+
+    gboolean target_is_dir = FALSE;
+    index = 0;
+    child = gtk_widget_get_first_child(state->flowbox);
+    while (child) {
+        GtkWidget *tile = GTK_IS_FLOW_BOX_CHILD(child) ? gtk_flow_box_child_get_child(GTK_FLOW_BOX_CHILD(child)) : child;
+        const char *token = tile ? g_object_get_data(G_OBJECT(tile), "item-token") : NULL;
+        gboolean is_dir = tile ? GPOINTER_TO_INT(g_object_get_data(G_OBJECT(tile), "item-is-dir")) : FALSE;
+
+        if (index >= start && index <= end && token && *token) {
+            g_hash_table_add(selected, g_strdup(token));
+        }
+
+        if (token && g_strcmp0(token, target_token) == 0) {
+            target_is_dir = is_dir;
+        }
+
+        child = gtk_widget_get_next_sibling(child);
+        index++;
+    }
+
+    set_active_item(state, target_token, target_is_dir);
+    return TRUE;
+}
+
+static gboolean toggle_item_selection(FilesState *state, const char *token, gboolean is_dir) {
+    if (!state || !token || !*token) {
+        return FALSE;
+    }
+
+    GHashTable *selected = ensure_selected_tokens(state);
+    if (!selected) {
+        return FALSE;
+    }
+
+    if (g_hash_table_contains(selected, token)) {
+        g_hash_table_remove(selected, token);
+        if (g_strcmp0(state->active_item_token, token) == 0) {
+            set_active_item(state, NULL, FALSE);
+        }
+        return FALSE;
+    }
+
+    g_hash_table_add(selected, g_strdup(token));
+    set_active_item(state, token, is_dir);
+    return TRUE;
+}
+
+static void select_all_visible_items(FilesState *state) {
+    if (!state || !state->flowbox) {
+        return;
+    }
+
+    GHashTable *selected = ensure_selected_tokens(state);
+    if (!selected) {
+        return;
+    }
+
+    g_hash_table_remove_all(selected);
+
+    const char *first_token = NULL;
+    gboolean first_is_dir = FALSE;
+
+    GtkWidget *child = gtk_widget_get_first_child(state->flowbox);
+    while (child) {
+        GtkWidget *tile = GTK_IS_FLOW_BOX_CHILD(child) ? gtk_flow_box_child_get_child(GTK_FLOW_BOX_CHILD(child)) : child;
+        if (tile) {
+            const char *token = g_object_get_data(G_OBJECT(tile), "item-token");
+            gboolean is_dir = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(tile), "item-is-dir"));
+            if (token && *token) {
+                g_hash_table_add(selected, g_strdup(token));
+                if (!first_token) {
+                    first_token = token;
+                    first_is_dir = is_dir;
+                }
+            }
+        }
+        child = gtk_widget_get_next_sibling(child);
+    }
+
+    if (first_token) {
+        set_active_item(state, first_token, first_is_dir);
+        set_selection_anchor(state, first_token);
+    }
+
+    refresh_tile_selection_visuals(state);
+
+    guint count = selected_items_count(state);
+    char *msg = g_strdup_printf(
+        ngettext("%u item selected", "%u items selected", count),
+        count
+    );
+    gtk_label_set_text(GTK_LABEL(state->status_label), msg);
+    g_free(msg);
 }
 
 static void set_clipboard_item(FilesState *state, const char *token, gboolean cut) {
@@ -475,6 +782,24 @@ static void set_empty_message(FilesState *state, const char *token) {
     gtk_label_set_text(GTK_LABEL(state->empty_label), _("This folder is empty."));
 }
 
+static gboolean input_is_explicit_path(const char *input) {
+    if (!input || !*input) {
+        return FALSE;
+    }
+
+    return g_strcmp0(input, "~") == 0
+        || g_str_has_prefix(input, "~/")
+        || g_str_has_prefix(input, "/")
+        || strchr(input, '/') != NULL
+        || g_str_has_prefix(input, "./")
+        || g_str_has_prefix(input, "../")
+        || g_strcmp0(input, "recent://") == 0
+        || g_strcmp0(input, "favorites://") == 0
+        || is_uri_token(input)
+        || is_recent_token(input)
+        || is_favorites_token(input);
+}
+
 static void update_location_entry(FilesState *state, const char *token) {
     if (is_recent_token(token)) {
         gtk_editable_set_text(GTK_EDITABLE(state->path_entry), "recent://");
@@ -695,6 +1020,36 @@ static gboolean token_points_to_directory(const char *token) {
     return is_dir;
 }
 
+static gboolean launch_executable_file(GFile *file, GError **error) {
+    if (!file) {
+        return FALSE;
+    }
+
+    char *path = g_file_get_path(file);
+    if (!path || !*path) {
+        g_free(path);
+        return FALSE;
+    }
+
+    char *workdir = g_path_get_dirname(path);
+    char *argv[] = {path, NULL};
+
+    gboolean launched = g_spawn_async(
+        workdir,
+        argv,
+        NULL,
+        G_SPAWN_SEARCH_PATH,
+        NULL,
+        NULL,
+        NULL,
+        error
+    );
+
+    g_free(workdir);
+    g_free(path);
+    return launched;
+}
+
 static gboolean open_file_with_association(FilesState *state, const char *token) {
     GFile *file = file_from_token(token);
     if (!file) {
@@ -703,17 +1058,32 @@ static gboolean open_file_with_association(FilesState *state, const char *token)
     }
 
     GError *error = NULL;
-    GFileInfo *info = g_file_query_info(file, "standard::content-type", G_FILE_QUERY_INFO_NONE, NULL, &error);
+    GFileInfo *info = g_file_query_info(
+        file,
+        "standard::content-type,standard::type,access::can-execute",
+        G_FILE_QUERY_INFO_NONE,
+        NULL,
+        &error
+    );
     g_clear_error(&error);
 
     const char *content_type = NULL;
+    GFileType file_type = G_FILE_TYPE_UNKNOWN;
+    gboolean can_execute = FALSE;
     if (info) {
         content_type = g_file_info_get_content_type(info);
+        file_type = g_file_info_get_file_type(info);
+        can_execute = g_file_info_get_attribute_boolean(info, G_FILE_ATTRIBUTE_ACCESS_CAN_EXECUTE);
     }
 
     gboolean launched = FALSE;
+    GError *exec_error = NULL;
 
-    if (content_type) {
+    if (file_type == G_FILE_TYPE_REGULAR && can_execute && is_local_path_token(token)) {
+        launched = launch_executable_file(file, &exec_error);
+    }
+
+    if (!launched && content_type) {
         GAppInfo *app = g_app_info_get_default_for_type(content_type, FALSE);
         if (app) {
             GList *files = NULL;
@@ -733,10 +1103,11 @@ static gboolean open_file_with_association(FilesState *state, const char *token)
     if (!launched) {
         gtk_label_set_text(
             GTK_LABEL(state->status_label),
-            error ? error->message : _("No application is associated with this file type.")
+            exec_error ? exec_error->message : (error ? error->message : _("No application is associated with this file type."))
         );
     }
 
+    g_clear_error(&exec_error);
     g_clear_error(&error);
     g_clear_object(&info);
     g_object_unref(file);
@@ -1004,10 +1375,16 @@ static gboolean move_active_to_trash(FilesState *state) {
     }
 
     GError *error = NULL;
-    gboolean ok = g_file_trash(file, NULL, &error);
-    if (!ok) {
-        g_clear_error(&error);
-        ok = g_file_delete(file, NULL, &error);
+    gboolean ok = FALSE;
+
+    if (is_trash_token(state->current_token)) {
+        ok = delete_recursive_file(file, &error);
+    } else {
+        ok = g_file_trash(file, NULL, &error);
+        if (!ok) {
+            g_clear_error(&error);
+            ok = g_file_delete(file, NULL, &error);
+        }
     }
 
     if (!ok) {
@@ -1017,7 +1394,10 @@ static gboolean move_active_to_trash(FilesState *state) {
         return FALSE;
     }
 
-    gtk_label_set_text(GTK_LABEL(state->status_label), _("Moved to trash."));
+    gtk_label_set_text(
+        GTK_LABEL(state->status_label),
+        is_trash_token(state->current_token) ? _("Deleted from trash.") : _("Moved to trash.")
+    );
     set_active_item(state, NULL, FALSE);
     g_object_unref(file);
     refresh_current_view(state);
@@ -1088,6 +1468,250 @@ cleanup:
     g_object_unref(dest_dir);
     g_object_unref(src);
     return success;
+}
+
+static gboolean copy_token_to_directory(const char *src_token,
+                                        const char *dest_dir_token,
+                                        char **out_dst_token,
+                                        gboolean *out_is_dir,
+                                        GError **error) {
+    if (!src_token || !dest_dir_token || !is_browsable_token(src_token) || !is_browsable_token(dest_dir_token)) {
+        g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_INVALID_ARGUMENT, _("Paste failed."));
+        return FALSE;
+    }
+
+    GFile *src = file_from_token(src_token);
+    GFile *dest_dir = file_from_token(dest_dir_token);
+    if (!src || !dest_dir) {
+        g_clear_object(&src);
+        g_clear_object(&dest_dir);
+        g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_INVALID_ARGUMENT, _("Paste failed."));
+        return FALSE;
+    }
+
+    GError *query_error = NULL;
+    GFileInfo *dest_info = g_file_query_info(dest_dir, "standard::type", G_FILE_QUERY_INFO_NONE, NULL, &query_error);
+    if (!dest_info) {
+        g_propagate_error(error, query_error);
+        g_object_unref(dest_dir);
+        g_object_unref(src);
+        return FALSE;
+    }
+
+    gboolean dest_is_dir = g_file_info_get_file_type(dest_info) == G_FILE_TYPE_DIRECTORY;
+    g_object_unref(dest_info);
+    if (!dest_is_dir) {
+        g_object_unref(dest_dir);
+        g_object_unref(src);
+        g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_NOT_DIRECTORY, _("Current location does not support paste."));
+        return FALSE;
+    }
+
+    char *basename = g_file_get_basename(src);
+    if (!basename || !*basename) {
+        g_free(basename);
+        g_object_unref(dest_dir);
+        g_object_unref(src);
+        g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_INVALID_FILENAME, _("Paste failed."));
+        return FALSE;
+    }
+
+    GFile *dst = g_file_get_child(dest_dir, basename);
+    gboolean src_is_dir = query_is_directory_token(src_token);
+
+    if (g_file_equal(src, dst)) {
+        g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_EXISTS, _("Source and destination are the same."));
+        g_object_unref(dst);
+        g_free(basename);
+        g_object_unref(dest_dir);
+        g_object_unref(src);
+        return FALSE;
+    }
+
+    if (src_is_dir && (g_file_equal(dest_dir, src) || g_file_has_prefix(dest_dir, src))) {
+        g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_INVALID_ARGUMENT, _("Cannot copy a folder into itself."));
+        g_object_unref(dst);
+        g_free(basename);
+        g_object_unref(dest_dir);
+        g_object_unref(src);
+        return FALSE;
+    }
+
+    gboolean success = FALSE;
+    if (src_is_dir) {
+        success = copy_recursive_file(src, dst, error);
+    } else {
+        success = g_file_copy(src, dst, G_FILE_COPY_NONE, NULL, NULL, NULL, error);
+    }
+
+    if (success && out_dst_token) {
+        *out_dst_token = token_from_file(dst);
+    }
+
+    if (out_is_dir) {
+        *out_is_dir = src_is_dir;
+    }
+
+    g_object_unref(dst);
+    g_free(basename);
+    g_object_unref(dest_dir);
+    g_object_unref(src);
+    return success;
+}
+
+static gboolean copy_drop_value_to_destination(FilesState *state, const GValue *value, const char *dest_dir_token) {
+    if (!state || !value || !dest_dir_token || !is_browsable_token(dest_dir_token)) {
+        return FALSE;
+    }
+
+    if (!G_VALUE_HOLDS(value, GDK_TYPE_FILE_LIST)) {
+        gtk_label_set_text(GTK_LABEL(state->status_label), _("Paste failed."));
+        return FALSE;
+    }
+
+    GdkFileList *file_list = g_value_get_boxed(value);
+    if (!file_list) {
+        gtk_label_set_text(GTK_LABEL(state->status_label), _("Paste failed."));
+        return FALSE;
+    }
+
+    GSList *files = gdk_file_list_get_files(file_list);
+    guint copied_count = 0;
+    char *first_error = NULL;
+
+    for (GSList *iter = files; iter != NULL; iter = iter->next) {
+        GFile *src_file = G_FILE(iter->data);
+        if (!src_file) {
+            continue;
+        }
+
+        char *src_token = token_from_file(src_file);
+        if (!src_token) {
+            continue;
+        }
+
+        char *dst_token = NULL;
+        gboolean is_dir = FALSE;
+        GError *error = NULL;
+
+        if (copy_token_to_directory(src_token, dest_dir_token, &dst_token, &is_dir, &error)) {
+            copied_count++;
+            remember_action(state, ACTION_COPY, src_token, dst_token, is_dir);
+            set_active_item(state, dst_token, is_dir);
+        } else if (!first_error) {
+            first_error = g_strdup(error ? error->message : _("Paste failed."));
+        }
+
+        g_clear_error(&error);
+        g_free(dst_token);
+        g_free(src_token);
+    }
+
+    if (copied_count > 0) {
+        gtk_label_set_text(GTK_LABEL(state->status_label), _("Paste complete."));
+        refresh_current_view(state);
+    } else {
+        gtk_label_set_text(GTK_LABEL(state->status_label), first_error ? first_error : _("Paste failed."));
+    }
+
+    g_free(first_error);
+    return copied_count > 0;
+}
+
+static GdkContentProvider *on_tile_drag_prepare(GtkDragSource *source, double x, double y, gpointer user_data) {
+    (void)source;
+    (void)x;
+    (void)y;
+
+    FilesState *state = user_data;
+    GtkWidget *tile_button = gtk_event_controller_get_widget(GTK_EVENT_CONTROLLER(source));
+    if (!state || !tile_button) {
+        return NULL;
+    }
+
+    const char *token = g_object_get_data(G_OBJECT(tile_button), "item-token");
+
+    if (!token || !is_browsable_token(token)) {
+        return NULL;
+    }
+
+    GSList *files = NULL;
+
+    if (is_item_selected(state, token) && selected_items_count(state) > 1) {
+        GHashTableIter iter;
+        gpointer key = NULL;
+        g_hash_table_iter_init(&iter, state->selected_tokens);
+        while (g_hash_table_iter_next(&iter, &key, NULL)) {
+            const char *selected_token = key;
+            if (!is_browsable_token(selected_token)) {
+                continue;
+            }
+
+            GFile *selected_file = file_from_token(selected_token);
+            if (selected_file) {
+                files = g_slist_prepend(files, selected_file);
+            }
+        }
+    } else {
+        GFile *file = file_from_token(token);
+        if (file) {
+            files = g_slist_prepend(files, file);
+        }
+    }
+
+    if (!files) {
+        return NULL;
+    }
+
+    files = g_slist_reverse(files);
+
+    GdkFileList *list = gdk_file_list_new_from_list(files);
+    g_slist_free_full(files, g_object_unref);
+    if (!list) {
+        return NULL;
+    }
+
+    GValue value = G_VALUE_INIT;
+    g_value_init(&value, GDK_TYPE_FILE_LIST);
+    g_value_take_boxed(&value, list);
+
+    GdkContentProvider *provider = gdk_content_provider_new_for_value(&value);
+    g_value_unset(&value);
+
+    return provider;
+}
+
+static gboolean on_tile_drop(GtkDropTarget *target, const GValue *value, double x, double y, gpointer user_data) {
+    (void)target;
+    (void)x;
+    (void)y;
+
+    FilesState *state = user_data;
+    GtkWidget *tile_button = gtk_event_controller_get_widget(GTK_EVENT_CONTROLLER(target));
+    if (!state || !tile_button) {
+        return FALSE;
+    }
+
+    const char *dest_token = g_object_get_data(G_OBJECT(tile_button), "item-token");
+    gboolean dest_is_dir = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(tile_button), "item-is-dir"));
+    if (!dest_token || !dest_is_dir) {
+        return FALSE;
+    }
+
+    return copy_drop_value_to_destination(state, value, dest_token);
+}
+
+static gboolean on_flowbox_drop(GtkDropTarget *target, const GValue *value, double x, double y, gpointer user_data) {
+    (void)target;
+    (void)x;
+    (void)y;
+
+    FilesState *state = user_data;
+    if (!state || !state->current_token || !is_browsable_token(state->current_token)) {
+        return FALSE;
+    }
+
+    return copy_drop_value_to_destination(state, value, state->current_token);
 }
 
 static gboolean undo_last_action(FilesState *state) {
@@ -1199,6 +1823,18 @@ static void on_menu_open_clicked(GtkButton *button, gpointer user_data) {
     }
 }
 
+static void on_menu_last_location_clicked(GtkButton *button, gpointer user_data) {
+    (void)button;
+    GtkWidget *popover = GTK_WIDGET(user_data);
+    TileMenuContext *ctx = popover_menu_context(popover);
+    if (!ctx) {
+        return;
+    }
+
+    gtk_popover_popdown(GTK_POPOVER(popover));
+    on_back_clicked(NULL, ctx->state);
+}
+
 static void on_menu_rename_clicked(GtkButton *button, gpointer user_data) {
     (void)button;
     GtkWidget *popover = GTK_WIDGET(user_data);
@@ -1260,19 +1896,35 @@ static void on_menu_trash_clicked(GtkButton *button, gpointer user_data) {
     set_active_item(ctx->state, ctx->item_token, ctx->item_is_dir);
 
     GFile *file = file_from_token(ctx->item_token);
+    if (!file) {
+        gtk_label_set_text(GTK_LABEL(ctx->state->status_label), _("Delete failed."));
+        return;
+    }
+
     GError *error = NULL;
 
-    if (!g_file_trash(file, NULL, &error)) {
-        g_clear_error(&error);
-        if (!g_file_delete(file, NULL, &error)) {
-            gtk_label_set_text(GTK_LABEL(ctx->state->status_label), error ? error->message : _("Delete failed."));
+    gboolean ok = FALSE;
+    if (is_trash_token(ctx->state->current_token)) {
+        ok = delete_recursive_file(file, &error);
+    } else {
+        ok = g_file_trash(file, NULL, &error);
+        if (!ok) {
             g_clear_error(&error);
-            g_object_unref(file);
-            return;
+            ok = g_file_delete(file, NULL, &error);
         }
     }
 
-    gtk_label_set_text(GTK_LABEL(ctx->state->status_label), _("Moved to trash."));
+    if (!ok) {
+        gtk_label_set_text(GTK_LABEL(ctx->state->status_label), error ? error->message : _("Delete failed."));
+        g_clear_error(&error);
+        g_object_unref(file);
+        return;
+    }
+
+    gtk_label_set_text(
+        GTK_LABEL(ctx->state->status_label),
+        is_trash_token(ctx->state->current_token) ? _("Deleted from trash.") : _("Moved to trash.")
+    );
     g_object_unref(file);
     refresh_current_view(ctx->state);
 }
@@ -1431,7 +2083,7 @@ static void on_settings_clicked(GtkButton *button, gpointer user_data) {
     gtk_box_append(GTK_BOX(single_row), single_switch);
     gtk_box_append(GTK_BOX(content), single_row);
 
-    GtkWidget *shortcut_label = gtk_label_new(_("Shortcuts: Ctrl+C, Ctrl+X, Ctrl+V, Ctrl+N, Ctrl+Shift+N, Ctrl+Z, Ctrl+Y"));
+    GtkWidget *shortcut_label = gtk_label_new(_("Shortcuts: Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V, Ctrl+N, Ctrl+Shift+N, Ctrl+Z, Ctrl+Y, Ctrl+Click, Shift+Click"));
     gtk_widget_add_css_class(shortcut_label, "files-settings-hint");
     gtk_widget_set_margin_start(shortcut_label, 12);
     gtk_widget_set_margin_end(shortcut_label, 12);
@@ -1496,6 +2148,7 @@ static void setup_tile_context_menu(GtkWidget *tile_button, FilesState *state, c
     gtk_widget_set_margin_bottom(box, 8);
 
     GtkWidget *open_btn = gtk_button_new_with_label(item_is_dir ? _("Open folder") : _("Open"));
+    GtkWidget *last_location_btn = gtk_button_new_with_label(_("Last location"));
     GtkWidget *copy_btn = gtk_button_new_with_label(_("Copy"));
     GtkWidget *cut_btn = gtk_button_new_with_label(_("Cut"));
     GtkWidget *paste_btn = gtk_button_new_with_label(_("Paste"));
@@ -1507,7 +2160,12 @@ static void setup_tile_context_menu(GtkWidget *tile_button, FilesState *state, c
     GtkWidget *sep_primary = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
     GtkWidget *sep_actions = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
 
+    if (is_trash_token(state->current_token)) {
+        gtk_button_set_label(GTK_BUTTON(trash_btn), _("Delete from Trash"));
+    }
+
     gtk_widget_add_css_class(open_btn, "flat-button");
+    gtk_widget_add_css_class(last_location_btn, "flat-button");
     gtk_widget_add_css_class(copy_btn, "flat-button");
     gtk_widget_add_css_class(cut_btn, "flat-button");
     gtk_widget_add_css_class(paste_btn, "flat-button");
@@ -1517,6 +2175,7 @@ static void setup_tile_context_menu(GtkWidget *tile_button, FilesState *state, c
     gtk_widget_add_css_class(new_folder_btn, "flat-button");
 
     gtk_widget_add_css_class(open_btn, "context-menu-item");
+    gtk_widget_add_css_class(last_location_btn, "context-menu-item");
     gtk_widget_add_css_class(copy_btn, "context-menu-item");
     gtk_widget_add_css_class(cut_btn, "context-menu-item");
     gtk_widget_add_css_class(paste_btn, "context-menu-item");
@@ -1538,7 +2197,10 @@ static void setup_tile_context_menu(GtkWidget *tile_button, FilesState *state, c
         gtk_widget_set_sensitive(paste_btn, FALSE);
     }
 
+    gtk_widget_set_sensitive(last_location_btn, gtk_widget_is_sensitive(state->back_button));
+
     g_signal_connect(open_btn, "clicked", G_CALLBACK(on_menu_open_clicked), popover);
+    g_signal_connect(last_location_btn, "clicked", G_CALLBACK(on_menu_last_location_clicked), popover);
     g_signal_connect(copy_btn, "clicked", G_CALLBACK(on_menu_copy_clicked), popover);
     g_signal_connect(cut_btn, "clicked", G_CALLBACK(on_menu_cut_clicked), popover);
     g_signal_connect(paste_btn, "clicked", G_CALLBACK(on_menu_paste_clicked), popover);
@@ -1548,6 +2210,7 @@ static void setup_tile_context_menu(GtkWidget *tile_button, FilesState *state, c
     g_signal_connect(new_folder_btn, "clicked", G_CALLBACK(on_menu_new_folder_clicked), popover);
 
     gtk_box_append(GTK_BOX(box), open_btn);
+    gtk_box_append(GTK_BOX(box), last_location_btn);
     gtk_box_append(GTK_BOX(box), sep_primary);
     gtk_box_append(GTK_BOX(box), copy_btn);
     gtk_box_append(GTK_BOX(box), cut_btn);
@@ -1565,45 +2228,71 @@ static void setup_tile_context_menu(GtkWidget *tile_button, FilesState *state, c
     gtk_widget_add_controller(tile_button, GTK_EVENT_CONTROLLER(secondary));
 }
 
-static void on_tile_button_clicked(GtkButton *button, gpointer user_data) {
+static void on_tile_primary_pressed(GtkGestureClick *gesture, int n_press, double x, double y, gpointer user_data) {
+    (void)x;
+    (void)y;
+
     FilesState *state = user_data;
+    GtkWidget *button = gtk_event_controller_get_widget(GTK_EVENT_CONTROLLER(gesture));
+    if (!button) {
+        return;
+    }
+
     const char *token = g_object_get_data(G_OBJECT(button), "item-token");
     gboolean is_dir = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(button), "item-is-dir"));
-
     if (!token) {
         return;
     }
 
-    set_active_item(state, token, is_dir);
+    GdkModifierType event_state = gtk_event_controller_get_current_event_state(GTK_EVENT_CONTROLLER(gesture));
+    gboolean ctrl_pressed = (event_state & GDK_CONTROL_MASK) != 0;
+    gboolean shift_pressed = (event_state & GDK_SHIFT_MASK) != 0;
 
-    gint64 now_us = g_get_monotonic_time();
-    gint threshold_ms = 420;
-    GtkSettings *settings = gtk_widget_get_settings(GTK_WIDGET(button));
-    if (settings) {
-        g_object_get(settings, "gtk-double-click-time", &threshold_ms, NULL);
-    }
-    if (threshold_ms <= 0) {
-        threshold_ms = 420;
-    }
+    if (n_press == 1 && shift_pressed) {
+        const char *anchor = state->selection_anchor_token;
+        if (!anchor || !*anchor) {
+            anchor = (state->active_item_token && *state->active_item_token) ? state->active_item_token : token;
+        }
 
-    gboolean is_same_item = g_strcmp0(state->last_click_token, token) == 0;
-    gboolean is_double_click = is_same_item
-        && state->last_click_time_us > 0
-        && (now_us - state->last_click_time_us) <= ((gint64)threshold_ms * 1000);
+        gboolean selected_range = select_range_between_tokens(state, anchor, token, ctrl_pressed);
+        if (!selected_range) {
+            if (ctrl_pressed) {
+                toggle_item_selection(state, token, is_dir);
+                set_active_item(state, token, is_dir);
+            } else {
+                select_single_item(state, token, is_dir);
+            }
+        }
 
-    g_free(state->last_click_token);
-    state->last_click_token = g_strdup(token);
-    state->last_click_time_us = now_us;
-
-    if (!is_dir && state->open_files_on_single_click) {
-        open_file_with_association(state, token);
+        refresh_tile_selection_visuals(state);
         return;
     }
 
-    if (!state->open_files_on_single_click && is_double_click) {
+    if (n_press == 1 && ctrl_pressed) {
+        toggle_item_selection(state, token, is_dir);
+        set_active_item(state, token, is_dir);
+        set_selection_anchor(state, token);
+        refresh_tile_selection_visuals(state);
+        return;
+    }
+
+    if (n_press == 1) {
+        select_single_item(state, token, is_dir);
+        refresh_tile_selection_visuals(state);
+
+        if (!is_dir && state->open_files_on_single_click) {
+            open_file_with_association(state, token);
+        }
+        return;
+    }
+
+    if (n_press == 2 && !ctrl_pressed && !shift_pressed) {
+        select_single_item(state, token, is_dir);
+        refresh_tile_selection_visuals(state);
+
         if (is_dir) {
             navigate_to_token(state, token, TRUE);
-        } else {
+        } else if (!state->open_files_on_single_click) {
             open_file_with_association(state, token);
         }
     }
@@ -1626,18 +2315,57 @@ static void on_window_mouse_pressed(GtkGestureClick *gesture, int n_press, doubl
     }
 }
 
+static void on_tile_middle_pressed(GtkGestureClick *gesture, int n_press, double x, double y, gpointer user_data) {
+    (void)x;
+    (void)y;
+    if (n_press != 1) {
+        return;
+    }
+
+    FilesState *state = user_data;
+    GtkWidget *button = gtk_event_controller_get_widget(GTK_EVENT_CONTROLLER(gesture));
+    if (!button) {
+        return;
+    }
+
+    const char *token = g_object_get_data(G_OBJECT(button), "item-token");
+    gboolean is_dir = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(button), "item-is-dir"));
+    if (!token || !is_dir) {
+        return;
+    }
+
+    open_directory_in_new_tab(state, token);
+}
+
 static GtkWidget *create_file_tile(FilesState *state, const FileItem *item) {
     const char *icon_resource = item->is_dir ? "/io/karton/Files/icons/folder.svg" : "/io/karton/Files/icons/file.svg";
+    gboolean item_is_executable = FALSE;
 
     GtkWidget *button = gtk_button_new();
     gtk_widget_add_css_class(button, "file-tile");
+    if (is_item_selected(state, item->token)) {
+        gtk_widget_add_css_class(button, "file-tile-selected");
+    }
+    if (state->list_view) {
+        gtk_widget_add_css_class(button, "file-tile-list");
+        gtk_widget_set_hexpand(button, TRUE);
+        gtk_widget_set_vexpand(button, FALSE);
+    } else {
+        gtk_widget_set_halign(button, GTK_ALIGN_FILL);
+        gtk_widget_set_valign(button, GTK_ALIGN_START);
+        gtk_widget_set_hexpand(button, TRUE);
+        gtk_widget_set_vexpand(button, FALSE);
+    }
     gtk_button_set_has_frame(GTK_BUTTON(button), FALSE);
 
-    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
-    gtk_widget_set_margin_start(box, 10);
-    gtk_widget_set_margin_end(box, 10);
-    gtk_widget_set_margin_top(box, 10);
-    gtk_widget_set_margin_bottom(box, 8);
+    GtkOrientation tile_orientation = state->list_view ? GTK_ORIENTATION_HORIZONTAL : GTK_ORIENTATION_VERTICAL;
+    GtkWidget *box = gtk_box_new(tile_orientation, state->list_view ? 10 : 8);
+    gtk_widget_set_hexpand(box, state->list_view);
+    gtk_widget_set_vexpand(box, FALSE);
+    gtk_widget_set_margin_start(box, state->list_view ? 8 : 10);
+    gtk_widget_set_margin_end(box, state->list_view ? 8 : 10);
+    gtk_widget_set_margin_top(box, state->list_view ? 6 : 10);
+    gtk_widget_set_margin_bottom(box, state->list_view ? 6 : 8);
     gtk_button_set_child(GTK_BUTTON(button), box);
 
     GtkWidget *icon = NULL;
@@ -1651,7 +2379,7 @@ static GtkWidget *create_file_tile(FilesState *state, const FileItem *item) {
         if (file) {
             info = g_file_query_info(
                 file,
-                "standard::content-type,standard::size,time::modified",
+                "standard::content-type,standard::size,time::modified,standard::type,access::can-execute",
                 G_FILE_QUERY_INFO_NONE,
                 NULL,
                 &error
@@ -1661,6 +2389,9 @@ static GtkWidget *create_file_tile(FilesState *state, const FileItem *item) {
 
         if (info) {
             const char *content_type = g_file_info_get_content_type(info);
+            GFileType file_type = g_file_info_get_file_type(info);
+            item_is_executable = (file_type == G_FILE_TYPE_REGULAR)
+                && g_file_info_get_attribute_boolean(info, G_FILE_ATTRIBUTE_ACCESS_CAN_EXECUTE);
             if (content_type && g_str_has_prefix(content_type, "image/")) {
                 GdkTexture *texture = gdk_texture_new_from_file(file, &error);
                 if (texture) {
@@ -1684,28 +2415,67 @@ static GtkWidget *create_file_tile(FilesState *state, const FileItem *item) {
         g_clear_object(&file);
     }
 
+    if (!item->is_dir && item_is_executable) {
+        icon_resource = "/io/karton/Files/icons/terminal.svg";
+    }
+
     if (!icon) {
         icon = gtk_picture_new_for_resource(icon_resource);
     }
 
+    int tile_icon_size = state->list_view ? 20 : state->icon_size;
     gtk_picture_set_content_fit(GTK_PICTURE(icon), GTK_CONTENT_FIT_CONTAIN);
-    gtk_widget_set_size_request(icon, state->icon_size, state->icon_size);
+    gtk_picture_set_can_shrink(GTK_PICTURE(icon), TRUE);
+    gtk_widget_set_size_request(icon, tile_icon_size, tile_icon_size);
+    gtk_widget_set_hexpand(icon, FALSE);
+    gtk_widget_set_vexpand(icon, FALSE);
     gtk_widget_add_css_class(icon, "file-tile-icon");
-    gtk_widget_set_halign(icon, GTK_ALIGN_CENTER);
+    gtk_widget_set_halign(icon, state->list_view ? GTK_ALIGN_START : GTK_ALIGN_CENTER);
+    gtk_widget_set_valign(icon, GTK_ALIGN_CENTER);
     gtk_box_append(GTK_BOX(box), icon);
 
     GtkWidget *label = gtk_label_new(item->display_name ? item->display_name : "");
-    gtk_widget_set_halign(label, GTK_ALIGN_CENTER);
-    gtk_label_set_max_width_chars(GTK_LABEL(label), 16);
+    gtk_widget_set_halign(label, state->list_view ? GTK_ALIGN_START : GTK_ALIGN_CENTER);
+    gtk_widget_set_hexpand(label, state->list_view);
+    gtk_label_set_max_width_chars(GTK_LABEL(label), state->list_view ? 64 : 16);
     gtk_label_set_wrap(GTK_LABEL(label), FALSE);
     gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END);
     gtk_widget_add_css_class(label, "file-tile-label");
+    if (state->list_view) {
+        gtk_widget_add_css_class(label, "file-tile-label-list");
+    }
     gtk_box_append(GTK_BOX(box), label);
 
-    gtk_widget_set_size_request(button, state->icon_size + 48, state->icon_size + 44);
+    if (state->list_view) {
+        gtk_widget_set_size_request(button, -1, tile_icon_size + 18);
+    } else {
+        gtk_widget_set_size_request(button, state->icon_size + 48, state->icon_size + 44);
+    }
     g_object_set_data_full(G_OBJECT(button), "item-token", g_strdup(item->token), g_free);
     g_object_set_data(G_OBJECT(button), "item-is-dir", GINT_TO_POINTER(item->is_dir));
-    g_signal_connect(button, "clicked", G_CALLBACK(on_tile_button_clicked), state);
+    GtkGesture *primary = gtk_gesture_click_new();
+    gtk_gesture_single_set_button(GTK_GESTURE_SINGLE(primary), GDK_BUTTON_PRIMARY);
+    gtk_event_controller_set_propagation_phase(GTK_EVENT_CONTROLLER(primary), GTK_PHASE_CAPTURE);
+    g_signal_connect(primary, "pressed", G_CALLBACK(on_tile_primary_pressed), state);
+    gtk_widget_add_controller(button, GTK_EVENT_CONTROLLER(primary));
+
+    if (is_browsable_token(item->token)) {
+        GtkDragSource *drag = gtk_drag_source_new();
+        gtk_drag_source_set_actions(drag, GDK_ACTION_COPY);
+        g_signal_connect(drag, "prepare", G_CALLBACK(on_tile_drag_prepare), state);
+        gtk_widget_add_controller(button, GTK_EVENT_CONTROLLER(drag));
+    }
+
+    if (item->is_dir && is_browsable_token(item->token)) {
+        GtkDropTarget *drop = gtk_drop_target_new(GDK_TYPE_FILE_LIST, GDK_ACTION_COPY);
+        g_signal_connect(drop, "drop", G_CALLBACK(on_tile_drop), state);
+        gtk_widget_add_controller(button, GTK_EVENT_CONTROLLER(drop));
+    }
+
+    GtkGesture *middle = gtk_gesture_click_new();
+    gtk_gesture_single_set_button(GTK_GESTURE_SINGLE(middle), GDK_BUTTON_MIDDLE);
+    g_signal_connect(middle, "pressed", G_CALLBACK(on_tile_middle_pressed), state);
+    gtk_widget_add_controller(button, GTK_EVENT_CONTROLLER(middle));
 
     if (tooltip) {
         gtk_widget_set_tooltip_text(button, tooltip);
@@ -1905,12 +2675,36 @@ static void collect_favorite_items(GPtrArray *items, GHashTable *seen) {
 }
 
 static void populate_items(FilesState *state, GPtrArray *items) {
+    GHashTable *visible_tokens = g_hash_table_new(g_str_hash, g_str_equal);
+
     clear_flowbox(state);
     for (guint i = 0; i < items->len; i++) {
         FileItem *item = g_ptr_array_index(items, i);
+        g_hash_table_add(visible_tokens, item->token);
         GtkWidget *tile = create_file_tile(state, item);
         gtk_flow_box_append(GTK_FLOW_BOX(state->flowbox), tile);
     }
+
+    if (state->selected_tokens && g_hash_table_size(state->selected_tokens) > 0) {
+        GPtrArray *to_remove = g_ptr_array_new();
+        GHashTableIter iter;
+        gpointer key = NULL;
+        g_hash_table_iter_init(&iter, state->selected_tokens);
+        while (g_hash_table_iter_next(&iter, &key, NULL)) {
+            const char *selected_token = key;
+            if (!g_hash_table_contains(visible_tokens, selected_token)) {
+                g_ptr_array_add(to_remove, key);
+            }
+        }
+
+        for (guint i = 0; i < to_remove->len; i++) {
+            g_hash_table_remove(state->selected_tokens, g_ptr_array_index(to_remove, i));
+        }
+        g_ptr_array_free(to_remove, TRUE);
+    }
+
+    refresh_tile_selection_visuals(state);
+    g_hash_table_unref(visible_tokens);
 }
 
 static gboolean load_directory(FilesState *state, const char *token) {
@@ -2032,9 +2826,135 @@ static gboolean load_virtual_view(FilesState *state, const char *token) {
     return TRUE;
 }
 
+static void collect_search_matches_recursive(FilesState *state,
+                                             GFile *dir,
+                                             const char *query_fold,
+                                             GHashTable *seen,
+                                             GPtrArray *items,
+                                             guint *matches,
+                                             guint max_matches) {
+    if (*matches >= max_matches) {
+        return;
+    }
+
+    GError *error = NULL;
+    GFileEnumerator *enumerator = g_file_enumerate_children(
+        dir,
+        "standard::name,standard::display-name,standard::type,standard::is-hidden",
+        G_FILE_QUERY_INFO_NONE,
+        NULL,
+        &error
+    );
+    if (!enumerator) {
+        g_clear_error(&error);
+        return;
+    }
+
+    GFileInfo *info = NULL;
+    while (*matches < max_matches && (info = g_file_enumerator_next_file(enumerator, NULL, &error)) != NULL) {
+        if (!state->show_hidden_files && g_file_info_get_is_hidden(info)) {
+            g_object_unref(info);
+            continue;
+        }
+
+        const char *name = g_file_info_get_name(info);
+        if (!name || !*name) {
+            g_object_unref(info);
+            continue;
+        }
+
+        const char *display_name = g_file_info_get_display_name(info);
+        const char *search_name = (display_name && *display_name) ? display_name : name;
+        char *name_fold = g_utf8_casefold(search_name, -1);
+        gboolean matches_query = name_fold && strstr(name_fold, query_fold) != NULL;
+        g_free(name_fold);
+
+        GFile *child = g_file_get_child(dir, name);
+        char *child_token = token_from_file(child);
+        gboolean is_dir = (g_file_info_get_file_type(info) == G_FILE_TYPE_DIRECTORY);
+
+        if (matches_query && child_token) {
+            add_unique_item(items, seen, child_token, search_name, is_dir);
+            (*matches)++;
+        }
+
+        if (is_dir && *matches < max_matches) {
+            collect_search_matches_recursive(state, child, query_fold, seen, items, matches, max_matches);
+        }
+
+        g_free(child_token);
+        g_object_unref(child);
+        g_object_unref(info);
+    }
+
+    if (error) {
+        g_clear_error(&error);
+    }
+
+    g_object_unref(enumerator);
+}
+
+static gboolean search_in_current_location(FilesState *state, const char *query) {
+    if (!query || !*query) {
+        return FALSE;
+    }
+
+    set_loading_state(state, TRUE, _("Searching files..."));
+
+    if (!state->current_token || !is_browsable_token(state->current_token)
+            || !token_points_to_directory(state->current_token)) {
+        gtk_label_set_text(GTK_LABEL(state->status_label), _("Search is available only in folders."));
+        set_loading_state(state, FALSE, NULL);
+        return FALSE;
+    }
+
+    GFile *base = file_from_token(state->current_token);
+    if (!base) {
+        gtk_label_set_text(GTK_LABEL(state->status_label), _("Search failed."));
+        set_loading_state(state, FALSE, NULL);
+        return FALSE;
+    }
+
+    GPtrArray *items = g_ptr_array_new_with_free_func(file_item_free);
+    GHashTable *seen = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+    char *query_fold = g_utf8_casefold(query, -1);
+    guint matches = 0;
+
+    collect_search_matches_recursive(state, base, query_fold, seen, items, &matches, SEARCH_MAX_RESULTS);
+    g_ptr_array_sort(items, file_item_compare);
+    populate_items(state, items);
+
+    gtk_label_set_text(GTK_LABEL(state->empty_label), _("No files match your search."));
+    gtk_widget_set_visible(state->empty_label, items->len == 0);
+
+    char *status = g_strdup_printf(
+        ngettext("%u search result", "%u search results", items->len),
+        items->len
+    );
+    gtk_label_set_text(GTK_LABEL(state->status_label), status);
+    g_free(status);
+
+    set_active_item(state, NULL, FALSE);
+    update_navigation_buttons(state);
+
+    set_loading_state(state, FALSE, NULL);
+
+    g_free(query_fold);
+    g_hash_table_unref(seen);
+    g_ptr_array_free(items, TRUE);
+    g_object_unref(base);
+    return TRUE;
+}
+
 static gboolean load_from_token(FilesState *state, const char *token) {
     gboolean ok = FALSE;
     gboolean show_loading = is_virtual_token(token) || is_browsable_token(token);
+    gboolean changed_location = (state->current_token && g_strcmp0(state->current_token, token) != 0);
+
+    if (changed_location) {
+        clear_selected_items(state);
+        set_selection_anchor(state, NULL);
+    }
 
     if (show_loading) {
         set_loading_state(state, TRUE, _("Loading files..."));
@@ -2093,7 +3013,8 @@ static void on_flowbox_child_activated(GtkFlowBox *box, GtkFlowBoxChild *child, 
         return;
     }
 
-    set_active_item(state, token, is_dir);
+    select_single_item(state, token, is_dir);
+    refresh_tile_selection_visuals(state);
 
     if (!is_dir) {
         open_file_with_association(state, token);
@@ -2150,8 +3071,22 @@ static void on_refresh_clicked(GtkButton *button, gpointer user_data) {
 
 static void on_path_activate(GtkEntry *entry, gpointer user_data) {
     FilesState *state = user_data;
-    const char *text = gtk_editable_get_text(GTK_EDITABLE(entry));
-    navigate_to_token(state, text, TRUE);
+    const char *raw_text = gtk_editable_get_text(GTK_EDITABLE(entry));
+    char *text = g_strdup(raw_text ? raw_text : "");
+    g_strstrip(text);
+
+    if (!*text) {
+        g_free(text);
+        return;
+    }
+
+    if (!input_is_explicit_path(text)) {
+        search_in_current_location(state, text);
+    } else {
+        navigate_to_token(state, text, TRUE);
+    }
+
+    g_free(text);
 }
 
 static void on_zoom_changed(GtkAdjustment *adjustment, gpointer user_data) {
@@ -2166,6 +3101,44 @@ static void on_zoom_changed(GtkAdjustment *adjustment, gpointer user_data) {
     refresh_current_view(state);
 }
 
+static void apply_view_mode(FilesState *state) {
+    if (!state || !state->flowbox) {
+        return;
+    }
+
+    if (state->list_view) {
+        gtk_flow_box_set_homogeneous(GTK_FLOW_BOX(state->flowbox), FALSE);
+        gtk_flow_box_set_min_children_per_line(GTK_FLOW_BOX(state->flowbox), 1);
+        gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(state->flowbox), 1);
+        gtk_flow_box_set_row_spacing(GTK_FLOW_BOX(state->flowbox), 6);
+        gtk_flow_box_set_column_spacing(GTK_FLOW_BOX(state->flowbox), 0);
+        gtk_widget_add_css_class(state->flowbox, "files-list-mode");
+    } else {
+        gtk_flow_box_set_homogeneous(GTK_FLOW_BOX(state->flowbox), TRUE);
+        gtk_flow_box_set_min_children_per_line(GTK_FLOW_BOX(state->flowbox), 4);
+        gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(state->flowbox), 10);
+        gtk_flow_box_set_row_spacing(GTK_FLOW_BOX(state->flowbox), 12);
+        gtk_flow_box_set_column_spacing(GTK_FLOW_BOX(state->flowbox), 12);
+        gtk_widget_remove_css_class(state->flowbox, "files-list-mode");
+    }
+}
+
+static void on_view_mode_toggled(GtkToggleButton *button, gpointer user_data) {
+    FilesState *state = user_data;
+    if (!gtk_toggle_button_get_active(button)) {
+        return;
+    }
+
+    gboolean list_mode = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(button), "view-list-mode"));
+    if (state->list_view == list_mode) {
+        return;
+    }
+
+    state->list_view = list_mode;
+    apply_view_mode(state);
+    refresh_current_view(state);
+}
+
 static void on_sidebar_row_selected(GtkListBox *box, GtkListBoxRow *row, gpointer user_data) {
     (void)box;
     FilesState *state = user_data;
@@ -2174,6 +3147,13 @@ static void on_sidebar_row_selected(GtkListBox *box, GtkListBoxRow *row, gpointe
     }
 
     if (!row) {
+        return;
+    }
+
+    GVolume *volume = g_object_get_data(G_OBJECT(row), "place-volume");
+    if (volume) {
+        gtk_label_set_text(GTK_LABEL(state->status_label), _("Loading files..."));
+        g_volume_mount(volume, G_MOUNT_MOUNT_NONE, NULL, NULL, on_volume_mount_done, state);
         return;
     }
 
@@ -2219,10 +3199,11 @@ static GtkWidget *append_place(GtkWidget *sidebar,
     if (icon_name && g_str_has_prefix(icon_name, "/io/karton/Files/icons/")) {
         icon = gtk_picture_new_for_resource(icon_name);
         gtk_picture_set_content_fit(GTK_PICTURE(icon), GTK_CONTENT_FIT_CONTAIN);
-        gtk_widget_set_size_request(icon, 18, 18);
+        gtk_picture_set_can_shrink(GTK_PICTURE(icon), TRUE);
+        gtk_widget_set_size_request(icon, PLACE_ICON_SIZE, PLACE_ICON_SIZE);
     } else {
         icon = gtk_image_new_from_icon_name(icon_name);
-        gtk_image_set_pixel_size(GTK_IMAGE(icon), 18);
+        gtk_image_set_pixel_size(GTK_IMAGE(icon), PLACE_ICON_SIZE);
     }
     gtk_widget_add_css_class(icon, "place-icon");
     gtk_box_append(GTK_BOX(box), icon);
@@ -2237,6 +3218,46 @@ static GtkWidget *append_place(GtkWidget *sidebar,
         g_object_set_data_full(G_OBJECT(row), "place-token", g_strdup(token), g_free);
     } else {
         gtk_widget_set_sensitive(row, FALSE);
+    }
+
+    gtk_widget_add_css_class(row, "place-row");
+    gtk_list_box_append(GTK_LIST_BOX(sidebar), row);
+    return row;
+}
+
+static GtkWidget *append_unmounted_volume_place(GtkWidget *sidebar,
+                                                const char *title,
+                                                const char *icon_name,
+                                                GVolume *volume) {
+    GtkWidget *row = gtk_list_box_row_new();
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    gtk_widget_set_margin_start(box, 12);
+    gtk_widget_set_margin_end(box, 12);
+    gtk_widget_set_margin_top(box, 7);
+    gtk_widget_set_margin_bottom(box, 7);
+    gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(row), box);
+
+    GtkWidget *icon = NULL;
+    if (icon_name && g_str_has_prefix(icon_name, "/io/karton/Files/icons/")) {
+        icon = gtk_picture_new_for_resource(icon_name);
+        gtk_picture_set_content_fit(GTK_PICTURE(icon), GTK_CONTENT_FIT_CONTAIN);
+        gtk_picture_set_can_shrink(GTK_PICTURE(icon), TRUE);
+        gtk_widget_set_size_request(icon, PLACE_ICON_SIZE, PLACE_ICON_SIZE);
+    } else {
+        icon = gtk_image_new_from_icon_name(icon_name);
+        gtk_image_set_pixel_size(GTK_IMAGE(icon), PLACE_ICON_SIZE);
+    }
+    gtk_widget_add_css_class(icon, "place-icon");
+    gtk_box_append(GTK_BOX(box), icon);
+
+    GtkWidget *label = gtk_label_new(title);
+    gtk_widget_add_css_class(label, "place-label");
+    gtk_widget_set_halign(label, GTK_ALIGN_START);
+    gtk_widget_set_hexpand(label, TRUE);
+    gtk_box_append(GTK_BOX(box), label);
+
+    if (volume) {
+        g_object_set_data_full(G_OBJECT(row), "place-volume", g_object_ref(volume), g_object_unref);
     }
 
     gtk_widget_add_css_class(row, "place-row");
@@ -2402,6 +3423,37 @@ static void rebuild_sidebar(FilesState *state) {
     append_mount_section_rows(state->sidebar, mount_rows, _("Network locations"), "/io/karton/Files/icons/place-network.svg", FALSE);
     g_ptr_array_free(mount_rows, TRUE);
 
+    if (state->volume_monitor) {
+        gboolean has_unmounted = FALSE;
+        GList *volumes = g_volume_monitor_get_volumes(state->volume_monitor);
+        for (GList *iter = volumes; iter; iter = iter->next) {
+            GVolume *volume = iter->data;
+            if (!g_volume_can_mount(volume)) {
+                continue;
+            }
+
+            GMount *mounted = g_volume_get_mount(volume);
+            if (mounted) {
+                g_object_unref(mounted);
+                continue;
+            }
+
+            if (!has_unmounted) {
+                append_section_header(state->sidebar, _("Available devices"));
+                has_unmounted = TRUE;
+            }
+
+            const char *name = g_volume_get_name(volume);
+            append_unmounted_volume_place(
+                state->sidebar,
+                (name && *name) ? name : _("Mounted devices"),
+                "/io/karton/Files/icons/place-drive.svg",
+                volume
+            );
+        }
+        g_list_free_full(volumes, g_object_unref);
+    }
+
     g_free(home);
     g_free(desktop);
     g_free(documents);
@@ -2417,14 +3469,52 @@ static void rebuild_sidebar(FilesState *state) {
     state->suppress_sidebar_signal = FALSE;
 }
 
-static void on_mounts_changed(GVolumeMonitor *monitor, gpointer user_data) {
+static void on_mounts_changed(GVolumeMonitor *monitor, gpointer changed_object, gpointer user_data) {
     (void)monitor;
+    (void)changed_object;
     FilesState *state = user_data;
     rebuild_sidebar(state);
 
     if (state->current_token && is_browsable_token(state->current_token) && !token_points_to_directory(state->current_token)) {
         navigate_to_token(state, g_get_home_dir(), TRUE);
     }
+}
+
+static void on_volume_mount_done(GObject *source_object, GAsyncResult *result, gpointer user_data) {
+    FilesState *state = user_data;
+    if (!state) {
+        return;
+    }
+
+    GVolume *volume = G_VOLUME(source_object);
+    GError *error = NULL;
+    if (!g_volume_mount_finish(volume, result, &error)) {
+        gtk_label_set_text(
+            GTK_LABEL(state->status_label),
+            error ? error->message : _("Cannot open this location.")
+        );
+        g_clear_error(&error);
+        rebuild_sidebar(state);
+        return;
+    }
+
+    rebuild_sidebar(state);
+
+    GMount *mount = g_volume_get_mount(volume);
+    if (!mount) {
+        refresh_current_view(state);
+        return;
+    }
+
+    GFile *root = g_mount_get_root(mount);
+    char *token = token_from_file(root);
+    if (token) {
+        navigate_to_token(state, token, TRUE);
+    }
+
+    g_free(token);
+    g_object_unref(root);
+    g_object_unref(mount);
 }
 
 static gboolean on_window_key_pressed(GtkEventControllerKey *controller,
@@ -2499,6 +3589,11 @@ static gboolean on_window_key_pressed(GtkEventControllerKey *controller,
         return TRUE;
     }
 
+    if ((mods & GDK_CONTROL_MASK) && (keyval == GDK_KEY_a || keyval == GDK_KEY_A)) {
+        select_all_visible_items(files_state);
+        return TRUE;
+    }
+
     if (keyval == GDK_KEY_Delete) {
         move_active_to_trash(files_state);
         return TRUE;
@@ -2516,8 +3611,11 @@ static void on_window_destroy(GtkWidget *widget, gpointer user_data) {
 
     g_free(state->current_token);
     g_free(state->active_item_token);
+    g_free(state->selection_anchor_token);
     g_free(state->clipboard_token);
-    g_free(state->last_click_token);
+    if (state->selected_tokens) {
+        g_hash_table_unref(state->selected_tokens);
+    }
     action_record_clear(&state->last_action);
     action_record_clear(&state->redo_action);
     if (state->history) {
@@ -2579,15 +3677,16 @@ GtkWidget *karton_files_window_new(GtkApplication *app) {
     FilesState *state = g_new0(FilesState, 1);
     state->history = g_ptr_array_new_with_free_func(g_free);
     state->history_index = 0;
-    state->icon_size = 64;
+    state->icon_size = 56;
     state->show_hidden_files = FALSE;
     state->open_files_on_single_click = FALSE;
 
     GtkWidget *window = gtk_application_window_new(app);
     state->window = window;
+    g_object_set_data(G_OBJECT(window), "files-state", state);
 
     gtk_window_set_title(GTK_WINDOW(window), _("Karton Files"));
-    gtk_window_set_default_size(GTK_WINDOW(window), 770, 504);
+    gtk_window_set_default_size(GTK_WINDOW(window), 847, 554);
     gtk_widget_add_css_class(window, "files-window");
     gtk_widget_set_opacity(window, 1.0);
     apply_window_theme_class(window);
@@ -2650,37 +3749,29 @@ GtkWidget *karton_files_window_new(GtkApplication *app) {
     GtkWidget *toolbar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     gtk_box_append(GTK_BOX(header), toolbar);
 
-    state->back_button = gtk_button_new_from_icon_name("go-previous-symbolic");
-    gtk_widget_set_tooltip_text(state->back_button, _("Back (Alt+Left)"));
-    gtk_widget_add_css_class(state->back_button, "nav-button");
+    state->back_button = create_icon_button("/io/karton/Files/icons/action-back.svg", _("Back (Alt+Left)"));
     gtk_box_append(GTK_BOX(toolbar), state->back_button);
 
-    state->up_button = gtk_button_new_from_icon_name("go-up-symbolic");
-    gtk_widget_set_tooltip_text(state->up_button, _("Up (Alt+Up)"));
-    gtk_widget_add_css_class(state->up_button, "nav-button");
+    state->up_button = create_icon_button("/io/karton/Files/icons/action-up.svg", _("Up (Alt+Up)"));
     gtk_box_append(GTK_BOX(toolbar), state->up_button);
 
-    GtkWidget *refresh_button = gtk_button_new_from_icon_name("view-refresh-symbolic");
-    gtk_widget_set_tooltip_text(refresh_button, _("Refresh (F5)"));
-    gtk_widget_add_css_class(refresh_button, "nav-button");
+    GtkWidget *refresh_button = create_icon_button("/io/karton/Files/icons/action-refresh.svg", _("Refresh (F5)"));
     gtk_box_append(GTK_BOX(toolbar), refresh_button);
 
-    state->settings_button = gtk_button_new_from_icon_name("preferences-system-symbolic");
-    gtk_widget_set_tooltip_text(state->settings_button, _("File manager settings"));
-    gtk_widget_add_css_class(state->settings_button, "nav-button");
+    state->settings_button = create_icon_button("/io/karton/Files/icons/action-settings.svg", _("File manager settings"));
     gtk_box_append(GTK_BOX(toolbar), state->settings_button);
+
+    state->path_entry = gtk_entry_new();
+    gtk_widget_set_hexpand(state->path_entry, TRUE);
+    gtk_widget_add_css_class(state->path_entry, "location-entry");
+    gtk_entry_set_placeholder_text(GTK_ENTRY(state->path_entry), _("Enter path or search phrase and press Enter (Ctrl+L to focus)"));
+    gtk_box_append(GTK_BOX(toolbar), state->path_entry);
 
     state->breadcrumb_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
     gtk_widget_add_css_class(state->breadcrumb_box, "breadcrumb-box");
     gtk_widget_set_hexpand(state->breadcrumb_box, TRUE);
     gtk_widget_set_halign(state->breadcrumb_box, GTK_ALIGN_START);
-    gtk_box_append(GTK_BOX(toolbar), state->breadcrumb_box);
-
-    state->path_entry = gtk_entry_new();
-    gtk_widget_set_hexpand(state->path_entry, TRUE);
-    gtk_widget_add_css_class(state->path_entry, "location-entry");
-    gtk_entry_set_placeholder_text(GTK_ENTRY(state->path_entry), _("Enter path and press Enter (Ctrl+L to focus)"));
-    gtk_box_append(GTK_BOX(header), state->path_entry);
+    gtk_box_append(GTK_BOX(header), state->breadcrumb_box);
 
     GtkWidget *content_scroller = gtk_scrolled_window_new();
     gtk_widget_set_hexpand(content_scroller, TRUE);
@@ -2709,6 +3800,10 @@ GtkWidget *karton_files_window_new(GtkApplication *app) {
     gtk_widget_set_margin_top(state->flowbox, 10);
     gtk_widget_set_margin_bottom(state->flowbox, 10);
     gtk_overlay_set_child(GTK_OVERLAY(overlay), state->flowbox);
+
+    GtkDropTarget *flowbox_drop = gtk_drop_target_new(GDK_TYPE_FILE_LIST, GDK_ACTION_COPY);
+    g_signal_connect(flowbox_drop, "drop", G_CALLBACK(on_flowbox_drop), state);
+    gtk_widget_add_controller(state->flowbox, GTK_EVENT_CONTROLLER(flowbox_drop));
 
     state->empty_label = gtk_label_new(_("This folder is empty."));
     gtk_widget_add_css_class(state->empty_label, "empty-label");
@@ -2743,9 +3838,10 @@ GtkWidget *karton_files_window_new(GtkApplication *app) {
 
     GtkWidget *status_bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
     gtk_widget_add_css_class(status_bar, "files-statusbar");
+    gtk_widget_add_css_class(status_bar, "files-statusbar-compact");
     gtk_widget_set_margin_start(status_bar, 12);
     gtk_widget_set_margin_end(status_bar, 12);
-    gtk_widget_set_margin_bottom(status_bar, 10);
+    gtk_widget_set_margin_bottom(status_bar, 8);
     gtk_box_append(GTK_BOX(content), status_bar);
 
     state->status_label = gtk_label_new("");
@@ -2754,15 +3850,47 @@ GtkWidget *karton_files_window_new(GtkApplication *app) {
     gtk_widget_set_hexpand(state->status_label, TRUE);
     gtk_box_append(GTK_BOX(status_bar), state->status_label);
 
-    GtkWidget *zoom_icon = gtk_image_new_from_icon_name("zoom-in-symbolic");
+    GtkWidget *zoom_icon = gtk_picture_new_for_resource("/io/karton/Files/icons/action-zoom.svg");
+    gtk_picture_set_content_fit(GTK_PICTURE(zoom_icon), GTK_CONTENT_FIT_CONTAIN);
+    gtk_picture_set_can_shrink(GTK_PICTURE(zoom_icon), TRUE);
+    gtk_widget_set_size_request(zoom_icon, STATUS_ICON_SIZE, STATUS_ICON_SIZE);
+    gtk_widget_add_css_class(zoom_icon, "status-icon");
     gtk_box_append(GTK_BOX(status_bar), zoom_icon);
 
-    state->zoom_adjustment = gtk_adjustment_new(72.0, 48.0, 132.0, 4.0, 8.0, 0.0);
+    state->zoom_adjustment = gtk_adjustment_new(56.0, 36.0, 112.0, 4.0, 8.0, 0.0);
     GtkWidget *zoom_scale = gtk_scale_new(GTK_ORIENTATION_HORIZONTAL, state->zoom_adjustment);
     gtk_scale_set_draw_value(GTK_SCALE(zoom_scale), FALSE);
     gtk_widget_set_size_request(zoom_scale, 124, -1);
     gtk_widget_add_css_class(zoom_scale, "zoom-scale");
     gtk_box_append(GTK_BOX(status_bar), zoom_scale);
+
+    state->grid_mode_button = gtk_toggle_button_new();
+    g_object_set_data(G_OBJECT(state->grid_mode_button), "view-list-mode", GINT_TO_POINTER(FALSE));
+    gtk_widget_add_css_class(state->grid_mode_button, "flat-button");
+    gtk_widget_add_css_class(state->grid_mode_button, "view-mode-button");
+    gtk_widget_set_tooltip_text(state->grid_mode_button, _("Grid view"));
+    GtkWidget *grid_icon = gtk_picture_new_for_resource("/io/karton/Files/icons/action-grid.svg");
+    gtk_picture_set_content_fit(GTK_PICTURE(grid_icon), GTK_CONTENT_FIT_CONTAIN);
+    gtk_picture_set_can_shrink(GTK_PICTURE(grid_icon), TRUE);
+    gtk_widget_set_size_request(grid_icon, STATUS_ICON_SIZE, STATUS_ICON_SIZE);
+    gtk_widget_add_css_class(grid_icon, "status-icon");
+    gtk_button_set_child(GTK_BUTTON(state->grid_mode_button), grid_icon);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(state->grid_mode_button), TRUE);
+    gtk_box_append(GTK_BOX(status_bar), state->grid_mode_button);
+
+    state->list_mode_button = gtk_toggle_button_new();
+    g_object_set_data(G_OBJECT(state->list_mode_button), "view-list-mode", GINT_TO_POINTER(TRUE));
+    gtk_widget_add_css_class(state->list_mode_button, "flat-button");
+    gtk_widget_add_css_class(state->list_mode_button, "view-mode-button");
+    gtk_widget_set_tooltip_text(state->list_mode_button, _("List view"));
+    GtkWidget *list_icon = gtk_picture_new_for_resource("/io/karton/Files/icons/action-list.svg");
+    gtk_picture_set_content_fit(GTK_PICTURE(list_icon), GTK_CONTENT_FIT_CONTAIN);
+    gtk_picture_set_can_shrink(GTK_PICTURE(list_icon), TRUE);
+    gtk_widget_set_size_request(list_icon, STATUS_ICON_SIZE, STATUS_ICON_SIZE);
+    gtk_widget_add_css_class(list_icon, "status-icon");
+    gtk_button_set_child(GTK_BUTTON(state->list_mode_button), list_icon);
+    gtk_toggle_button_set_group(GTK_TOGGLE_BUTTON(state->list_mode_button), GTK_TOGGLE_BUTTON(state->grid_mode_button));
+    gtk_box_append(GTK_BOX(status_bar), state->list_mode_button);
 
     g_signal_connect(sidebar, "row-selected", G_CALLBACK(on_sidebar_row_selected), state);
     g_signal_connect(state->back_button, "clicked", G_CALLBACK(on_back_clicked), state);
@@ -2770,11 +3898,14 @@ GtkWidget *karton_files_window_new(GtkApplication *app) {
     g_signal_connect(refresh_button, "clicked", G_CALLBACK(on_refresh_clicked), state);
     g_signal_connect(state->settings_button, "clicked", G_CALLBACK(on_settings_clicked), state);
     g_signal_connect(state->path_entry, "activate", G_CALLBACK(on_path_activate), state);
+    g_signal_connect(state->grid_mode_button, "toggled", G_CALLBACK(on_view_mode_toggled), state);
+    g_signal_connect(state->list_mode_button, "toggled", G_CALLBACK(on_view_mode_toggled), state);
     g_signal_connect(state->flowbox, "child-activated", G_CALLBACK(on_flowbox_child_activated), state);
     g_signal_connect(state->zoom_adjustment, "value-changed", G_CALLBACK(on_zoom_changed), state);
     g_signal_connect(window, "destroy", G_CALLBACK(on_window_destroy), state);
 
     GtkEventController *keys = gtk_event_controller_key_new();
+    gtk_event_controller_set_propagation_phase(keys, GTK_PHASE_CAPTURE);
     g_signal_connect(keys, "key-pressed", G_CALLBACK(on_window_key_pressed), state);
     gtk_widget_add_controller(window, keys);
 
@@ -2789,9 +3920,16 @@ GtkWidget *karton_files_window_new(GtkApplication *app) {
         g_signal_connect(state->volume_monitor, "mount-added", G_CALLBACK(on_mounts_changed), state);
         g_signal_connect(state->volume_monitor, "mount-removed", G_CALLBACK(on_mounts_changed), state);
         g_signal_connect(state->volume_monitor, "mount-changed", G_CALLBACK(on_mounts_changed), state);
+        g_signal_connect(state->volume_monitor, "volume-added", G_CALLBACK(on_mounts_changed), state);
+        g_signal_connect(state->volume_monitor, "volume-removed", G_CALLBACK(on_mounts_changed), state);
+        g_signal_connect(state->volume_monitor, "volume-changed", G_CALLBACK(on_mounts_changed), state);
+        g_signal_connect(state->volume_monitor, "drive-connected", G_CALLBACK(on_mounts_changed), state);
+        g_signal_connect(state->volume_monitor, "drive-disconnected", G_CALLBACK(on_mounts_changed), state);
+        g_signal_connect(state->volume_monitor, "drive-changed", G_CALLBACK(on_mounts_changed), state);
     }
 
     rebuild_sidebar(state);
+    apply_view_mode(state);
     navigate_to_token(state, g_get_home_dir(), TRUE);
 
     return window;

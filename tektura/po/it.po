@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: labwc\n"
 "Report-Msgid-Bugs-To: https://github.com/labwc/labwc/issues\n"
-"POT-Creation-Date: 2024-09-19 21:09+1000\n"
+"POT-Creation-Date: 2026-05-10 11:47+0200\n"
 "PO-Revision-Date: 2025-07-05 05:44+0000\n"
 "Last-Translator: Standreas <standreas@riseup.net>\n"
 "Language-Team: Italian <https://translate.lxqt-project.org/projects/labwc/"
@@ -19,62 +19,72 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 "X-Generator: Weblate 4.2.1\n"
 
-#: src/menu/menu.c:1016
-msgid "Go there..."
-msgstr "Vai lì..."
-
-#: src/menu/menu.c:1034
-msgid "Terminal"
-msgstr "Terminale"
-
-#: src/menu/menu.c:1040
-msgid "Reconfigure"
-msgstr "Riconfigura"
-
-#: src/menu/menu.c:1042
-msgid "Exit"
-msgstr "Esci"
-
-#: src/menu/menu.c:1056
-msgid "Minimize"
-msgstr "Minimizza"
-
-#: src/menu/menu.c:1058
-msgid "Maximize"
-msgstr "Massimizza"
-
-#: src/menu/menu.c:1060
-msgid "Fullscreen"
-msgstr "Schermo intero"
-
-#: src/menu/menu.c:1062
-msgid "Roll Up/Down"
-msgstr "Arrotola/srotola"
-
-#: src/menu/menu.c:1064
-msgid "Decorations"
-msgstr "Decorazioni"
-
-#: src/menu/menu.c:1066
-msgid "Always on Top"
-msgstr "Sempre sopra"
-
-#: src/menu/menu.c:1071
-msgid "Move Left"
-msgstr "Sposta a sinistra"
-
-#: src/menu/menu.c:1078
-msgid "Move Right"
-msgstr "Sposta a destra"
-
-#: src/menu/menu.c:1083
+#: src/menu/menu.c:842
 msgid "Always on Visible Workspace"
 msgstr "Sempre sull'area di lavoro visibile"
 
-#: src/menu/menu.c:1086
+#: src/menu/menu.c:899
+msgid "Go there..."
+msgstr "Vai lì..."
+
+#: src/menu/menu.c:918
+msgid "Create folder"
+msgstr ""
+
+#: src/menu/menu.c:929
+msgid "Terminal"
+msgstr "Terminale"
+
+#: src/menu/menu.c:934
+msgid "Settings"
+msgstr ""
+
+#: src/menu/menu.c:940
+msgid "Reconfigure"
+msgstr "Riconfigura"
+
+#: src/menu/menu.c:942
+msgid "Exit"
+msgstr "Esci"
+
+#: src/menu/menu.c:956
+msgid "Minimize"
+msgstr "Minimizza"
+
+#: src/menu/menu.c:958
+msgid "Maximize"
+msgstr "Massimizza"
+
+#: src/menu/menu.c:960
+msgid "Fullscreen"
+msgstr "Schermo intero"
+
+#: src/menu/menu.c:962
+msgid "Roll Up/Down"
+msgstr "Arrotola/srotola"
+
+#: src/menu/menu.c:964
+msgid "Decorations"
+msgstr "Decorazioni"
+
+#: src/menu/menu.c:966
+msgid "Always on Top"
+msgstr "Sempre sopra"
+
+#: src/menu/menu.c:970 src/menu/menu.c:989 src/config/rcxml.c:1857
 msgid "Workspace"
 msgstr "Area di lavoro"
 
-#: src/menu/menu.c:1089
+#: src/menu/menu.c:973
 msgid "Close"
 msgstr "Chiudi"
+
+#: src/menu/menu.c:988
+msgid "Windows"
+msgstr ""
+
+#~ msgid "Move Left"
+#~ msgstr "Sposta a sinistra"
+
+#~ msgid "Move Right"
+#~ msgstr "Sposta a destra"

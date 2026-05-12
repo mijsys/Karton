@@ -10,6 +10,7 @@ Exec=karton-files
 Icon=io.karton.Files
 Terminal=false
 Categories=Utility;System;FileManager;
+MimeType=inode/directory;application/x-gnome-saved-search;
 StartupNotify=true
 StartupWMClass=io.karton.Files
 Keywords=files;folders;manager;explorer;

@@ -915,9 +915,25 @@ init_rootmenu(void)
 	if (!menu) {
 		menu = menu_create(NULL, "root-menu", "");
 
+		item = item_create(menu, _("Create folder"), NULL, false);
+		struct action *create_folder = item_add_action(item, "Execute");
+		action_arg_add_str(create_folder, "command",
+			"sh -lc 'desktop=\"$(xdg-user-dir DESKTOP 2>/dev/null || true)\"; "
+			"[ -n \"$desktop\" ] || desktop=\"$HOME/Pulpit\"; "
+			"[ -d \"$desktop\" ] || desktop=\"$HOME/Desktop\"; "
+			"[ -d \"$desktop\" ] || mkdir -p \"$desktop\"; "
+			"name=\"Nowy katalog\"; path=\"$desktop/$name\"; n=1; "
+			"while [ -e \"$path\" ]; do path=\"$desktop/$name $n\"; n=$((n+1)); done; "
+			"mkdir -p \"$path\"'");
+
 		item = item_create(menu, _("Terminal"), NULL, false);
 		struct action *action = item_add_action(item, "Execute");
-		action_arg_add_str(action, "command", "lab-sensible-terminal");
+		action_arg_add_str(action, "command",
+			"sh -lc 'if command -v karton-terminal >/dev/null 2>&1; then karton-terminal; else lab-sensible-terminal; fi'");
+
+		item = item_create(menu, _("Settings"), NULL, false);
+		action = item_add_action(item, "Execute");
+		action_arg_add_str(action, "command", "karton-settings");
 
 		separator_create(menu, NULL);
 

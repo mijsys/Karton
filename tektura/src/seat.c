@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <assert.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <strings.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_cursor.h>
@@ -27,6 +28,7 @@
 #include "input/keyboard.h"
 #include "input/key-state.h"
 #include "labwc.h"
+#include "magnifier.h"
 #include "output.h"
 #include "session-lock.h"
 #include "view.h"
@@ -722,6 +724,37 @@ configure_keyboard(struct seat *seat, struct input *input)
 	keyboard_configure(seat, kb, keyboard->is_virtual);
 }
 
+static bool
+env_truthy(const char *name, bool default_value)
+{
+	const char *value = getenv(name);
+	if (!value || !*value) {
+		return default_value;
+	}
+
+	if (!strcasecmp(value, "1")
+			|| !strcasecmp(value, "true")
+			|| !strcasecmp(value, "yes")
+			|| !strcasecmp(value, "on")) {
+		return true;
+	}
+
+	if (!strcasecmp(value, "0")
+			|| !strcasecmp(value, "false")
+			|| !strcasecmp(value, "no")
+			|| !strcasecmp(value, "off")) {
+		return false;
+	}
+
+	return default_value;
+}
+
+static void
+apply_accessibility_environment(void)
+{
+	magnifier_set_enabled(env_truthy("KARTON_A11Y_MAGNIFIER", false));
+}
+
 void
 seat_pointer_end_grab(struct seat *seat, struct wlr_surface *surface)
 {
@@ -750,6 +783,7 @@ seat_reconfigure(void)
 {
 	struct seat *seat = &server.seat;
 	struct input *input;
+	apply_accessibility_environment();
 	cursor_reload(seat);
 	overlay_finish(seat);
 	keyboard_reset_current_keybind();

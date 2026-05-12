@@ -43,11 +43,17 @@
 #define _(s) gettext(s)
 #define N_(s) s
 
+#ifndef ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MAXIMIZED
+#define ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MAXIMIZED 0
+#endif
+
 #define MAX_TOPLEVELS 128
 #define MAX_GROUPS 32
 #define MAX_GROUP_ITEMS 32
 #define MAX_LAUNCHER_ENTRIES 384
 #define MAX_FAVORITES 384
+#define MAX_PANEL_PINS 384
+#define LAUNCHER_MENU_ITEM_COUNT 10
 #define MAX_CAT_OVERRIDES 384
 #define MAX_CALENDAR_ITEMS 256
 #define MAX_CLOCK_ZONES 8
@@ -137,14 +143,17 @@ char app_id[96];
 char title[256];
 bool active;
 bool minimized;
+bool maximized;
 bool fullscreen;
 };
 
 struct app_group {
 char app_id[96];
+char desktop_id[128];
 size_t indices[MAX_GROUP_ITEMS];
 size_t count;
 bool any_active;
+bool pinned;
 };
 
 struct launcher_entry {
@@ -154,6 +163,7 @@ char desktop_path[PATH_MAX];
 char icon_name[128];
 bool local_entry;
 bool favorite;
+bool panel_pinned;
 int category;
 int category_override;
 };
@@ -295,11 +305,15 @@ char quick_network_security[96];
 char quick_network_password[256];
 char quick_network_error[160];
 char quick_outputs[MAX_STATUS_AUDIO_DEVICES][96];
+char quick_output_ids[MAX_STATUS_AUDIO_DEVICES][96];
 size_t quick_output_count;
 char quick_inputs[MAX_STATUS_AUDIO_DEVICES][96];
+char quick_input_ids[MAX_STATUS_AUDIO_DEVICES][96];
 size_t quick_input_count;
 char quick_default_output[96];
+char quick_default_output_id[96];
 char quick_default_input[96];
+char quick_default_input_id[96];
 char quick_removable_paths[MAX_STATUS_REMOVABLE_DEVICES][96];
 char quick_removable_names[MAX_STATUS_REMOVABLE_DEVICES][96];
 size_t quick_removable_count;
@@ -360,6 +374,9 @@ char icon_theme_name[128];
 
 char favorite_ids[MAX_FAVORITES][128];
 size_t favorite_count;
+
+char panel_pin_ids[MAX_PANEL_PINS][128];
+size_t panel_pin_count;
 
 struct launcher_category_override category_overrides[MAX_CAT_OVERRIDES];
 size_t category_override_count;
@@ -470,10 +487,14 @@ static void reset_network_popup_state(struct app *app);
 static void network_popup_select(struct app *app, int network);
 static void network_popup_load_metadata(struct app *app, int network);
 static void network_popup_perform_connect(struct app *app, int network);
+static bool program_in_path(const char *name);
 static void popup_clamp_selection(struct app *app);
 static void request_top_panel_size(struct app *app);
 static void request_side_panel_size(struct app *app);
 static void trigger_redraw(struct app *app);
+static void rebuild_groups(struct app *app);
+static void karton_get_config_path(char *out, size_t out_size, const char *name);
+static void apply_runtime_region_environment(void);
 
 static volatile sig_atomic_t theme_reload_requested = 0;
 static double related_surface_alpha_multiplier = 1.0;
@@ -501,6 +522,7 @@ sigaction(SIGHUP, &sa, NULL);
 static void
 init_i18n(void)
 {
+apply_runtime_region_environment();
 setlocale(LC_ALL, "");
 
 const char *locale_dir = getenv("KARTON_LOCALEDIR");
@@ -530,6 +552,150 @@ end--;
 }
 *end = '\0';
 return s;
+}
+
+static bool
+is_region_environment_key(const char *key)
+{
+if (!key || !*key) {
+return false;
+}
+
+return strcmp(key, "LANG") == 0
+|| strcmp(key, "LC_ALL") == 0
+|| strcmp(key, "LC_TIME") == 0
+|| strcmp(key, "LC_MESSAGES") == 0
+|| strcmp(key, "LC_NUMERIC") == 0
+|| strcmp(key, "LC_MONETARY") == 0
+|| strcmp(key, "LC_MEASUREMENT") == 0
+|| strcmp(key, "LANGUAGE") == 0
+|| strcmp(key, "TZ") == 0
+|| strcmp(key, "XKB_DEFAULT_LAYOUT") == 0
+|| strcmp(key, "KARTON_DATE_FORMAT") == 0
+|| strcmp(key, "KARTON_TIME_FORMAT") == 0
+|| strcmp(key, "KARTON_UNITS") == 0
+|| strcmp(key, "KARTON_REGIONALIZATION") == 0
+|| strcmp(key, "KARTON_A11Y_SCREEN_READER") == 0
+|| strcmp(key, "KARTON_A11Y_MAGNIFIER") == 0
+|| strcmp(key, "KARTON_A11Y_HIGH_CONTRAST") == 0
+|| strcmp(key, "KARTON_A11Y_CAPTIONS") == 0
+|| strcmp(key, "KARTON_A11Y_ONSCREEN_KEYBOARD") == 0
+|| strcmp(key, "KARTON_A11Y_COLOR_FILTER") == 0
+|| strcmp(key, "KARTON_A11Y_STICKY_KEYS") == 0;
+}
+
+static void
+apply_runtime_region_environment(void)
+{
+char path[PATH_MAX] = { 0 };
+karton_get_config_path(path, sizeof(path), "environment");
+if (!path[0]) {
+return;
+}
+
+FILE *f = fopen(path, "r");
+if (!f) {
+return;
+}
+
+bool saw_locale_key = false;
+bool saw_tz_key = false;
+
+char line[1024] = { 0 };
+while (fgets(line, sizeof(line), f)) {
+char *entry = trim_in_place(line);
+if (!entry[0] || entry[0] == '#') {
+continue;
+}
+
+char *eq = strchr(entry, '=');
+if (!eq || eq == entry) {
+continue;
+}
+
+*eq = '\0';
+char *key = trim_in_place(entry);
+char *value = trim_in_place(eq + 1);
+if (!is_region_environment_key(key)) {
+continue;
+}
+
+size_t value_len = strlen(value);
+if (value_len >= 2 && ((value[0] == '"' && value[value_len - 1] == '"')
+|| (value[0] == '\'' && value[value_len - 1] == '\''))) {
+value[value_len - 1] = '\0';
+value++;
+}
+
+if (value[0]) {
+setenv(key, value, 1);
+} else {
+unsetenv(key);
+}
+
+if (!strncmp(key, "LC_", 3) || strcmp(key, "LANG") == 0 || strcmp(key, "LANGUAGE") == 0) {
+saw_locale_key = true;
+}
+if (strcmp(key, "TZ") == 0) {
+saw_tz_key = true;
+}
+}
+
+fclose(f);
+
+if (saw_locale_key) {
+setlocale(LC_ALL, "");
+}
+if (saw_tz_key) {
+tzset();
+}
+}
+
+static const char *
+date_display_format(void)
+{
+const char *value = getenv("KARTON_DATE_FORMAT");
+if (!value || !*value) {
+return _("%a, %d %b");
+}
+
+if (!strcasecmp(value, "iso")) {
+return "%Y-%m-%d";
+}
+if (!strcasecmp(value, "us")) {
+return "%m/%d/%Y";
+}
+if (!strcasecmp(value, "eu")) {
+return "%d.%m.%Y";
+}
+
+return _("%a, %d %b");
+}
+
+static const char *
+time_display_format(void)
+{
+const char *value = getenv("KARTON_TIME_FORMAT");
+return (value && !strcasecmp(value, "12h")) ? "12h" : "24h";
+}
+
+static bool
+format_time_with_preference(const struct tm *tm_now, char *out, size_t out_size)
+{
+if (!tm_now || !out || out_size == 0) {
+return false;
+}
+
+if (!strcmp(time_display_format(), "12h")) {
+char base[32] = { 0 };
+if (strftime(base, sizeof(base), "%I:%M", tm_now) == 0) {
+return false;
+}
+snprintf(out, out_size, "%s %s", base, tm_now->tm_hour < 12 ? "am" : "pm");
+return true;
+}
+
+return strftime(out, out_size, "%H:%M", tm_now) != 0;
 }
 
 static bool
@@ -697,10 +863,60 @@ return true;
 return tm_now.tm_hour < 7 || tm_now.tm_hour >= 19;
 }
 
+static bool
+accessibility_high_contrast_enabled(void)
+{
+    const char *value = getenv("KARTON_A11Y_HIGH_CONTRAST");
+    if (!value || !*value) {
+        return false;
+    }
+
+    return !strcasecmp(value, "1")
+        || !strcasecmp(value, "true")
+        || !strcasecmp(value, "yes")
+        || !strcasecmp(value, "on");
+}
+
 static void
 shell_style_apply_theme(struct shell_style *style)
 {
 bool dark = theme_mode_is_dark(style->theme_mode);
+bool high_contrast = accessibility_high_contrast_enabled();
+
+if (high_contrast) {
+    if (dark) {
+        style->top_bg = 0x000000;
+        style->top_text = 0xffffff;
+        style->quick_button_bg = 0xffffff;
+        style->quick_button_fg = 0x000000;
+        style->quick_panel_bg = 0x000000;
+        style->quick_tile_bg = 0x0f0f0f;
+        style->quick_title_text = 0xffffff;
+
+        style->side_bg = 0x000000;
+        style->side_popup_bg = 0x000000;
+        style->side_separator = 0xffffff;
+        style->side_launcher_bg = 0xffffff;
+        style->side_slot_active = 0xffffff;
+        style->side_slot_inactive = 0x3c3c3c;
+    } else {
+        style->top_bg = 0xffffff;
+        style->top_text = 0x000000;
+        style->quick_button_bg = 0x000000;
+        style->quick_button_fg = 0xffffff;
+        style->quick_panel_bg = 0xffffff;
+        style->quick_tile_bg = 0xf2f2f2;
+        style->quick_title_text = 0x000000;
+
+        style->side_bg = 0xffffff;
+        style->side_popup_bg = 0xffffff;
+        style->side_separator = 0x000000;
+        style->side_launcher_bg = 0x000000;
+        style->side_slot_active = 0x000000;
+        style->side_slot_inactive = 0xbdbdbd;
+    }
+    return;
+}
 
 if (dark) {
 style->top_bg = 0x171f2d;
@@ -758,6 +974,10 @@ related_surface_alpha_multiplier = shell_style_related_alpha_multiplier(style);
 static double
 shell_style_surface_alpha(const struct shell_style *style, double base_alpha)
 {
+if (style && style->window_transparency <= 0) {
+return 1.0;
+}
+
 double factor = (double)style->window_transparency / 40.0;
 double adjusted = base_alpha - factor * 0.34;
 if (adjusted < 0.45) {
@@ -1049,10 +1269,10 @@ time_out[0] = '\0';
 return;
 }
 
-if (strftime(date_out, date_size, _("%a, %d %b"), &tm_now) == 0) {
+if (strftime(date_out, date_size, date_display_format(), &tm_now) == 0) {
 date_out[0] = '\0';
 }
-if (strftime(time_out, time_size, _("%H:%M"), &tm_now) == 0) {
+if (!format_time_with_preference(&tm_now, time_out, time_size)) {
 time_out[0] = '\0';
 }
 }
@@ -1322,9 +1542,14 @@ app->quick_tx_bytes = 0;
 app->quick_network_count = 0;
 app->quick_output_count = 0;
 app->quick_input_count = 0;
+memset(app->quick_output_ids, 0, sizeof(app->quick_output_ids));
+memset(app->quick_input_ids, 0, sizeof(app->quick_input_ids));
 app->quick_default_output[0] = '\0';
 app->quick_default_input[0] = '\0';
+app->quick_default_output_id[0] = '\0';
+app->quick_default_input_id[0] = '\0';
 app->quick_removable_count = 0;
+app->dnd_enabled = false;
 app->quick_battery_present = false;
 app->quick_battery_charging = false;
 app->quick_battery_percent = 0;
@@ -1394,6 +1619,10 @@ app->quick_battery_minutes_to_full = (int)strtol(value, NULL, 10);
 snprintf(app->quick_default_output, sizeof(app->quick_default_output), "%s", value);
 } else if (!strcmp(key, "default_input")) {
 snprintf(app->quick_default_input, sizeof(app->quick_default_input), "%s", value);
+} else if (!strcmp(key, "default_output_id")) {
+snprintf(app->quick_default_output_id, sizeof(app->quick_default_output_id), "%s", value);
+} else if (!strcmp(key, "default_input_id")) {
+snprintf(app->quick_default_input_id, sizeof(app->quick_default_input_id), "%s", value);
 } else if (!strcmp(key, "output_volume")) {
 app->quick_volume = (int)strtol(value, NULL, 10);
 } else if (!strcmp(key, "input_volume")) {
@@ -1403,6 +1632,8 @@ int brightness = (int)strtol(value, NULL, 10);
 if (brightness >= 0) {
 app->quick_brightness = clamp_percent_value(brightness);
 }
+} else if (!strcmp(key, "dnd_enabled")) {
+app->dnd_enabled = !strcasecmp(value, "yes") || !strcasecmp(value, "true") || !strcmp(value, "1") || !strcasecmp(value, "on");
 } else if (!strncmp(key, "network_", 8)) {
 int idx = (int)strtol(key + 8, NULL, 10);
 if (idx >= 0 && idx < MAX_STATUS_NETWORKS) {
@@ -1411,12 +1642,28 @@ if ((size_t)(idx + 1) > app->quick_network_count) {
 app->quick_network_count = (size_t)(idx + 1);
 }
 }
+} else if (!strncmp(key, "output_id_", 10)) {
+int idx = (int)strtol(key + 10, NULL, 10);
+if (idx >= 0 && idx < MAX_STATUS_AUDIO_DEVICES) {
+snprintf(app->quick_output_ids[idx], sizeof(app->quick_output_ids[idx]), "%s", value);
+if ((size_t)(idx + 1) > app->quick_output_count) {
+app->quick_output_count = (size_t)(idx + 1);
+}
+}
 } else if (!strncmp(key, "output_", 7)) {
 int idx = (int)strtol(key + 7, NULL, 10);
 if (idx >= 0 && idx < MAX_STATUS_AUDIO_DEVICES) {
 snprintf(app->quick_outputs[idx], sizeof(app->quick_outputs[idx]), "%s", value);
 if ((size_t)(idx + 1) > app->quick_output_count) {
 app->quick_output_count = (size_t)(idx + 1);
+}
+}
+} else if (!strncmp(key, "input_id_", 9)) {
+int idx = (int)strtol(key + 9, NULL, 10);
+if (idx >= 0 && idx < MAX_STATUS_AUDIO_DEVICES) {
+snprintf(app->quick_input_ids[idx], sizeof(app->quick_input_ids[idx]), "%s", value);
+if ((size_t)(idx + 1) > app->quick_input_count) {
+app->quick_input_count = (size_t)(idx + 1);
 }
 }
 } else if (!strncmp(key, "input_", 6)) {
@@ -1454,6 +1701,26 @@ return false;
 if (!app->quick_wifi_name[0]) {
 snprintf(app->quick_wifi_name, sizeof(app->quick_wifi_name), "%s", _("Not connected"));
 }
+
+for (size_t i = 0; i < app->quick_output_count && i < MAX_STATUS_AUDIO_DEVICES; i++) {
+if (!app->quick_output_ids[i][0]) {
+snprintf(app->quick_output_ids[i], sizeof(app->quick_output_ids[i]), "%s", app->quick_outputs[i]);
+}
+}
+
+for (size_t i = 0; i < app->quick_input_count && i < MAX_STATUS_AUDIO_DEVICES; i++) {
+if (!app->quick_input_ids[i][0]) {
+snprintf(app->quick_input_ids[i], sizeof(app->quick_input_ids[i]), "%s", app->quick_inputs[i]);
+}
+}
+
+if (!app->quick_default_output_id[0]) {
+snprintf(app->quick_default_output_id, sizeof(app->quick_default_output_id), "%s", app->quick_default_output);
+}
+if (!app->quick_default_input_id[0]) {
+snprintf(app->quick_default_input_id, sizeof(app->quick_default_input_id), "%s", app->quick_default_input);
+}
+
 return true;
 }
 
@@ -1893,24 +2160,24 @@ return;
 const char *ssid = app->quick_networks[network];
 char error_text[256] = { 0 };
 network_popup_load_metadata(app, network);
-if (app->quick_network_requires_password
-&& !app->quick_network_has_saved_password
-&& !app->quick_network_password_visible) {
+
+if (!strcmp(app->quick_connection_type, "wifi")
+    && app->quick_connection_name[0]
+    && strcmp(app->quick_connection_name, _("Not connected"))
+    && !strcmp(app->quick_connection_name, ssid)) {
+    reset_network_popup_state(app);
+    return;
+}
+
+const char *password = NULL;
+if (app->quick_network_password_visible && app->quick_network_password[0]) {
+password = app->quick_network_password;
+} else if (app->quick_network_requires_password && !app->quick_network_has_saved_password) {
 app->quick_network_password_visible = true;
 app->quick_network_error[0] = '\0';
 request_top_panel_size(app);
 panel_draw(&app->top);
 return;
-}
-
-const char *password = NULL;
-if (app->quick_network_password_visible) {
-if (!app->quick_network_password[0]) {
-    snprintf(app->quick_network_error, sizeof(app->quick_network_error), "%s", _("Enter the password to connect"));
-    panel_draw(&app->top);
-    return;
-}
-password = app->quick_network_password;
 }
 
 if (try_connect_wifi_network(app, ssid, password, error_text, sizeof(error_text))) {
@@ -2029,7 +2296,16 @@ if (notifications_changed && app && app->top.surface) {
 return;
 }
 theme_reload_requested = 0;
+apply_runtime_region_environment();
 reload_shell_style_runtime(app);
+refresh_quick_status(app);
+
+if (app && app->top.surface) {
+panel_draw(&app->top);
+}
+if (app && app->side.surface) {
+panel_draw(&app->side);
+}
 }
 
 static void
@@ -2468,16 +2744,28 @@ return true;
 }
 
 const char *home = getenv("HOME");
+const char *karton_prefix_env = getenv("KARTON_PREFIX");
 char user_local[PATH_MAX] = { 0 };
 char user_icons[PATH_MAX] = { 0 };
+char karton_prefix_icons[PATH_MAX] = { 0 };
 if (home && *home) {
 snprintf(user_local, sizeof(user_local), "%s/.local/share/icons", home);
 snprintf(user_icons, sizeof(user_icons), "%s/.icons", home);
+
+if (karton_prefix_env && *karton_prefix_env) {
+snprintf(karton_prefix_icons, sizeof(karton_prefix_icons), "%s/share/icons", karton_prefix_env);
+} else {
+snprintf(karton_prefix_icons, sizeof(karton_prefix_icons), "%s/.local-karton/share/icons", home);
+}
+} else if (karton_prefix_env && *karton_prefix_env) {
+snprintf(karton_prefix_icons, sizeof(karton_prefix_icons), "%s/share/icons", karton_prefix_env);
 }
 
 const char *bases[] = {
+karton_prefix_icons,
 user_local,
 user_icons,
+"/usr/local/share/icons",
 "/usr/share/icons",
 "/usr/share/pixmaps",
 };
@@ -3202,6 +3490,17 @@ return -1;
 }
 
 static int
+launcher_find_panel_pin(const struct app *app, const char *desktop_id)
+{
+for (size_t i = 0; i < app->panel_pin_count; i++) {
+if (!strcmp(app->panel_pin_ids[i], desktop_id)) {
+return (int)i;
+}
+}
+return -1;
+}
+
+static int
 launcher_find_category_override(const struct app *app, const char *desktop_id)
 {
 for (size_t i = 0; i < app->category_override_count; i++) {
@@ -3235,6 +3534,28 @@ fclose(f);
 }
 
 static void
+launcher_save_panel_pins(const struct app *app)
+{
+launcher_ensure_config_dir();
+
+char path[PATH_MAX] = { 0 };
+launcher_get_path(path, sizeof(path), "launcher-panel-pins.txt");
+if (!path[0]) {
+return;
+}
+
+FILE *f = fopen(path, "w");
+if (!f) {
+fprintf(stderr, _("karton-shell: cannot write %s: %s\n"), path, strerror(errno));
+return;
+}
+for (size_t i = 0; i < app->panel_pin_count; i++) {
+fprintf(f, "%s\n", app->panel_pin_ids[i]);
+}
+fclose(f);
+}
+
+static void
 launcher_save_categories(const struct app *app)
 {
 launcher_ensure_config_dir();
@@ -3261,6 +3582,7 @@ static void
 launcher_load_preferences(struct app *app)
 {
 app->favorite_count = 0;
+app->panel_pin_count = 0;
 app->category_override_count = 0;
 
 char path[PATH_MAX] = { 0 };
@@ -3279,6 +3601,26 @@ break;
 }
 snprintf(app->favorite_ids[app->favorite_count++],
 sizeof(app->favorite_ids[0]), "%s", id);
+}
+fclose(f);
+}
+}
+
+launcher_get_path(path, sizeof(path), "launcher-panel-pins.txt");
+if (path[0]) {
+FILE *f = fopen(path, "r");
+if (f) {
+char line[256];
+while (fgets(line, sizeof(line), f)) {
+char *id = trim_in_place(line);
+if (!id[0] || id[0] == '#') {
+continue;
+}
+if (app->panel_pin_count >= MAX_PANEL_PINS) {
+break;
+}
+snprintf(app->panel_pin_ids[app->panel_pin_count++],
+sizeof(app->panel_pin_ids[0]), "%s", id);
 }
 fclose(f);
 }
@@ -3378,6 +3720,33 @@ app->launcher_entries[i].favorite = enabled;
 }
 launcher_save_favorites(app);
 launcher_rebuild_filtered(app);
+}
+
+static void
+launcher_set_panel_pin(struct app *app, const char *desktop_id, bool enabled)
+{
+int idx = launcher_find_panel_pin(app, desktop_id);
+if (enabled && idx < 0) {
+if (app->panel_pin_count < MAX_PANEL_PINS) {
+snprintf(app->panel_pin_ids[app->panel_pin_count++], sizeof(app->panel_pin_ids[0]), "%s",
+desktop_id);
+}
+} else if (!enabled && idx >= 0) {
+for (size_t i = (size_t)idx; i + 1 < app->panel_pin_count; i++) {
+memmove(app->panel_pin_ids[i], app->panel_pin_ids[i + 1],
+sizeof(app->panel_pin_ids[i]));
+}
+app->panel_pin_count--;
+}
+
+for (size_t i = 0; i < app->launcher_count; i++) {
+if (!strcmp(app->launcher_entries[i].desktop_id, desktop_id)) {
+app->launcher_entries[i].panel_pinned = enabled;
+}
+}
+
+launcher_save_panel_pins(app);
+rebuild_groups(app);
 }
 
 static void
@@ -3552,6 +3921,7 @@ snprintf(dst->desktop_path, sizeof(dst->desktop_path), "%s", path);
 dst->local_entry = strstr(path, "/.local/share/applications/") != NULL;
 snprintf(dst->icon_name, sizeof(dst->icon_name), "%s", icon_name);
 dst->favorite = launcher_find_favorite(app, desktop_id) >= 0;
+dst->panel_pinned = launcher_find_panel_pin(app, desktop_id) >= 0;
 dst->category = launcher_default_category(categories);
 int override_idx = launcher_find_category_override(app, desktop_id);
 dst->category_override = override_idx >= 0
@@ -3569,8 +3939,15 @@ app->launcher_count = 0;
 
 char dir_local[PATH_MAX] = { 0 };
 char dir_xdg[PATH_MAX] = { 0 };
+char dir_karton_prefix[PATH_MAX] = { 0 };
 const char *home = getenv("HOME");
 const char *xdg_data = getenv("XDG_DATA_HOME");
+const char *karton_prefix_env = getenv("KARTON_PREFIX");
+
+if (karton_prefix_env && *karton_prefix_env) {
+snprintf(dir_karton_prefix, sizeof(dir_karton_prefix), "%s/share/applications", karton_prefix_env);
+add_launcher_entries_from_dir(app, dir_karton_prefix);
+}
 
 if (xdg_data && *xdg_data) {
 snprintf(dir_xdg, sizeof(dir_xdg), "%s/applications", xdg_data);
@@ -3579,6 +3956,11 @@ add_launcher_entries_from_dir(app, dir_xdg);
 if (home && *home) {
 snprintf(dir_local, sizeof(dir_local), "%s/.local/share/applications", home);
 add_launcher_entries_from_dir(app, dir_local);
+
+if (!dir_karton_prefix[0]) {
+snprintf(dir_karton_prefix, sizeof(dir_karton_prefix), "%s/.local-karton/share/applications", home);
+add_launcher_entries_from_dir(app, dir_karton_prefix);
+}
 }
 add_launcher_entries_from_dir(app, "/usr/local/share/applications");
 add_launcher_entries_from_dir(app, "/usr/share/applications");
@@ -3665,7 +4047,7 @@ return -1;
 
 const double menu_w = 230.0;
 const double row_h = 28.0;
-const int item_count = 8;
+const int item_count = LAUNCHER_MENU_ITEM_COUNT;
 
 if (!point_in_rect(px, py, app->launcher_menu_x, app->launcher_menu_y,
 menu_w, item_count * row_h + 8.0)) {
@@ -3695,6 +4077,24 @@ return _("Add to favorites");
 return app->launcher_entries[entry_idx].favorite
 ? _("Remove from favorites")
 : _("Add to favorites");
+}
+
+static const char *
+launcher_menu_pin_label(const struct app *app)
+{
+if (!app || app->launcher_menu_target < 0
+|| app->launcher_menu_target >= (int)app->launcher_filtered_count) {
+return _("Pin to panel");
+}
+
+size_t entry_idx = app->launcher_filtered[app->launcher_menu_target];
+if (entry_idx >= app->launcher_count) {
+return _("Pin to panel");
+}
+
+return app->launcher_entries[entry_idx].panel_pinned
+? _("Unpin from panel")
+: _("Pin to panel");
 }
 
 static void
@@ -4203,6 +4603,37 @@ group->any_active = true;
 }
 }
 
+for (size_t pin_i = 0; pin_i < app->panel_pin_count; pin_i++) {
+const char *desktop_id = app->panel_pin_ids[pin_i];
+if (!desktop_id || !*desktop_id) {
+continue;
+}
+
+bool found = false;
+for (size_t i = 0; i < app->group_count; i++) {
+struct app_group *group = &app->groups[i];
+if (desktop_id_matches_app_id(desktop_id, group->app_id)
+|| (group->desktop_id[0] && !strcasecmp(group->desktop_id, desktop_id))) {
+group->pinned = true;
+if (!group->desktop_id[0]) {
+snprintf(group->desktop_id, sizeof(group->desktop_id), "%s", desktop_id);
+}
+found = true;
+break;
+}
+}
+
+if (found || app->group_count >= MAX_GROUPS) {
+continue;
+}
+
+struct app_group *group = &app->groups[app->group_count++];
+memset(group, 0, sizeof(*group));
+g_strlcpy(group->app_id, desktop_id, sizeof(group->app_id));
+snprintf(group->desktop_id, sizeof(group->desktop_id), "%s", desktop_id);
+group->pinned = true;
+}
+
 if (app->popup_group >= (int)app->group_count) {
 app->popup_group = -1;
 app->popup_hover_item = -1;
@@ -4247,6 +4678,19 @@ active_toplevel_is_fullscreen(const struct app *app)
 {
 const struct toplevel_entry *active = active_toplevel_entry(app);
 return active && active->fullscreen && !active->minimized;
+}
+
+static bool
+active_toplevel_is_maximized(const struct app *app)
+{
+const struct toplevel_entry *active = active_toplevel_entry(app);
+return active && active->maximized && !active->minimized;
+}
+
+static bool
+panel_edge_mode_enabled(const struct app *app)
+{
+return active_toplevel_is_fullscreen(app) || active_toplevel_is_maximized(app);
 }
 
 static void
@@ -4806,6 +5250,8 @@ request_top_panel_size(struct app *app)
 if (!app->top.layer_surface || !app->top.surface) {
 return;
 }
+bool edge_mode = panel_edge_mode_enabled(app);
+bool fullscreen = active_toplevel_is_fullscreen(app);
 uint32_t h = app->style.top_height;
 if (app->quick_open) {
 h = app->style.top_expanded_height;
@@ -4818,12 +5264,22 @@ if ((app->top_popup_mode == TOP_POPUP_QUICK
 h = app->output_height;
 }
 }
+if (fullscreen) {
+zwlr_layer_surface_v1_set_layer(app->top.layer_surface,
+ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND);
+zwlr_layer_surface_v1_set_exclusive_zone(app->top.layer_surface, 0);
+} else {
+zwlr_layer_surface_v1_set_layer(app->top.layer_surface,
+ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY);
+zwlr_layer_surface_v1_set_exclusive_zone(app->top.layer_surface, app->style.top_height);
+}
 zwlr_layer_surface_v1_set_size(app->top.layer_surface, 0, h);
+zwlr_layer_surface_v1_set_margin(app->top.layer_surface,
+0, 0, 0, (edge_mode || !app->side_enabled) ? 0 : app->style.side_width);
 zwlr_layer_surface_v1_set_keyboard_interactivity(app->top.layer_surface,
 top_popup_accepts_keyboard(app)
 ? ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE
 : ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE);
-zwlr_layer_surface_v1_set_exclusive_zone(app->top.layer_surface, app->style.top_height);
 wl_surface_commit(app->top.surface);
 }
 
@@ -4837,14 +5293,16 @@ uint32_t w = app->popup_group >= 0 ? app->style.side_expanded_width : app->style
 if (app->launcher_open) {
 w = launcher_panel_width(app);
 }
+bool fullscreen = active_toplevel_is_fullscreen(app);
 zwlr_layer_surface_v1_set_size(app->side.layer_surface, w, 0);
 zwlr_layer_surface_v1_set_keyboard_interactivity(app->side.layer_surface,
 app->launcher_open
 ? ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE
 : ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE);
 zwlr_layer_surface_v1_set_layer(app->side.layer_surface,
-ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY);
-zwlr_layer_surface_v1_set_exclusive_zone(app->side.layer_surface, app->style.side_width);
+fullscreen ? ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND : ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY);
+zwlr_layer_surface_v1_set_exclusive_zone(app->side.layer_surface,
+fullscreen ? 0 : app->style.side_width);
 wl_surface_commit(app->side.surface);
 }
 
@@ -5076,7 +5534,7 @@ tzset();
 time_t now = time(NULL);
 struct tm tm_now = { 0 };
 if (now == (time_t)-1 || !localtime_r(&now, &tm_now)
-|| strftime(out, out_size, _("%H:%M"), &tm_now) == 0) {
+|| !format_time_with_preference(&tm_now, out, out_size)) {
 snprintf(out, out_size, "--:--");
 }
 
@@ -6181,6 +6639,16 @@ spawn_command(app->quick_bluetooth_enabled
 }
 
 static void
+apply_shell_dnd_runtime(bool enabled)
+{
+if (enabled) {
+spawn_command("sh -lc 'if command -v makoctl >/dev/null 2>&1; then makoctl mode -a do-not-disturb >/dev/null 2>&1 || true; fi; if command -v gsettings >/dev/null 2>&1; then gsettings set org.gnome.desktop.notifications show-banners false >/dev/null 2>&1 || true; fi; if command -v dbus-update-activation-environment >/dev/null 2>&1; then dbus-update-activation-environment --systemd KARTON_NOTIFICATIONS_DND=1 >/dev/null 2>&1 || true; fi'");
+} else {
+spawn_command("sh -lc 'if command -v makoctl >/dev/null 2>&1; then makoctl mode -r do-not-disturb >/dev/null 2>&1 || true; fi; if command -v gsettings >/dev/null 2>&1; then gsettings set org.gnome.desktop.notifications show-banners true >/dev/null 2>&1 || true; fi; if command -v dbus-update-activation-environment >/dev/null 2>&1; then dbus-update-activation-environment --systemd KARTON_NOTIFICATIONS_DND=0 >/dev/null 2>&1 || true; fi'");
+}
+}
+
+static void
 quick_apply_tile_menu_action(struct app *app, int tile, int item)
 {
 if (!app) {
@@ -6211,6 +6679,9 @@ sync_environment_theme(app->style.theme_mode);
 reload_shell_style_runtime(app);
 } else if (tile == 3) {
 app->dnd_enabled = item == 1;
+apply_shell_dnd_runtime(app->dnd_enabled);
+app->quick_status_updated = 0;
+refresh_now = false;
 }
 
 app->quick_menu_tile = -1;
@@ -6306,24 +6777,33 @@ return -1;
 static int
 side_slot_hit(const struct panel *panel, double px, double py)
 {
-if (px < 0 || px > panel->app->style.side_width) {
+if (!panel || !panel->app) {
 return -1;
 }
 
-double cx = panel->app->style.side_width / 2.0;
+const struct app *app = panel->app;
+bool edge_mode = panel_edge_mode_enabled(app);
+double dock_x = edge_mode ? 0.0 : 8.0;
+double dock_w = edge_mode ? app->style.side_width : app->style.side_width - 16.0;
+if (dock_w < 40.0) {
+dock_w = app->style.side_width;
+dock_x = 0.0;
+}
+
+double slot_x = dock_x + 6.0;
+double slot_w = dock_w - 12.0;
+if (slot_w <= 0.0) {
+return -1;
+}
 
 double launcher_y = panel->height - 34.0;
-double dx = px - cx;
-double dy = py - launcher_y;
-if (dx * dx + dy * dy <= 17.0 * 17.0) {
+if (point_in_rect(px, py, slot_x, launcher_y - 20.0, slot_w, 40.0)) {
 return 0;
 }
 
 double y = 40.0;
 for (int slot = 1; slot < 64; slot++) {
-dx = px - cx;
-dy = py - y;
-if (dx * dx + dy * dy <= 16.0 * 16.0) {
+if (point_in_rect(px, py, slot_x, y - 20.0, slot_w, 40.0)) {
 return slot;
 }
 y += 56.0;
@@ -6331,6 +6811,7 @@ if (y > launcher_y - 36.0) {
 break;
 }
 }
+
 return -1;
 }
 
@@ -6550,6 +7031,7 @@ bool dark = theme_mode_is_dark(style->theme_mode);
 double top_alpha = shell_style_surface_alpha(style, dark ? 0.96 : 0.98);
 double panel_alpha = shell_style_surface_alpha(style, dark ? 0.96 : 0.98);
 bool effects_enabled = style->desktop_effects;
+bool edge_mode = panel_edge_mode_enabled(panel->app);
 if (effects_enabled && panel->app->quick_open) {
 double popup_progress = top_popup_open_animation_progress(panel->app);
 panel_alpha *= clamp_double(popup_progress, 0.30, 1.0);
@@ -6558,16 +7040,28 @@ panel_alpha *= clamp_double(popup_progress, 0.30, 1.0);
 cairo_save(cairo);
 cairo_set_operator(cairo, CAIRO_OPERATOR_SOURCE);
 set_source_hex_a(cairo, style->top_bg, top_alpha);
+if (edge_mode) {
+cairo_rectangle(cairo, 0.0, 0.0, panel->width, style->top_height);
+} else {
 rounded_rect(cairo, 4.0, 2.0, panel->width - 8.0, style->top_height - 4.0, 13.0);
+}
 cairo_fill(cairo);
 cairo_restore(cairo);
 
 set_source_hex_a(cairo, style->side_separator, dark ? 0.30 : 0.55);
+if (edge_mode) {
+cairo_rectangle(cairo, 0.5, 0.5, panel->width - 1.0, style->top_height - 1.0);
+} else {
 rounded_rect(cairo, 4.5, 2.5, panel->width - 9.0, style->top_height - 5.0, 12.5);
+}
 cairo_set_line_width(cairo, 1.0);
 cairo_stroke(cairo);
 set_source_hex_a(cairo, style->side_separator, dark ? 0.24 : 0.42);
-cairo_rectangle(cairo, 14.0, style->top_height - 2.0, panel->width - 28.0, 1.0);
+cairo_rectangle(cairo,
+edge_mode ? 0.0 : 14.0,
+style->top_height - 2.0,
+edge_mode ? panel->width : panel->width - 28.0,
+1.0);
 cairo_fill(cairo);
 
 double bx, by, bw, bh;
@@ -7129,13 +7623,13 @@ expanded ? "-" : "+");
 if (expanded) {
     double cursor_y = card_y + 42.0;
     if (panel->app->quick_network_password_visible) {
-        set_source_hex_a(cairo, dark ? 0x1f2d46 : 0xffffff, 0.96);
+        set_source_hex_a(cairo, dark ? 0x182438 : 0xf4f7fb, 0.96);
         rounded_rect(cairo, card_x + 12.0, cursor_y, card_w - 24.0, 34.0, 10.0);
         cairo_fill(cairo);
 
-        set_source_hex_a(cairo, style->side_launcher_bg, 0.18);
+        set_source_hex_a(cairo, style->side_launcher_bg, 0.60);
         rounded_rect(cairo, card_x + 12.5, cursor_y + 0.5, card_w - 25.0, 33.0, 9.5);
-        cairo_set_line_width(cairo, 1.0);
+        cairo_set_line_width(cairo, 1.5);
         cairo_stroke(cairo);
 
         char masked_password[96] = { 0 };
@@ -7148,9 +7642,9 @@ if (expanded) {
             masked_password[masked_len] = '\0';
         }
         draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
-9.6, style->quick_title_text, panel->app->quick_network_password[0] ? 0.92 : 0.48,
-card_x + 24.0, cursor_y + 9.0, (int)card_w - 48, PANGO_ALIGN_LEFT,
-panel->app->quick_network_password[0] ? masked_password : _("Password"));
+10.2, style->quick_title_text, panel->app->quick_network_password[0] ? 0.96 : 0.40,
+card_x + 24.0, cursor_y + 8.0, (int)card_w - 48, PANGO_ALIGN_LEFT,
+panel->app->quick_network_password[0] ? masked_password : _("Enter password..."));
         cursor_y += 44.0;
     }
 
@@ -7196,9 +7690,9 @@ panel->app->quick_network_password[0] ? masked_password : _("Password"));
 9.2, style->quick_title_text, 0.94,
 card_x + 12.0, button_y + 8.0, (int)button_w, PANGO_ALIGN_CENTER,
 connect_disabled ? _("Connected")
-                 : (panel->app->quick_network_password_visible ? _("Connect now")
+                 : (panel->app->quick_network_password_visible ? _("Connect")
                     : (panel->app->quick_network_requires_password && !panel->app->quick_network_has_saved_password
-                       ? _("Enter password") : _("Connect"))));
+                       ? _("Provide password") : _("Connect"))));
 
     set_source_hex_a(cairo, dark ? 0x253555 : 0xf2f6fc, 0.94);
     rounded_rect(cairo, card_x + 22.0 + button_w, button_y, button_w, 28.0, 10.0);
@@ -7307,7 +7801,7 @@ cairo_fill(cairo);
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
 9.8, style->quick_title_text, 0.90, qx + 24.0, row_y + 4.0,
 (int)qw - 140, PANGO_ALIGN_LEFT, panel->app->quick_outputs[i]);
-    if (panel->app->quick_default_output[0] && !strcmp(panel->app->quick_outputs[i], panel->app->quick_default_output)) {
+    if (panel->app->quick_default_output_id[0] && !strcmp(panel->app->quick_output_ids[i], panel->app->quick_default_output_id)) {
         set_source_hex_a(cairo, style->side_launcher_bg, dark ? 0.22 : 0.14);
         rounded_rect(cairo, qx + qw - 108.0, row_y + 2.0, 76.0, 16.0, 8.0);
         cairo_fill(cairo);
@@ -7330,7 +7824,7 @@ cairo_fill(cairo);
 draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
 9.8, style->quick_title_text, 0.90, qx + 24.0, row_y + 4.0,
 (int)qw - 140, PANGO_ALIGN_LEFT, panel->app->quick_inputs[i]);
-    if (panel->app->quick_default_input[0] && !strcmp(panel->app->quick_inputs[i], panel->app->quick_default_input)) {
+    if (panel->app->quick_default_input_id[0] && !strcmp(panel->app->quick_input_ids[i], panel->app->quick_default_input_id)) {
         set_source_hex_a(cairo, style->side_launcher_bg, dark ? 0.22 : 0.14);
         rounded_rect(cairo, qx + qw - 108.0, row_y + 2.0, 76.0, 16.0, 8.0);
         cairo_fill(cairo);
@@ -7615,13 +8109,13 @@ uint32_t launcher_text = dark ? 0xe8ecf4 : 0x2c3f61;
 uint32_t launcher_subtle = dark ? 0xc9d5ec : 0x6a7f9f;
 uint32_t popup_text = dark ? 0xe8ecf4 : 0x253a5d;
 uint32_t popup_header = dark ? 0xe9edf3 : 0x2a3f63;
-bool fullscreen = active_toplevel_is_fullscreen(app);
+bool edge_mode = panel_edge_mode_enabled(app);
 
-double dock_x = fullscreen ? 0.0 : 8.0;
-double dock_y = fullscreen ? 0.0 : 10.0;
-double dock_w = fullscreen ? style->side_width : style->side_width - 16.0;
-double dock_h = fullscreen ? panel->height : panel->height - 20.0;
-double dock_radius = fullscreen ? 0.0 : 16.0;
+double dock_x = edge_mode ? 0.0 : 8.0;
+double dock_y = edge_mode ? 0.0 : 10.0;
+double dock_w = edge_mode ? style->side_width : style->side_width - 16.0;
+double dock_h = edge_mode ? panel->height : panel->height - 20.0;
+double dock_radius = edge_mode ? 0.0 : 16.0;
 if (dock_w < 40.0) {
 dock_w = style->side_width;
 dock_x = 0.0;
@@ -8013,16 +8507,18 @@ draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_NORMAL,
 if (app->launcher_menu_open) {
 const double menu_w = 230.0;
 const double row_h_menu = 28.0;
-const int item_count = 8;
-const char *menu_items[8] = {
+const int item_count = LAUNCHER_MENU_ITEM_COUNT;
+const char *menu_items[LAUNCHER_MENU_ITEM_COUNT] = {
 launcher_menu_favorite_label(app),
+_("Send to desktop"),
+launcher_menu_pin_label(app),
+_("Uninstall application"),
 _("Category: Internet"),
 _("Category: Office"),
 _("Category: Media"),
 _("Category: Development"),
 _("Category: System"),
 _("Category: Utility"),
-_("Uninstall local entry"),
 };
 
 set_source_hex_a(cairo, dark ? 0x1a202c : 0xf6f9ff, 0.98);
@@ -8492,7 +8988,6 @@ double qx, qy, qw, qh;
 bool have_rect = top_popup_rect_for_mode(&app->top, app->top_popup_mode, &qx, &qy, &qw, &qh);
 
 if (have_rect
-&& app->pointer_y > app->style.top_height
 && !point_in_rect(app->pointer_x, app->pointer_y, qx, qy, qw, qh)) {
 top_popup_close(app);
 return;
@@ -8614,7 +9109,7 @@ if (slider >= 0) {
 }
     int output_idx = audio_popup_device_hit(&app->top, app, false, app->pointer_x, app->pointer_y);
     if (output_idx >= 0 && output_idx < (int)app->quick_output_count
-    && (!app->quick_default_output[0] || strcmp(app->quick_outputs[output_idx], app->quick_default_output))) {
+    && (!app->quick_default_output_id[0] || strcmp(app->quick_output_ids[output_idx], app->quick_default_output_id))) {
         if (set_audio_default_device(app, false, (size_t)output_idx)) {
             panel_draw(&app->top);
         }
@@ -8622,7 +9117,7 @@ if (slider >= 0) {
     }
     int input_idx = audio_popup_device_hit(&app->top, app, true, app->pointer_x, app->pointer_y);
     if (input_idx >= 0 && input_idx < (int)app->quick_input_count
-    && (!app->quick_default_input[0] || strcmp(app->quick_inputs[input_idx], app->quick_default_input))) {
+    && (!app->quick_default_input_id[0] || strcmp(app->quick_input_ids[input_idx], app->quick_default_input_id))) {
         if (set_audio_default_device(app, true, (size_t)input_idx)) {
             panel_draw(&app->top);
         }
@@ -8716,6 +9211,7 @@ int tile = quick_tile_hit(&app->top, app->pointer_x, app->pointer_y);
 if (tile >= 0 && tile < 4) {
 app->quick_menu_tile = -1;
 app->quick_menu_hover_item = -1;
+bool refresh_now = true;
 if (tile == 0) {
 open_settings_page("network");
 } else if (tile == 1) {
@@ -8724,8 +9220,13 @@ open_settings_page("bluetooth");
 quick_cycle_theme_mode(app);
 } else if (tile == 3) {
 app->dnd_enabled = !app->dnd_enabled;
+apply_shell_dnd_runtime(app->dnd_enabled);
+app->quick_status_updated = 0;
+refresh_now = false;
 }
+if (refresh_now) {
 refresh_quick_status(app);
+}
 panel_draw(&app->top);
 if (app->side_enabled) {
 panel_draw(&app->side);
@@ -8837,6 +9338,32 @@ panel_draw(&app->side);
 }
 
 static void
+launcher_open_panel(struct app *app)
+{
+if (!app || app->launcher_open) {
+return;
+}
+
+app->launcher_open = true;
+app->launcher_open_started_ms = monotonic_msec();
+app->popup_group = -1;
+app->popup_hover_item = -1;
+app->popup_selected_item = -1;
+app->launcher_query[0] = '\0';
+app->launcher_search_active = false;
+app->launcher_category = LCAT_ALL;
+app->launcher_selected = 0;
+app->launcher_scroll_offset = 0;
+app->launcher_hover_favorite = -1;
+app->launcher_menu_open = false;
+app->launcher_menu_target = -1;
+app->launcher_menu_hover = -1;
+launcher_rebuild_filtered(app);
+request_side_panel_size(app);
+panel_draw(&app->side);
+}
+
+static void
 launcher_activate_filtered(struct app *app, int filtered_idx)
 {
 if (filtered_idx < 0 || filtered_idx >= (int)app->launcher_filtered_count) {
@@ -8851,6 +9378,107 @@ launch_desktop_id(app->launcher_entries[entry_idx].desktop_id);
 launcher_close(app);
 }
 
+static bool
+program_in_path(const char *name)
+{
+if (!name || !name[0]) {
+return false;
+}
+
+gchar *found = g_find_program_in_path(name);
+if (!found) {
+return false;
+}
+
+g_free(found);
+return true;
+}
+
+static void
+launcher_send_to_desktop(struct app *app, int filtered_idx)
+{
+if (filtered_idx < 0 || filtered_idx >= (int)app->launcher_filtered_count) {
+return;
+}
+
+size_t entry_idx = app->launcher_filtered[filtered_idx];
+if (entry_idx >= app->launcher_count) {
+return;
+}
+
+const struct launcher_entry *entry = &app->launcher_entries[entry_idx];
+if (!entry->desktop_path[0]) {
+show_notification_message(_("Launcher"), _("No desktop entry path for this app"));
+return;
+}
+
+char desktop_dir[PATH_MAX] = { 0 };
+if (!read_command_first_line("sh -lc 'xdg-user-dir DESKTOP 2>/dev/null'",
+desktop_dir, sizeof(desktop_dir)) || !desktop_dir[0]) {
+const char *home = getenv("HOME");
+if (!home || !home[0]) {
+show_notification_message(_("Launcher"), _("Could not resolve desktop directory"));
+return;
+}
+
+char pulpit[PATH_MAX] = { 0 };
+snprintf(pulpit, sizeof(pulpit), "%s/Pulpit", home);
+if (access(pulpit, F_OK) == 0) {
+snprintf(desktop_dir, sizeof(desktop_dir), "%s", pulpit);
+} else {
+snprintf(desktop_dir, sizeof(desktop_dir), "%s/Desktop", home);
+}
+}
+
+if (mkdir(desktop_dir, 0755) != 0 && errno != EEXIST) {
+show_notification_message(_("Launcher"), _("Could not create desktop directory"));
+return;
+}
+
+char destination[PATH_MAX] = { 0 };
+size_t dir_len = strlen(desktop_dir);
+size_t id_len = strlen(entry->desktop_id);
+if (dir_len + 1 + id_len + strlen(".desktop") >= sizeof(destination)) {
+show_notification_message(_("Launcher"), _("Desktop shortcut path is too long"));
+return;
+}
+
+memcpy(destination, desktop_dir, dir_len);
+destination[dir_len] = '/';
+memcpy(destination + dir_len + 1, entry->desktop_id, id_len);
+memcpy(destination + dir_len + 1 + id_len, ".desktop", strlen(".desktop") + 1);
+for (int i = 2; access(destination, F_OK) == 0 && i < 1000; i++) {
+int needed = snprintf(destination, sizeof(destination),
+"%s/%s-%d.desktop", desktop_dir, entry->desktop_id, i);
+if (needed < 0 || (size_t)needed >= sizeof(destination)) {
+show_notification_message(_("Launcher"), _("Desktop shortcut path is too long"));
+return;
+}
+}
+
+gchar *contents = NULL;
+gsize content_len = 0;
+GError *error = NULL;
+if (!g_file_get_contents(entry->desktop_path, &contents, &content_len, &error)) {
+show_notification_message(_("Launcher"),
+error && error->message ? error->message : _("Could not read desktop entry"));
+g_clear_error(&error);
+return;
+}
+
+if (!g_file_set_contents(destination, contents, (gssize)content_len, &error)) {
+show_notification_message(_("Launcher"),
+error && error->message ? error->message : _("Could not create desktop shortcut"));
+g_clear_error(&error);
+g_free(contents);
+return;
+}
+g_free(contents);
+
+chmod(destination, 0755);
+show_notification_message(_("Launcher"), _("Shortcut added to desktop"));
+}
+
 static void
 launcher_uninstall_local_entry(struct app *app, int filtered_idx)
 {
@@ -8863,10 +9491,11 @@ return;
 }
 
 const struct launcher_entry *entry = &app->launcher_entries[entry_idx];
-if (!entry->local_entry || !entry->desktop_path[0]) {
+if (!entry->desktop_path[0]) {
 return;
 }
 
+if (entry->local_entry) {
 if (unlink(entry->desktop_path) != 0) {
 fprintf(stderr, _("karton-shell: cannot remove %s: %s\n"),
 entry->desktop_path, strerror(errno));
@@ -8878,6 +9507,84 @@ if (app->launcher_menu_target >= (int)app->launcher_filtered_count) {
 app->launcher_menu_target = (int)app->launcher_filtered_count - 1;
 }
 panel_draw(&app->side);
+show_notification_message(_("Launcher"), _("Removed local launcher entry"));
+return;
+}
+
+char pkg[256] = { 0 };
+char manager[32] = { 0 };
+char output[512] = { 0 };
+
+char *dpkg_argv[] = { "dpkg-query", "-S", (char *)entry->desktop_path, NULL };
+if (run_argv_sync(dpkg_argv, output, sizeof(output))) {
+char *line = trim_in_place(output);
+char *colon = strchr(line, ':');
+if (colon) {
+*colon = '\0';
+snprintf(pkg, sizeof(pkg), "%s", trim_in_place(line));
+snprintf(manager, sizeof(manager), "apt");
+}
+}
+
+if (!pkg[0]) {
+char *pacman_argv[] = { "pacman", "-Qoq", (char *)entry->desktop_path, NULL };
+if (run_argv_sync(pacman_argv, output, sizeof(output))) {
+snprintf(pkg, sizeof(pkg), "%s", trim_in_place(output));
+snprintf(manager, sizeof(manager), "pacman");
+}
+}
+
+if (!pkg[0]) {
+char *rpm_argv[] = { "rpm", "-qf", "--qf", "%{NAME}\\n", (char *)entry->desktop_path, NULL };
+if (run_argv_sync(rpm_argv, output, sizeof(output))) {
+snprintf(pkg, sizeof(pkg), "%s", trim_in_place(output));
+if (program_in_path("dnf")) {
+snprintf(manager, sizeof(manager), "dnf");
+} else if (program_in_path("zypper")) {
+snprintf(manager, sizeof(manager), "zypper");
+} else if (program_in_path("yum")) {
+snprintf(manager, sizeof(manager), "yum");
+} else {
+snprintf(manager, sizeof(manager), "rpm");
+}
+}
+}
+
+if (!pkg[0] || !manager[0]) {
+show_notification_message(_("Launcher"), _("Could not detect package owner for this app"));
+return;
+}
+
+if (!program_in_path("pkexec")) {
+show_notification_message(_("Launcher"), _("pkexec is required to uninstall system applications"));
+return;
+}
+
+gchar *quoted_pkg = g_shell_quote(pkg);
+if (!quoted_pkg) {
+return;
+}
+
+char command[1024] = { 0 };
+if (!strcmp(manager, "apt")) {
+snprintf(command, sizeof(command),
+"DEBIAN_FRONTEND=noninteractive pkexec apt-get remove -y %s || pkexec apt remove -y %s",
+quoted_pkg, quoted_pkg);
+} else if (!strcmp(manager, "pacman")) {
+snprintf(command, sizeof(command), "pkexec pacman -Rns --noconfirm %s", quoted_pkg);
+} else if (!strcmp(manager, "dnf")) {
+snprintf(command, sizeof(command), "pkexec dnf remove -y %s", quoted_pkg);
+} else if (!strcmp(manager, "zypper")) {
+snprintf(command, sizeof(command), "pkexec zypper --non-interactive remove %s", quoted_pkg);
+} else if (!strcmp(manager, "yum")) {
+snprintf(command, sizeof(command), "pkexec yum remove -y %s", quoted_pkg);
+} else {
+snprintf(command, sizeof(command), "pkexec rpm -e %s", quoted_pkg);
+}
+
+spawn_command(command);
+g_free(quoted_pkg);
+show_notification_message(_("Launcher"), _("Started uninstall task. Authorize to continue."));
 }
 
 static void
@@ -8899,25 +9606,31 @@ case 0:
 launcher_set_favorite(app, entry->desktop_id, !entry->favorite);
 break;
 case 1:
-launcher_set_category_override(app, entry->desktop_id, LCAT_INTERNET);
+launcher_send_to_desktop(app, app->launcher_menu_target);
 break;
 case 2:
-launcher_set_category_override(app, entry->desktop_id, LCAT_OFFICE);
+launcher_set_panel_pin(app, entry->desktop_id, !entry->panel_pinned);
 break;
 case 3:
-launcher_set_category_override(app, entry->desktop_id, LCAT_MEDIA);
+launcher_uninstall_local_entry(app, app->launcher_menu_target);
 break;
 case 4:
-launcher_set_category_override(app, entry->desktop_id, LCAT_DEVELOPMENT);
+launcher_set_category_override(app, entry->desktop_id, LCAT_INTERNET);
 break;
 case 5:
-launcher_set_category_override(app, entry->desktop_id, LCAT_SYSTEM);
+launcher_set_category_override(app, entry->desktop_id, LCAT_OFFICE);
 break;
 case 6:
-launcher_set_category_override(app, entry->desktop_id, LCAT_UTILITY);
+launcher_set_category_override(app, entry->desktop_id, LCAT_MEDIA);
 break;
 case 7:
-launcher_uninstall_local_entry(app, app->launcher_menu_target);
+launcher_set_category_override(app, entry->desktop_id, LCAT_DEVELOPMENT);
+break;
+case 8:
+launcher_set_category_override(app, entry->desktop_id, LCAT_SYSTEM);
+break;
+case 9:
+launcher_set_category_override(app, entry->desktop_id, LCAT_UTILITY);
 break;
 default:
 break;
@@ -8925,6 +9638,35 @@ break;
 
 app->launcher_menu_open = false;
 app->launcher_menu_hover = -1;
+panel_draw(&app->side);
+}
+
+static void
+launcher_open_context_menu(struct app *app, int filtered_idx, double pointer_x, double pointer_y)
+{
+if (!app || filtered_idx < 0 || filtered_idx >= (int)app->launcher_filtered_count) {
+return;
+}
+
+app->launcher_menu_open = true;
+app->launcher_menu_target = filtered_idx;
+app->launcher_menu_x = pointer_x + 8.0;
+app->launcher_menu_y = pointer_y + 6.0;
+double max_x = app->side.width - 240.0;
+double max_y = app->side.height - 240.0;
+if (app->launcher_menu_x > max_x) {
+app->launcher_menu_x = max_x;
+}
+if (app->launcher_menu_y > max_y) {
+app->launcher_menu_y = max_y;
+}
+if (app->launcher_menu_x < app->style.side_width + 12.0) {
+app->launcher_menu_x = app->style.side_width + 12.0;
+}
+if (app->launcher_menu_y < 12.0) {
+app->launcher_menu_y = 12.0;
+}
+
 panel_draw(&app->side);
 }
 
@@ -8965,13 +9707,21 @@ return;
 }
 }
 
-if (button == BTN_LEFT) {
+if (button == BTN_LEFT || button == BTN_RIGHT) {
 size_t preview[8] = { 0 };
 size_t preview_count = launcher_collect_favorite_preview(app, preview, G_N_ELEMENTS(preview));
 int favorite_tile = launcher_favorite_tile_hit(&app->side, app,
 app->pointer_x, app->pointer_y);
 if (favorite_tile >= 0 && favorite_tile < (int)preview_count) {
 int filtered_idx = launcher_filtered_index_from_entry(app, preview[favorite_tile]);
+if (button == BTN_RIGHT) {
+if (filtered_idx >= 0) {
+app->launcher_selected = filtered_idx;
+launcher_open_context_menu(app, filtered_idx, app->pointer_x, app->pointer_y);
+}
+return;
+}
+
 if (filtered_idx >= 0) {
 app->launcher_selected = filtered_idx;
 launcher_activate_filtered(app, filtered_idx);
@@ -9002,25 +9752,7 @@ launcher_activate_filtered(app, launcher_item);
 return;
 }
 if (button == BTN_RIGHT) {
-app->launcher_menu_open = true;
-app->launcher_menu_target = launcher_item;
-app->launcher_menu_x = app->pointer_x + 8.0;
-app->launcher_menu_y = app->pointer_y + 6.0;
-double max_x = app->side.width - 240.0;
-double max_y = app->side.height - 240.0;
-if (app->launcher_menu_x > max_x) {
-app->launcher_menu_x = max_x;
-}
-if (app->launcher_menu_y > max_y) {
-app->launcher_menu_y = max_y;
-}
-if (app->launcher_menu_x < app->style.side_width + 12.0) {
-app->launcher_menu_x = app->style.side_width + 12.0;
-}
-if (app->launcher_menu_y < 12.0) {
-app->launcher_menu_y = 12.0;
-}
-panel_draw(&app->side);
+launcher_open_context_menu(app, launcher_item, app->pointer_x, app->pointer_y);
 return;
 }
 }
@@ -9061,23 +9793,7 @@ return;
 }
 
 if (slot == 0) {
-app->launcher_open = true;
-app->launcher_open_started_ms = monotonic_msec();
-app->popup_group = -1;
-app->popup_hover_item = -1;
-app->popup_selected_item = -1;
-app->launcher_query[0] = '\0';
-app->launcher_search_active = false;
-app->launcher_category = LCAT_ALL;
-app->launcher_selected = 0;
-app->launcher_scroll_offset = 0;
-app->launcher_hover_favorite = -1;
-app->launcher_menu_open = false;
-app->launcher_menu_target = -1;
-app->launcher_menu_hover = -1;
-launcher_rebuild_filtered(app);
-request_side_panel_size(app);
-panel_draw(&app->side);
+launcher_open_panel(app);
 return;
 }
 if (slot < 1) {
@@ -9091,6 +9807,9 @@ return;
 
 struct app_group *group = &app->groups[group_idx];
 if (group->count == 0) {
+if (group->desktop_id[0]) {
+launch_desktop_id(group->desktop_id);
+}
 return;
 }
 
@@ -9288,6 +10007,14 @@ app->launcher_menu_hover = -1;
 app->quick_hover_tile = -1;
 app->quick_menu_hover_item = -1;
 app->top_slider_drag_target = TOP_SLIDER_DRAG_NONE;
+if (app->quick_open) {
+top_popup_close(app);
+}
+if (app->global_menu_open) {
+app->global_menu_open = false;
+app->global_menu_open_top = -1;
+panel_draw(&app->top);
+}
 if (app->launcher_open) {
 launcher_close(app);
 return;
@@ -9337,6 +10064,14 @@ if (old_hover != app->quick_hover_tile || old_menu_hover != app->quick_menu_hove
 panel_draw(&app->top);
 }
 }
+if (app->pointer_surface == app->top.surface && app->quick_open) {
+double qx, qy, qw, qh;
+if (top_popup_rect_for_mode(&app->top, app->top_popup_mode, &qx, &qy, &qw, &qh)
+&& app->pointer_y > qy
+&& !point_in_rect(app->pointer_x, app->pointer_y, qx, qy, qw, qh)) {
+top_popup_close(app);
+}
+}
 update_side_hover(app);
 }
 
@@ -9369,9 +10104,30 @@ launcher_close(app);
 return;
 }
 if (app->pointer_surface == app->side.surface) {
+if (app->quick_open) {
+top_popup_close(app);
+}
+if (app->global_menu_open) {
+app->global_menu_open = false;
+app->global_menu_open_top = -1;
+panel_draw(&app->top);
+}
 if (button == BTN_LEFT || button == BTN_RIGHT) {
 handle_side_click(app, button);
 }
+return;
+}
+
+if (app->quick_open) {
+top_popup_close(app);
+}
+if (app->global_menu_open) {
+app->global_menu_open = false;
+app->global_menu_open_top = -1;
+panel_draw(&app->top);
+}
+if (app->launcher_open) {
+launcher_close(app);
 }
 }
 
@@ -9712,6 +10468,13 @@ if (handle_top_network_password_key(app, sym, keycode)) {
 return;
 }
 
+if (!app->launcher_open
+&& (sym == XKB_KEY_Super_L || sym == XKB_KEY_Super_R
+|| sym == XKB_KEY_Meta_L || sym == XKB_KEY_Meta_R)) {
+launcher_open_panel(app);
+return;
+}
+
 if (!app->launcher_open) {
 return;
 }
@@ -9898,6 +10661,7 @@ struct toplevel_entry *entry = data;
 (void)handle;
 entry->active = false;
 entry->minimized = false;
+entry->maximized = false;
 entry->fullscreen = false;
 
 uint32_t *s = state->data;
@@ -9908,6 +10672,9 @@ entry->active = true;
 }
 if (s[i] == ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MINIMIZED) {
 entry->minimized = true;
+}
+if (s[i] == ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MAXIMIZED) {
+entry->maximized = true;
 }
 if (s[i] == ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN) {
 entry->fullscreen = true;
@@ -9923,6 +10690,8 @@ struct toplevel_entry *entry = data;
 (void)handle;
 rebuild_groups(entry->app);
 global_menu_sync_active_window(entry->app);
+request_top_panel_size(entry->app);
+request_side_panel_size(entry->app);
 panel_draw(&entry->app->top);
 update_side_hover(entry->app);
 panel_draw(&entry->app->side);
@@ -9942,10 +10711,13 @@ entry->app_id[0] = '\0';
 entry->title[0] = '\0';
 entry->active = false;
 entry->minimized = false;
+entry->maximized = false;
 (void)handle;
 
 rebuild_groups(entry->app);
 global_menu_sync_active_window(entry->app);
+request_top_panel_size(entry->app);
+request_side_panel_size(entry->app);
 panel_draw(&entry->app->top);
 update_side_hover(entry->app);
 panel_draw(&entry->app->side);

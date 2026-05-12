@@ -56,7 +56,11 @@ if command -v kanshi >/dev/null 2>&1; then
 	pids="$pids $!"
 fi
 
-if command -v swayidle >/dev/null 2>&1; then
+start_idle_backend() {
+	[ -r "${XDG_CONFIG_HOME:-$HOME/.config}/karton/environment" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/karton/environment"
+	if ! command -v swayidle >/dev/null 2>&1; then
+		return 0
+	fi
 	self_cmd="$0"
 	case "$self_cmd" in
 		*/*) ;;
@@ -64,13 +68,54 @@ if command -v swayidle >/dev/null 2>&1; then
 	esac
 	lock_action="\"$self_cmd\" --lock-now"
 
-	swayidle -w \
-		timeout 300 "$lock_action" \
-		timeout 600 'wlopm --off \*' \
-		resume 'wlopm --on \*' \
-		before-sleep "$lock_action" >/dev/null 2>&1 &
+	blank_time="${KARTON_IDLE_DELAY:-300}"
+	lock_time="${KARTON_LOCK_DELAY:-0}"
+
+	if [ "$blank_time" = "0" ]; then
+		return 0
+	fi
+
+	# Odczyt bezpośrednio z gsettings (jako wariant fallback/główny dla GNOME DB)
+	if command -v gsettings >/dev/null 2>&1; then
+		gs_blank="$(gsettings get org.gnome.desktop.session idle-delay 2>/dev/null || echo 300)"
+		gs_lock="$(gsettings get org.gnome.desktop.screensaver lock-delay 2>/dev/null || echo 0)"
+		gs_lock_en="$(gsettings get org.gnome.desktop.screensaver lock-enabled 2>/dev/null || echo true)"
+		
+		# Typ gsettings to uint32, pozbywamy się "uint32 " z wyniku
+		blank_time="${gs_blank##* }"
+		[ "$blank_time" = "0" ] && return 0
+		lock_time="${gs_lock##* }"
+		[ "$gs_lock_en" = "true" ] && act_lock="1" || act_lock="0"
+	else
+		act_lock="${KARTON_LOCK_ENABLED:-1}"
+	fi
+
+	if [ "$act_lock" = "1" ] && [ "$lock_time" != "0" ]; then
+		action_lock_time=$((blank_time + lock_time))
+		swayidle -w \
+			timeout "$blank_time" 'wlopm --off \*' \
+			timeout "$action_lock_time" "$lock_action" \
+			resume 'wlopm --on \*' \
+			before-sleep "$lock_action" >/dev/null 2>&1 &
+	elif [ "$act_lock" = "1" ]; then
+		swayidle -w \
+			timeout "$blank_time" 'wlopm --off \*' \
+			timeout "$blank_time" "$lock_action" \
+			resume 'wlopm --on \*' \
+			before-sleep "$lock_action" >/dev/null 2>&1 &
+	else
+		swayidle -w \
+			timeout "$blank_time" 'wlopm --off \*' \
+			resume 'wlopm --on \*' >/dev/null 2>&1 &
+	fi
 	pids="$pids $!"
-fi
+	idle_pid="$!"
+}
+
+# Nasłuchiwanie zmian dla przeładowania uśpienia (np. SIGUSR1)
+trap 'if [ -n "$idle_pid" ]; then kill "$idle_pid"; wait "$idle_pid" 2>/dev/null; fi; start_idle_backend' USR1
+
+start_idle_backend
 
 if [ -n "$pids" ]; then
 	wait

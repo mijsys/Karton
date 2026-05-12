@@ -97,20 +97,6 @@ executable(
   install: true,
 )
 
-executable(
-  'karton-dialogd',
-  files('src/karton-dialogd.c'),
-  dependencies: [glib, gio, gtk4],
-  install: true,
-)
-
-executable(
-  'karton-dialog',
-  files('src/karton-dialog.c'),
-  dependencies: [glib, gio],
-  install: true,
-)
-
 install_data(
   ['bin/karton-top-panel', 'bin/karton-side-dock'],
   install_dir: get_option('bindir'),

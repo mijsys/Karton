@@ -6,11 +6,20 @@ project(
   meson_version: '>=0.59.0',
 )
 
+gtk_dep = dependency('gtk4')
+
 subdir('po')
 
 executable(
   'karton-screenshot',
   files('src/karton-screenshot.c'),
+  install: true,
+)
+
+executable(
+  'karton-password-dialog',
+  files('src/karton-password-dialog.c'),
+  dependencies: [gtk_dep],
   install: true,
 )
 

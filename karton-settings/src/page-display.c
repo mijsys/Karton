@@ -98,6 +98,7 @@ static GtkWidget *g_night_light_switch = NULL;
 static GtkWidget *g_vrr_switch = NULL;
 static GtkWidget *g_status_label = NULL;
 static GtkWidget *g_monitor_info_label = NULL;
+static GtkWidget *g_apply_button = NULL;
 
 static GtkStringList *g_monitor_model = NULL;
 static GtkStringList *g_mode_model = NULL;
@@ -114,6 +115,35 @@ static gboolean g_preview_drag_moved = FALSE;
 static int g_preview_drag_monitor_idx = -1;
 static double g_preview_drag_offset_x = 0.0;
 static double g_preview_drag_offset_y = 0.0;
+static gboolean g_apply_in_progress = FALSE;
+
+struct monitor_apply_state {
+    char *name;
+    gboolean enabled;
+    int staged_width;
+    int staged_height;
+    double staged_refresh_hz;
+    int staged_pos_x;
+    int staged_pos_y;
+    double staged_scale;
+    gboolean staged_adaptive_sync;
+    char *staged_transform;
+    GPtrArray *modes;
+};
+
+struct display_apply_request {
+    gboolean can_apply_outputs;
+    int brightness;
+    gboolean night_light;
+    GPtrArray *monitors;
+};
+
+struct display_apply_result {
+    gboolean ok;
+    gboolean limited_mode;
+    char *runtime_issues;
+    char *error_message;
+};
 
 static void clear_monitor_data(void);
 static void apply_layout_to_staged_positions(enum monitor_layout layout, int primary_idx);
@@ -130,6 +160,23 @@ static void save_current_config(const struct monitor_info *monitor, const struct
 static void load_saved_config(void);
 static void refresh_monitor_data(gboolean with_status);
 static gboolean apply_outputs_configuration(char **error_out);
+static char *apply_runtime_tweaks_values(int brightness, gboolean night_light);
+
+static void free_monitor_apply_state(gpointer data);
+static void free_display_apply_request(gpointer data);
+static void free_display_apply_result(gpointer data);
+static GPtrArray *snapshot_monitors_for_apply(void);
+static gboolean apply_outputs_configuration_snapshot(GPtrArray *monitors, char **error_out);
+static void apply_display_settings_task(GTask *task, gpointer source_object, gpointer task_data, GCancellable *cancellable);
+static void on_apply_settings_task_done(GObject *source_object, GAsyncResult *res, gpointer user_data);
+
+static gboolean parse_refresh_token(const char *token, double *refresh_out);
+static const struct monitor_mode *find_matching_mode(const struct monitor_info *monitor,
+                                                    int width,
+                                                    int height,
+                                                    double refresh_hz);
+static gboolean is_mode_not_found_error(const char *stderr_text);
+static char *monitor_group_name(const char *monitor_name);
 
 static int round_to_int(double value)
 {
@@ -725,6 +772,165 @@ static gboolean run_command_capture(const char *command, char **stdout_out, char
     return g_spawn_check_wait_status(wait_status, NULL);
 }
 
+static gboolean run_command_success(const char *command)
+{
+    char *stdout_data = NULL;
+    char *stderr_data = NULL;
+    int wait_status = 0;
+    gboolean ok = run_command_capture(command, &stdout_data, &stderr_data, &wait_status);
+    (void)wait_status;
+    g_free(stdout_data);
+    g_free(stderr_data);
+    return ok;
+}
+
+static gboolean run_command_async(const char *command)
+{
+    GError *error = NULL;
+    gboolean ok = g_spawn_command_line_async(command, &error);
+    if (!ok) {
+        g_clear_error(&error);
+    }
+    return ok;
+}
+
+static gboolean command_is_available(const char *name)
+{
+    char *tool = g_find_program_in_path(name);
+    if (!tool) {
+        return FALSE;
+    }
+
+    g_free(tool);
+    return TRUE;
+}
+
+static gboolean parse_brightness_value_from_quick(const char *text, int *value_out)
+{
+    if (!text || !value_out) {
+        return FALSE;
+    }
+
+    const char *marker = strstr(text, "brightness=");
+    if (!marker) {
+        return FALSE;
+    }
+
+    marker += strlen("brightness=");
+    char *endptr = NULL;
+    long value = g_ascii_strtoll(marker, &endptr, 10);
+    if (endptr == marker) {
+        return FALSE;
+    }
+
+    *value_out = (int)value;
+    return TRUE;
+}
+
+static gboolean set_brightness_with_karton_status(int brightness)
+{
+    if (!command_is_available("karton-system-status")) {
+        return FALSE;
+    }
+
+    char *set_cmd = g_strdup_printf("sh -lc 'timeout 2s karton-system-status set-brightness %d >/dev/null 2>&1'", brightness);
+    gboolean set_ok = run_command_success(set_cmd);
+    g_free(set_cmd);
+    if (!set_ok) {
+        return FALSE;
+    }
+
+    char *quick_out = NULL;
+    char *quick_err = NULL;
+    int wait_status = 0;
+    gboolean quick_ok = run_command_capture("sh -lc 'timeout 2s karton-system-status quick 2>/dev/null'",
+                                            &quick_out,
+                                            &quick_err,
+                                            &wait_status);
+    (void)wait_status;
+    g_free(quick_err);
+
+    if (!quick_ok || !quick_out) {
+        g_free(quick_out);
+        return FALSE;
+    }
+
+    int reported = -1;
+    gboolean parsed = parse_brightness_value_from_quick(quick_out, &reported);
+    g_free(quick_out);
+
+    return parsed && reported >= 0;
+}
+
+static gboolean set_brightness_with_brightnessctl(int brightness)
+{
+    if (!command_is_available("brightnessctl")) {
+        return FALSE;
+    }
+
+    char *cmd = g_strdup_printf("sh -lc 'timeout 2s brightnessctl set %d%% >/dev/null 2>&1'", brightness);
+    gboolean ok = run_command_success(cmd);
+    g_free(cmd);
+    return ok;
+}
+
+static gboolean set_brightness_with_ddcutil(int brightness)
+{
+    if (!command_is_available("ddcutil")) {
+        return FALSE;
+    }
+
+    char *cmd = g_strdup_printf("sh -lc 'timeout 3s ddcutil setvcp 10 %d >/dev/null 2>&1 || true'", brightness);
+    gboolean ok = run_command_async(cmd);
+    g_free(cmd);
+    return ok;
+}
+
+static gboolean set_night_light_with_gammastep(gboolean enabled)
+{
+    if (!command_is_available("gammastep")) {
+        return FALSE;
+    }
+
+    if (enabled) {
+        return run_command_success("sh -lc 'pkill -x gammastep >/dev/null 2>&1 || true; nohup gammastep -O 4300 >/dev/null 2>&1 &'");
+    }
+
+    return run_command_success("sh -lc 'pkill -x gammastep >/dev/null 2>&1 || true; gammastep -x >/dev/null 2>&1 || true'");
+}
+
+static gboolean set_night_light_with_wlsunset(gboolean enabled)
+{
+    if (!command_is_available("wlsunset")) {
+        return FALSE;
+    }
+
+    if (enabled) {
+        return run_command_success("sh -lc 'pkill -x wlsunset >/dev/null 2>&1 || true; wlsunset -t 4300 -T 4300 >/dev/null 2>&1 &'");
+    }
+
+    return run_command_success("sh -lc 'pkill -x wlsunset >/dev/null 2>&1 || true'");
+}
+
+static gboolean set_night_light_with_gsettings(gboolean enabled)
+{
+    if (!command_is_available("gsettings")) {
+        return FALSE;
+    }
+
+    if (!run_command_success("sh -lc 'gsettings writable org.gnome.settings-daemon.plugins.color night-light-enabled >/dev/null 2>&1'")) {
+        return FALSE;
+    }
+
+    const char *value = enabled ? "true" : "false";
+    char *cmd = g_strdup_printf(
+        "sh -lc 'gsettings set org.gnome.settings-daemon.plugins.color night-light-enabled %s >/dev/null 2>&1'",
+        value);
+    gboolean ok = run_command_success(cmd);
+    g_free(cmd);
+    return ok;
+}
+
 static void ensure_monitor_has_current_mode(struct monitor_info *monitor)
 {
     if (!monitor) {
@@ -767,7 +973,45 @@ static void ensure_monitor_has_current_mode(struct monitor_info *monitor)
         g_ptr_array_add(monitor->modes, mode);
     }
 
+    const struct monitor_mode *resolved = find_matching_mode(monitor,
+                                                             monitor->width,
+                                                             monitor->height,
+                                                             monitor->refresh_hz);
+    if (resolved) {
+        monitor->width = resolved->width;
+        monitor->height = resolved->height;
+        monitor->refresh_hz = resolved->refresh_hz;
+    }
+
     monitor_sync_staged_from_current(monitor);
+}
+
+static gboolean parse_refresh_token(const char *token, double *refresh_out)
+{
+    if (!token || !*token || !refresh_out) {
+        return FALSE;
+    }
+
+    char *copy = g_strdup(token);
+    g_strstrip(copy);
+
+    for (char *p = copy; *p; p++) {
+        if (*p == ',') {
+            *p = '.';
+        }
+    }
+
+    gchar *end = NULL;
+    double value = g_ascii_strtod(copy, &end);
+    gboolean ok = end != copy && *end == '\0' && value > 0.0;
+    g_free(copy);
+
+    if (!ok) {
+        return FALSE;
+    }
+
+    *refresh_out = value;
+    return TRUE;
 }
 
 static struct monitor_mode *parse_mode_line(const char *line)
@@ -778,12 +1022,13 @@ static struct monitor_mode *parse_mode_line(const char *line)
     int w = 0;
     int h = 0;
     double hz = 0.0;
+    char hz_token[64] = { 0 };
 
-    gboolean parsed = (sscanf(trimmed, "%dx%d px, %lf Hz", &w, &h, &hz) == 3)
-        || (sscanf(trimmed, "%dx%d@%lfHz", &w, &h, &hz) == 3)
-        || (sscanf(trimmed, "%dx%d @ %lf Hz", &w, &h, &hz) == 3);
+    gboolean parsed = (sscanf(trimmed, "%dx%d px, %63s Hz", &w, &h, hz_token) == 3)
+        || (sscanf(trimmed, "%dx%d@%63[^H]Hz", &w, &h, hz_token) == 3)
+        || (sscanf(trimmed, "%dx%d @ %63s Hz", &w, &h, hz_token) == 3);
 
-    if (!parsed || w <= 0 || h <= 0 || hz <= 0.0) {
+    if (!parsed || w <= 0 || h <= 0 || !parse_refresh_token(hz_token, &hz)) {
         g_free(trimmed);
         return NULL;
     }
@@ -855,13 +1100,14 @@ static gboolean parse_current_mode_value(const char *line, int *w, int *h, doubl
     int mw = 0;
     int mh = 0;
     double mhz = 0.0;
+    char hz_token[64] = { 0 };
 
-    gboolean ok = (sscanf(line, " Current mode: %dx%d @ %lf Hz", &mw, &mh, &mhz) == 3)
-        || (sscanf(line, " Current mode: %dx%d px, %lf Hz", &mw, &mh, &mhz) == 3)
-        || (sscanf(line, "Current mode: %dx%d @ %lf Hz", &mw, &mh, &mhz) == 3)
-        || (sscanf(line, "Current mode: %dx%d px, %lf Hz", &mw, &mh, &mhz) == 3);
+    gboolean ok = (sscanf(line, " Current mode: %dx%d @ %63s Hz", &mw, &mh, hz_token) == 3)
+        || (sscanf(line, " Current mode: %dx%d px, %63s Hz", &mw, &mh, hz_token) == 3)
+        || (sscanf(line, "Current mode: %dx%d @ %63s Hz", &mw, &mh, hz_token) == 3)
+        || (sscanf(line, "Current mode: %dx%d px, %63s Hz", &mw, &mh, hz_token) == 3);
 
-    if (!ok || mw <= 0 || mh <= 0 || mhz <= 0.0) {
+    if (!ok || mw <= 0 || mh <= 0 || !parse_refresh_token(hz_token, &mhz)) {
         return FALSE;
     }
 
@@ -931,7 +1177,7 @@ static gboolean query_monitors_from_wlr_randr(char **err_out)
 
     if (g_find_program_in_path("wlr-randr")) {
         g_monitor_backend = MONITOR_BACKEND_WLR_RANDR;
-        run_command_capture("sh -lc 'wlr-randr 2>/dev/null || true'",
+        run_command_capture("sh -lc 'timeout 4s wlr-randr 2>/dev/null || true'",
                             &stdout_data,
                             &stderr_data,
                             &wait_status);
@@ -1115,6 +1361,85 @@ static const char *monitor_backend_label(enum monitor_backend backend)
 static gboolean monitor_backend_can_apply_outputs(void)
 {
     return g_monitor_backend == MONITOR_BACKEND_WLR_RANDR;
+}
+
+static char *monitor_group_name(const char *monitor_name)
+{
+    const char *name = (monitor_name && *monitor_name) ? monitor_name : "monitor";
+    char *safe = g_strdup(name);
+
+    for (char *p = safe; *p; p++) {
+        if (!(g_ascii_isalnum(*p) || *p == '_' || *p == '-')) {
+            *p = '_';
+        }
+    }
+
+    char *group = g_strdup_printf("monitor.%s", safe);
+    g_free(safe);
+    return group;
+}
+
+static const struct monitor_mode *find_matching_mode(const struct monitor_info *monitor,
+                                                    int width,
+                                                    int height,
+                                                    double refresh_hz)
+{
+    if (!monitor || !monitor->modes || monitor->modes->len == 0) {
+        return NULL;
+    }
+
+    const struct monitor_mode *best_same_res = NULL;
+    const struct monitor_mode *current_mode = NULL;
+    const struct monitor_mode *best_any = NULL;
+    double best_same_delta = G_MAXDOUBLE;
+    double best_any_delta = G_MAXDOUBLE;
+
+    for (guint i = 0; i < monitor->modes->len; i++) {
+        const struct monitor_mode *mode = g_ptr_array_index(monitor->modes, i);
+        if (!mode) {
+            continue;
+        }
+
+        double delta = fabs(mode->refresh_hz - refresh_hz);
+
+        if (mode->current && !current_mode) {
+            current_mode = mode;
+        }
+
+        if (mode->width == width && mode->height == height && delta < best_same_delta) {
+            best_same_delta = delta;
+            best_same_res = mode;
+        }
+
+        if (delta < best_any_delta) {
+            best_any_delta = delta;
+            best_any = mode;
+        }
+    }
+
+    if (best_same_res) {
+        return best_same_res;
+    }
+
+    if (current_mode) {
+        return current_mode;
+    }
+
+    return best_any;
+}
+
+static gboolean is_mode_not_found_error(const char *stderr_text)
+{
+    if (!stderr_text || !*stderr_text) {
+        return FALSE;
+    }
+
+    char *lower = g_ascii_strdown(stderr_text, -1);
+    gboolean match = strstr(lower, "unknown mode") != NULL
+        || strstr(lower, "invalid mode") != NULL
+        || strstr(lower, "invalid refresh") != NULL;
+    g_free(lower);
+    return match;
 }
 
 static struct monitor_info *selected_monitor(void)
@@ -1544,24 +1869,49 @@ static void draw_monitor_preview(GtkDrawingArea *area,
     }
 }
 
-static void apply_runtime_tweaks(void)
+static char *apply_runtime_tweaks_values(int brightness, gboolean night_light)
 {
-    int brightness = (int)gtk_range_get_value(GTK_RANGE(g_brightness_scale));
-    gboolean night_light = gtk_switch_get_active(GTK_SWITCH(g_night_light_switch));
+    gboolean brightness_ok = set_brightness_with_karton_status(brightness)
+        || set_brightness_with_brightnessctl(brightness)
+        || set_brightness_with_ddcutil(brightness);
 
-    if (g_find_program_in_path("brightnessctl")) {
-        char *cmd = g_strdup_printf("sh -lc 'brightnessctl set %d%% >/dev/null 2>&1 || true'", brightness);
-        g_spawn_command_line_async(cmd, NULL);
-        g_free(cmd);
+    gboolean night_light_ok = FALSE;
+    if (night_light) {
+        night_light_ok = set_night_light_with_gammastep(TRUE)
+            || set_night_light_with_wlsunset(TRUE)
+            || set_night_light_with_gsettings(TRUE);
+    } else {
+        gboolean changed = FALSE;
+        changed = set_night_light_with_gammastep(FALSE) || changed;
+        changed = set_night_light_with_wlsunset(FALSE) || changed;
+        changed = set_night_light_with_gsettings(FALSE) || changed;
+
+        /* Brak backendu przy wyłączaniu traktujemy jako brak akcji, nie błąd. */
+        (void)changed;
+        night_light_ok = TRUE;
     }
 
-    if (g_find_program_in_path("gsettings")) {
-        char *cmd = g_strdup_printf(
-            "sh -lc 'gsettings set org.gnome.settings-daemon.plugins.color night-light-enabled %s >/dev/null 2>&1 || true'",
-            night_light ? "true" : "false");
-        g_spawn_command_line_async(cmd, NULL);
-        g_free(cmd);
+    GString *issues = g_string_new(NULL);
+
+    if (!brightness_ok) {
+        g_string_append(issues,
+                        _("Brightness could not be applied. Install/configure a supported backend: karton-system-status, brightnessctl or ddcutil."));
     }
+
+    if (night_light && !night_light_ok) {
+        if (issues->len > 0) {
+            g_string_append(issues, " ");
+        }
+        g_string_append(issues,
+                        _("Night light could not be applied. Install/configure gammastep or wlsunset."));
+    }
+
+    if (issues->len == 0) {
+        g_string_free(issues, TRUE);
+        return NULL;
+    }
+
+    return g_string_free(issues, FALSE);
 }
 
 static void apply_layout_to_staged_positions(enum monitor_layout layout, int primary_idx)
@@ -1577,10 +1927,14 @@ static void apply_layout_to_staged_positions(enum monitor_layout layout, int pri
     set_primary_monitor_index(primary_idx);
 
     if (layout == MONITOR_LAYOUT_KEEP) {
+        struct monitor_info *primary = g_ptr_array_index(g_monitors, (guint)primary_idx);
+        int offset_x = primary ? primary->pos_x : 0;
+        int offset_y = primary ? primary->pos_y : 0;
+
         for (guint i = 0; i < g_monitors->len; i++) {
             struct monitor_info *monitor = g_ptr_array_index(g_monitors, i);
-            monitor->staged_pos_x = monitor->pos_x;
-            monitor->staged_pos_y = monitor->pos_y;
+            monitor->staged_pos_x = monitor->pos_x - offset_x;
+            monitor->staged_pos_y = monitor->pos_y - offset_y;
         }
         return;
     }
@@ -1669,6 +2023,27 @@ static void save_current_config(const struct monitor_info *monitor, const struct
         struct monitor_info *primary = g_ptr_array_index(g_monitors, (guint)primary_idx);
         if (primary && primary->name) {
             g_key_file_set_string(kf, "display", "primary_monitor", primary->name);
+        }
+    }
+
+    if (g_monitors) {
+        for (guint i = 0; i < g_monitors->len; i++) {
+            const struct monitor_info *m = g_ptr_array_index(g_monitors, i);
+            if (!m || !m->name) {
+                continue;
+            }
+
+            char *group = monitor_group_name(m->name);
+            g_key_file_set_integer(kf, group, "staged_width", m->staged_width);
+            g_key_file_set_integer(kf, group, "staged_height", m->staged_height);
+            g_key_file_set_double(kf, group, "staged_hz", m->staged_refresh_hz);
+            g_key_file_set_double(kf, group, "staged_scale", m->staged_scale);
+            g_key_file_set_string(kf, group, "staged_transform", m->staged_transform ? m->staged_transform : "normal");
+            g_key_file_set_boolean(kf, group, "staged_vrr", m->staged_adaptive_sync);
+            g_key_file_set_integer(kf, group, "staged_pos_x", m->staged_pos_x);
+            g_key_file_set_integer(kf, group, "staged_pos_y", m->staged_pos_y);
+            g_key_file_set_boolean(kf, group, "primary", m->primary);
+            g_free(group);
         }
     }
 
@@ -1771,6 +2146,81 @@ static void load_saved_config(void)
         night_light = FALSE;
     }
 
+    int primary_from_group = -1;
+    gboolean has_saved_positions = FALSE;
+
+    if (g_monitors) {
+        for (guint i = 0; i < g_monitors->len; i++) {
+            struct monitor_info *m = g_ptr_array_index(g_monitors, i);
+            if (!m || !m->name) {
+                continue;
+            }
+
+            char *group = monitor_group_name(m->name);
+
+            int staged_w = g_key_file_get_integer(kf, group, "staged_width", &error);
+            if (!error && staged_w > 0) {
+                m->staged_width = staged_w;
+            }
+            g_clear_error(&error);
+
+            int staged_h = g_key_file_get_integer(kf, group, "staged_height", &error);
+            if (!error && staged_h > 0) {
+                m->staged_height = staged_h;
+            }
+            g_clear_error(&error);
+
+            double staged_hz = g_key_file_get_double(kf, group, "staged_hz", &error);
+            if (!error && staged_hz > 0.0) {
+                m->staged_refresh_hz = staged_hz;
+            }
+            g_clear_error(&error);
+
+            double staged_scale = g_key_file_get_double(kf, group, "staged_scale", &error);
+            if (!error && staged_scale > 0.0) {
+                m->staged_scale = staged_scale;
+            }
+            g_clear_error(&error);
+
+            char *staged_transform = g_key_file_get_string(kf, group, "staged_transform", &error);
+            if (!error && staged_transform && *staged_transform) {
+                g_free(m->staged_transform);
+                m->staged_transform = staged_transform;
+                staged_transform = NULL;
+            }
+            g_free(staged_transform);
+            g_clear_error(&error);
+
+            gboolean staged_vrr = g_key_file_get_boolean(kf, group, "staged_vrr", &error);
+            if (!error) {
+                m->staged_adaptive_sync = staged_vrr;
+            }
+            g_clear_error(&error);
+
+            int staged_x = g_key_file_get_integer(kf, group, "staged_pos_x", &error);
+            if (!error) {
+                m->staged_pos_x = staged_x;
+                has_saved_positions = TRUE;
+            }
+            g_clear_error(&error);
+
+            int staged_y = g_key_file_get_integer(kf, group, "staged_pos_y", &error);
+            if (!error) {
+                m->staged_pos_y = staged_y;
+                has_saved_positions = TRUE;
+            }
+            g_clear_error(&error);
+
+            gboolean saved_primary = g_key_file_get_boolean(kf, group, "primary", &error);
+            if (!error && saved_primary) {
+                primary_from_group = (int)i;
+            }
+            g_clear_error(&error);
+
+            g_free(group);
+        }
+    }
+
     g_block_handlers = TRUE;
 
     if (monitor_name && g_monitors) {
@@ -1819,13 +2269,20 @@ static void load_saved_config(void)
                     break;
                 }
             }
+        } else if (primary_from_group >= 0) {
+            primary_idx = primary_from_group;
         }
         if (primary_idx < 0 || primary_idx >= (int)g_monitors->len) {
             primary_idx = detect_primary_monitor_index();
         }
         set_primary_monitor_index(primary_idx);
         gtk_drop_down_set_selected(GTK_DROP_DOWN(g_primary_dropdown), (guint)primary_idx);
-        apply_layout_to_staged_positions((enum monitor_layout)layout_idx, primary_idx);
+
+        if ((enum monitor_layout)layout_idx == MONITOR_LAYOUT_KEEP && has_saved_positions) {
+            set_primary_monitor_index(primary_idx);
+        } else {
+            apply_layout_to_staged_positions((enum monitor_layout)layout_idx, primary_idx);
+        }
     }
 
     g_block_handlers = FALSE;
@@ -1957,19 +2414,43 @@ static gboolean apply_outputs_configuration(char **error_out)
             continue;
         }
 
+        int apply_width = monitor->staged_width;
+        int apply_height = monitor->staged_height;
+        double apply_refresh_hz = monitor->staged_refresh_hz;
+        const struct monitor_mode *resolved = find_matching_mode(monitor,
+                                                                 apply_width,
+                                                                 apply_height,
+                                                                 apply_refresh_hz);
+        if (resolved) {
+            apply_width = resolved->width;
+            apply_height = resolved->height;
+            apply_refresh_hz = resolved->refresh_hz;
+        }
+
         char *quoted_name = g_shell_quote(monitor->name ? monitor->name : "");
         const char *transform = (monitor->staged_transform && *monitor->staged_transform)
             ? monitor->staged_transform
             : "normal";
         double scale = monitor->staged_scale > 0.0 ? monitor->staged_scale : 1.0;
+        char refresh_hz_ascii[G_ASCII_DTOSTR_BUF_SIZE] = { 0 };
+        char scale_ascii[G_ASCII_DTOSTR_BUF_SIZE] = { 0 };
+
+        g_ascii_formatd(refresh_hz_ascii,
+                        sizeof(refresh_hz_ascii),
+                        "%.6f",
+                        apply_refresh_hz);
+        g_ascii_formatd(scale_ascii,
+                        sizeof(scale_ascii),
+                        "%.2f",
+                        scale);
 
         char *cmd = g_strdup_printf(
-            "sh -lc 'wlr-randr --output %s --mode %dx%d@%.6fHz --scale %.2f --transform %s --pos %d,%d --adaptive-sync %s'",
+            "sh -lc 'timeout 6s wlr-randr --output %s --mode %dx%d@%sHz --scale %s --transform %s --pos %d,%d --adaptive-sync %s'",
             quoted_name,
-            monitor->staged_width,
-            monitor->staged_height,
-            monitor->staged_refresh_hz,
-            scale,
+            apply_width,
+            apply_height,
+            refresh_hz_ascii,
+            scale_ascii,
             transform,
             monitor->staged_pos_x,
             monitor->staged_pos_y,
@@ -1982,6 +2463,28 @@ static gboolean apply_outputs_configuration(char **error_out)
         (void)wait_status;
 
         g_free(cmd);
+
+        if (!ok && is_mode_not_found_error(stderr_data)) {
+            g_free(stdout_data);
+            g_free(stderr_data);
+            stdout_data = NULL;
+            stderr_data = NULL;
+
+            char *fallback_cmd = g_strdup_printf(
+                "sh -lc 'timeout 6s wlr-randr --output %s --mode %dx%d --scale %s --transform %s --pos %d,%d --adaptive-sync %s'",
+                quoted_name,
+                apply_width,
+                apply_height,
+                scale_ascii,
+                transform,
+                monitor->staged_pos_x,
+                monitor->staged_pos_y,
+                monitor->staged_adaptive_sync ? "enabled" : "disabled");
+
+            ok = run_command_capture(fallback_cmd, &stdout_data, &stderr_data, &wait_status);
+            g_free(fallback_cmd);
+        }
+
         g_free(quoted_name);
 
         if (!ok) {
@@ -2005,6 +2508,334 @@ static gboolean apply_outputs_configuration(char **error_out)
     return TRUE;
 }
 
+static void free_monitor_apply_state(gpointer data)
+{
+    struct monitor_apply_state *state = data;
+    if (!state) {
+        return;
+    }
+
+    g_free(state->name);
+    g_free(state->staged_transform);
+    if (state->modes) {
+        g_ptr_array_unref(state->modes);
+    }
+    g_free(state);
+}
+
+static void free_display_apply_request(gpointer data)
+{
+    struct display_apply_request *request = data;
+    if (!request) {
+        return;
+    }
+
+    if (request->monitors) {
+        g_ptr_array_unref(request->monitors);
+    }
+    g_free(request);
+}
+
+static void free_display_apply_result(gpointer data)
+{
+    struct display_apply_result *result = data;
+    if (!result) {
+        return;
+    }
+
+    g_free(result->runtime_issues);
+    g_free(result->error_message);
+    g_free(result);
+}
+
+static GPtrArray *snapshot_monitors_for_apply(void)
+{
+    GPtrArray *snapshot = g_ptr_array_new_with_free_func(free_monitor_apply_state);
+
+    if (!g_monitors || g_monitors->len == 0) {
+        return snapshot;
+    }
+
+    for (guint i = 0; i < g_monitors->len; i++) {
+        struct monitor_info *monitor = g_ptr_array_index(g_monitors, i);
+        if (!monitor) {
+            continue;
+        }
+
+        struct monitor_apply_state *state = g_new0(struct monitor_apply_state, 1);
+        state->name = g_strdup(monitor->name);
+        state->enabled = monitor->enabled;
+        state->staged_width = monitor->staged_width;
+        state->staged_height = monitor->staged_height;
+        state->staged_refresh_hz = monitor->staged_refresh_hz;
+        state->staged_pos_x = monitor->staged_pos_x;
+        state->staged_pos_y = monitor->staged_pos_y;
+        state->staged_scale = monitor->staged_scale;
+        state->staged_adaptive_sync = monitor->staged_adaptive_sync;
+        state->staged_transform = g_strdup(monitor->staged_transform);
+        state->modes = g_ptr_array_new_with_free_func(free_monitor_mode);
+
+        if (monitor->modes) {
+            for (guint mode_idx = 0; mode_idx < monitor->modes->len; mode_idx++) {
+                struct monitor_mode *mode = g_ptr_array_index(monitor->modes, mode_idx);
+                if (!mode) {
+                    continue;
+                }
+
+                struct monitor_mode *copy = g_new0(struct monitor_mode, 1);
+                *copy = *mode;
+                g_ptr_array_add(state->modes, copy);
+            }
+        }
+
+        g_ptr_array_add(snapshot, state);
+    }
+
+    return snapshot;
+}
+
+static const struct monitor_mode *find_matching_mode_snapshot(const struct monitor_apply_state *monitor,
+                                                              int width,
+                                                              int height,
+                                                              double refresh_hz)
+{
+    if (!monitor || !monitor->modes || monitor->modes->len == 0) {
+        return NULL;
+    }
+
+    const struct monitor_mode *best_same_res = NULL;
+    const struct monitor_mode *current_mode = NULL;
+    const struct monitor_mode *best_any = NULL;
+    double best_same_delta = G_MAXDOUBLE;
+    double best_any_delta = G_MAXDOUBLE;
+
+    for (guint i = 0; i < monitor->modes->len; i++) {
+        const struct monitor_mode *mode = g_ptr_array_index(monitor->modes, i);
+        if (!mode) {
+            continue;
+        }
+
+        double delta = fabs(mode->refresh_hz - refresh_hz);
+
+        if (mode->current && !current_mode) {
+            current_mode = mode;
+        }
+
+        if (mode->width == width && mode->height == height && delta < best_same_delta) {
+            best_same_delta = delta;
+            best_same_res = mode;
+        }
+
+        if (delta < best_any_delta) {
+            best_any_delta = delta;
+            best_any = mode;
+        }
+    }
+
+    if (best_same_res) {
+        return best_same_res;
+    }
+    if (current_mode) {
+        return current_mode;
+    }
+    return best_any;
+}
+
+static gboolean apply_outputs_configuration_snapshot(GPtrArray *monitors, char **error_out)
+{
+    if (!monitors || monitors->len == 0) {
+        if (error_out) {
+            *error_out = g_strdup(_("No connected monitors"));
+        }
+        return FALSE;
+    }
+
+    for (guint i = 0; i < monitors->len; i++) {
+        struct monitor_apply_state *monitor = g_ptr_array_index(monitors, i);
+        if (!monitor || !monitor->enabled) {
+            continue;
+        }
+
+        if (monitor->staged_width <= 0 || monitor->staged_height <= 0 || monitor->staged_refresh_hz <= 0.0) {
+            continue;
+        }
+
+        int apply_width = monitor->staged_width;
+        int apply_height = monitor->staged_height;
+        double apply_refresh_hz = monitor->staged_refresh_hz;
+        const struct monitor_mode *resolved = find_matching_mode_snapshot(monitor,
+                                                                          apply_width,
+                                                                          apply_height,
+                                                                          apply_refresh_hz);
+        if (resolved) {
+            apply_width = resolved->width;
+            apply_height = resolved->height;
+            apply_refresh_hz = resolved->refresh_hz;
+        }
+
+        char *quoted_name = g_shell_quote(monitor->name ? monitor->name : "");
+        const char *transform = (monitor->staged_transform && *monitor->staged_transform)
+            ? monitor->staged_transform
+            : "normal";
+        double scale = monitor->staged_scale > 0.0 ? monitor->staged_scale : 1.0;
+        char refresh_hz_ascii[G_ASCII_DTOSTR_BUF_SIZE] = { 0 };
+        char scale_ascii[G_ASCII_DTOSTR_BUF_SIZE] = { 0 };
+
+        g_ascii_formatd(refresh_hz_ascii,
+                        sizeof(refresh_hz_ascii),
+                        "%.6f",
+                        apply_refresh_hz);
+        g_ascii_formatd(scale_ascii,
+                        sizeof(scale_ascii),
+                        "%.2f",
+                        scale);
+
+        char *cmd = g_strdup_printf(
+            "sh -lc 'timeout 6s wlr-randr --output %s --mode %dx%d@%sHz --scale %s --transform %s --pos %d,%d --adaptive-sync %s'",
+            quoted_name,
+            apply_width,
+            apply_height,
+            refresh_hz_ascii,
+            scale_ascii,
+            transform,
+            monitor->staged_pos_x,
+            monitor->staged_pos_y,
+            monitor->staged_adaptive_sync ? "enabled" : "disabled");
+
+        char *stdout_data = NULL;
+        char *stderr_data = NULL;
+        int wait_status = 0;
+        gboolean ok = run_command_capture(cmd, &stdout_data, &stderr_data, &wait_status);
+        (void)wait_status;
+
+        g_free(cmd);
+
+        if (!ok && is_mode_not_found_error(stderr_data)) {
+            g_free(stdout_data);
+            g_free(stderr_data);
+            stdout_data = NULL;
+            stderr_data = NULL;
+
+            char *fallback_cmd = g_strdup_printf(
+                "sh -lc 'timeout 6s wlr-randr --output %s --mode %dx%d --scale %s --transform %s --pos %d,%d --adaptive-sync %s'",
+                quoted_name,
+                apply_width,
+                apply_height,
+                scale_ascii,
+                transform,
+                monitor->staged_pos_x,
+                monitor->staged_pos_y,
+                monitor->staged_adaptive_sync ? "enabled" : "disabled");
+
+            ok = run_command_capture(fallback_cmd, &stdout_data, &stderr_data, &wait_status);
+            g_free(fallback_cmd);
+        }
+
+        g_free(quoted_name);
+
+        if (!ok) {
+            if (error_out) {
+                if (stderr_data && *stderr_data) {
+                    g_strstrip(stderr_data);
+                    *error_out = g_strdup(stderr_data);
+                } else {
+                    *error_out = g_strdup(_("Could not apply monitor settings"));
+                }
+            }
+            g_free(stdout_data);
+            g_free(stderr_data);
+            return FALSE;
+        }
+
+        g_free(stdout_data);
+        g_free(stderr_data);
+    }
+
+    return TRUE;
+}
+
+static void apply_display_settings_task(GTask *task, gpointer source_object, gpointer task_data, GCancellable *cancellable)
+{
+    (void)source_object;
+    (void)cancellable;
+
+    struct display_apply_request *request = task_data;
+    struct display_apply_result *result = g_new0(struct display_apply_result, 1);
+    result->ok = TRUE;
+    result->runtime_issues = apply_runtime_tweaks_values(request->brightness, request->night_light);
+
+    if (!request->can_apply_outputs) {
+        result->limited_mode = TRUE;
+        g_task_return_pointer(task, result, free_display_apply_result);
+        return;
+    }
+
+    char *apply_error = NULL;
+    gboolean ok = apply_outputs_configuration_snapshot(request->monitors, &apply_error);
+    if (!ok) {
+        result->ok = FALSE;
+        result->error_message = apply_error;
+    }
+
+    g_task_return_pointer(task, result, free_display_apply_result);
+}
+
+static void on_apply_settings_task_done(GObject *source_object, GAsyncResult *res, gpointer user_data)
+{
+    (void)source_object;
+    (void)user_data;
+
+    GTask *task = G_TASK(res);
+    struct display_apply_result *result = g_task_propagate_pointer(task, NULL);
+
+    g_apply_in_progress = FALSE;
+    if (g_apply_button) {
+        gtk_widget_set_sensitive(g_apply_button, TRUE);
+    }
+
+    if (!result) {
+        status_set(_("Could not apply monitor settings"), TRUE);
+        set_busy_state(FALSE, NULL);
+        return;
+    }
+
+    if (!result->ok) {
+        status_set(result->error_message ? result->error_message : _("Could not apply monitor settings"), TRUE);
+        set_busy_state(FALSE, NULL);
+        return;
+    }
+
+    struct monitor_info *monitor = selected_monitor();
+    struct monitor_mode *mode = selected_mode();
+    save_current_config(monitor, mode);
+
+    if (result->limited_mode) {
+        if (result->runtime_issues && *result->runtime_issues) {
+            char *message = g_strdup_printf(
+                _("Monitor controls are in limited mode (missing wlr-randr). Layout changes are saved locally only. %s"),
+                result->runtime_issues);
+            status_set(message, TRUE);
+            g_free(message);
+        } else {
+            status_set(_("Monitor controls are in limited mode (missing wlr-randr). Layout changes are saved locally only."), FALSE);
+        }
+        set_busy_state(FALSE, NULL);
+        return;
+    }
+
+    if (result->runtime_issues && *result->runtime_issues) {
+        char *message = g_strdup_printf(_("Display settings applied. %s"), result->runtime_issues);
+        status_set(message, TRUE);
+        g_free(message);
+    } else {
+        status_set(_("Display settings applied"), FALSE);
+    }
+
+    update_monitor_info_label();
+    queue_preview_redraw();
+    set_busy_state(FALSE, NULL);
+}
+
 static void on_apply_clicked(GtkButton *btn, gpointer data)
 {
     (void)btn;
@@ -2019,42 +2850,28 @@ static void on_apply_clicked(GtkButton *btn, gpointer data)
         return;
     }
 
+    if (g_apply_in_progress) {
+        return;
+    }
+
     set_busy_state(TRUE, _("Applying display settings..."));
     apply_layout_to_staged_positions(selected_layout_mode(), selected_primary_index());
 
-    apply_runtime_tweaks();
-
-    if (!monitor_backend_can_apply_outputs()) {
-        struct monitor_info *monitor = selected_monitor();
-        struct monitor_mode *mode = selected_mode();
-        save_current_config(monitor, mode);
-        status_set(_("Monitor controls are in limited mode (missing wlr-randr). Layout changes are saved locally only."), FALSE);
-        set_busy_state(FALSE, NULL);
-        return;
+    g_apply_in_progress = TRUE;
+    if (g_apply_button) {
+        gtk_widget_set_sensitive(g_apply_button, FALSE);
     }
 
-    char *apply_error = NULL;
-    gboolean ok = apply_outputs_configuration(&apply_error);
+    struct display_apply_request *request = g_new0(struct display_apply_request, 1);
+    request->can_apply_outputs = monitor_backend_can_apply_outputs();
+    request->brightness = (int)gtk_range_get_value(GTK_RANGE(g_brightness_scale));
+    request->night_light = gtk_switch_get_active(GTK_SWITCH(g_night_light_switch));
+    request->monitors = snapshot_monitors_for_apply();
 
-    if (!ok) {
-        status_set(apply_error ? apply_error : _("Could not apply monitor settings"), TRUE);
-        g_free(apply_error);
-        set_busy_state(FALSE, NULL);
-        return;
-    }
-
-    g_free(apply_error);
-
-    struct monitor_info *monitor = selected_monitor();
-    struct monitor_mode *mode = selected_mode();
-    save_current_config(monitor, mode);
-    status_set(_("Display settings applied"), FALSE);
-
-    refresh_monitor_data(FALSE);
-    load_saved_config();
-    update_monitor_info_label();
-    queue_preview_redraw();
-    set_busy_state(FALSE, NULL);
+    GTask *task = g_task_new(NULL, NULL, on_apply_settings_task_done, NULL);
+    g_task_set_task_data(task, request, free_display_apply_request);
+    g_task_run_in_thread(task, apply_display_settings_task);
+    g_object_unref(task);
 }
 
 GtkWidget *page_display_new(void)
@@ -2097,6 +2914,7 @@ GtkWidget *page_display_new(void)
     gtk_widget_add_css_class(preview_frame, "display-preview-card");
     GtkWidget *preview_box = gtk_frame_get_child(GTK_FRAME(preview_frame));
     gtk_widget_add_css_class(preview_box, "display-preview-box");
+    gtk_box_set_spacing(GTK_BOX(preview_box), 8);
 
     g_preview_overlay = gtk_overlay_new();
     gtk_widget_add_css_class(g_preview_overlay, "display-preview-overlay");
@@ -2232,11 +3050,11 @@ GtkWidget *page_display_new(void)
     gtk_widget_set_halign(actions, GTK_ALIGN_END);
     gtk_widget_add_css_class(actions, "display-actions");
 
-    GtkWidget *apply_btn = gtk_button_new_with_label(_("Apply display settings"));
-    gtk_widget_add_css_class(apply_btn, "suggested-action");
-    gtk_widget_add_css_class(apply_btn, "display-apply-btn");
-    g_signal_connect(apply_btn, "clicked", G_CALLBACK(on_apply_clicked), NULL);
-    gtk_box_append(GTK_BOX(actions), apply_btn);
+    g_apply_button = gtk_button_new_with_label(_("Apply display settings"));
+    gtk_widget_add_css_class(g_apply_button, "suggested-action");
+    gtk_widget_add_css_class(g_apply_button, "display-apply-btn");
+    g_signal_connect(g_apply_button, "clicked", G_CALLBACK(on_apply_clicked), NULL);
+    gtk_box_append(GTK_BOX(actions), g_apply_button);
     gtk_box_append(GTK_BOX(box), actions);
 
     g_status_label = gtk_label_new("");

@@ -12,6 +12,51 @@ static GFileMonitor *g_theme_mode_monitor = NULL;
 static GtkWidget *g_main_window = NULL;
 static char *g_requested_page = NULL;
 
+static gboolean portal_inhibit_interface_available(void) {
+    GError *error = NULL;
+    GDBusConnection *bus = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &error);
+    if (!bus) {
+        g_clear_error(&error);
+        return FALSE;
+    }
+
+    GVariant *reply = g_dbus_connection_call_sync(
+        bus,
+        "org.freedesktop.portal.Desktop",
+        "/org/freedesktop/portal/desktop",
+        "org.freedesktop.DBus.Introspectable",
+        "Introspect",
+        NULL,
+        G_VARIANT_TYPE("(s)"),
+        G_DBUS_CALL_FLAGS_NONE,
+        800,
+        NULL,
+        &error);
+
+    g_object_unref(bus);
+
+    if (!reply) {
+        g_clear_error(&error);
+        return FALSE;
+    }
+
+    const char *xml = NULL;
+    g_variant_get(reply, "(&s)", &xml);
+    gboolean has_iface = (xml && g_strstr_len(xml, -1, "org.freedesktop.portal.Inhibit") != NULL);
+    g_variant_unref(reply);
+    return has_iface;
+}
+
+static void configure_runtime_environment(void) {
+    if (!g_getenv("GSK_RENDERER")) {
+        g_setenv("GSK_RENDERER", "ngl", FALSE);
+    }
+
+    if (!g_getenv("GTK_USE_PORTAL") && !portal_inhibit_interface_available()) {
+        g_setenv("GTK_USE_PORTAL", "0", FALSE);
+    }
+}
+
 static const GOptionEntry g_option_entries[] = {
     { "page", 0, 0, G_OPTION_ARG_STRING, &g_requested_page, "Open a specific settings page", "PAGE" },
     { NULL }
@@ -206,22 +251,31 @@ static void on_activate(GtkApplication *app, gpointer user_data) {
 static int on_command_line(GApplication *app, GApplicationCommandLine *cmdline, gpointer user_data) {
     (void)user_data;
 
-    int argc = 0;
-    char **argv = g_application_command_line_get_arguments(cmdline, &argc);
-    const char *page = find_page_argument(argc, argv);
+    GVariantDict *options = g_application_command_line_get_options_dict(cmdline);
+    const char *page = NULL;
+    
     g_free(g_requested_page);
     g_requested_page = NULL;
-    if (page && *page) {
+
+    if (g_variant_dict_lookup(options, "page", "&s", &page)) {
         g_requested_page = g_strdup(page);
+    } else {
+        int argc = 0;
+        char **argv = g_application_command_line_get_arguments(cmdline, &argc);
+        page = find_page_argument(argc, argv);
+        if (page && *page) {
+            g_requested_page = g_strdup(page);
+        }
+        g_strfreev(argv);
     }
 
-    g_strfreev(argv);
     g_application_activate(app);
     return 0;
 }
 
 int main(int argc, char **argv) {
     init_locale();
+    configure_runtime_environment();
 
     GtkApplication *app = gtk_application_new("io.karton.Settings", G_APPLICATION_HANDLES_COMMAND_LINE);
     g_application_add_main_option_entries(G_APPLICATION(app), g_option_entries);

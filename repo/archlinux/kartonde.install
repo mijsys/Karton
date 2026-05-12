@@ -49,8 +49,8 @@ KartONDE is installed.
 - System defaults live in: /etc/xdg/karton
 - If your display manager was already running, log out and choose the Karton session.
 
-Optional tools for screenshots and clipboard integration:
-  sudo pacman -S grim slurp wl-clipboard
+Optional tools for monitor control, screenshots, and clipboard integration:
+  sudo pacman -S wlr-randr brightnessctl ddcutil gammastep grim slurp wl-clipboard
 
 EOF
 }

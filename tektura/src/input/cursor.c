@@ -2,6 +2,9 @@
 #define _POSIX_C_SOURCE 200809L
 #include "input/cursor.h"
 #include <assert.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 #include <time.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_cursor.h>
@@ -19,6 +22,7 @@
 #include "action.h"
 #include "common/macros.h"
 #include "common/mem.h"
+#include "common/spawn.h"
 #include "config/mousebind.h"
 #include "config/rcxml.h"
 #include "cycle.h"
@@ -35,7 +39,9 @@
 #include "resistance.h"
 #include "resize-outlines.h"
 #include "ssd.h"
+#include "show-desktop.h"
 #include "view.h"
+#include "workspaces.h"
 #include "xwayland.h"
 
 #if WLR_HAS_LIBINPUT_BACKEND
@@ -88,6 +94,172 @@ static_assert(
 static_assert(
 	ARRAY_SIZE(cursors_x11) == LAB_CURSOR_COUNT,
 	"X11 cursor names are out of sync");
+
+enum lab_hot_corner {
+	LAB_HOT_CORNER_NONE = 0,
+	LAB_HOT_CORNER_TOP_LEFT,
+	LAB_HOT_CORNER_TOP_RIGHT,
+	LAB_HOT_CORNER_BOTTOM_LEFT,
+	LAB_HOT_CORNER_BOTTOM_RIGHT,
+};
+
+static enum lab_hot_corner g_last_hot_corner = LAB_HOT_CORNER_NONE;
+
+static bool
+hot_corner_enabled(void)
+{
+	const char *value = getenv("KARTON_DESKTOP_HOT_CORNERS");
+	if (!value || !*value) {
+		return false;
+	}
+	return !strcmp(value, "1")
+		|| !strcasecmp(value, "true")
+		|| !strcasecmp(value, "yes")
+		|| !strcasecmp(value, "on");
+}
+
+static int
+hot_corner_size_px(void)
+{
+	const char *value = getenv("KARTON_DESKTOP_HOT_CORNER_SIZE");
+	if (!value || !*value) {
+		return 8;
+	}
+
+	int parsed = atoi(value);
+	if (parsed < 2) {
+		return 2;
+	}
+	if (parsed > 40) {
+		return 40;
+	}
+	return parsed;
+}
+
+static bool
+workspace_wrap_enabled(void)
+{
+	const char *value = getenv("KARTON_DESKTOP_WORKSPACE_WRAP");
+	if (!value || !*value) {
+		return true;
+	}
+	return strcmp(value, "0") != 0
+		&& strcasecmp(value, "false") != 0
+		&& strcasecmp(value, "no") != 0
+		&& strcasecmp(value, "off") != 0;
+}
+
+static const char *
+hot_corner_action_name(enum lab_hot_corner corner)
+{
+	if (corner == LAB_HOT_CORNER_TOP_LEFT) {
+		return getenv("KARTON_DESKTOP_CORNER_TOP_LEFT");
+	}
+	if (corner == LAB_HOT_CORNER_TOP_RIGHT) {
+		return getenv("KARTON_DESKTOP_CORNER_TOP_RIGHT");
+	}
+	if (corner == LAB_HOT_CORNER_BOTTOM_LEFT) {
+		return getenv("KARTON_DESKTOP_CORNER_BOTTOM_LEFT");
+	}
+	if (corner == LAB_HOT_CORNER_BOTTOM_RIGHT) {
+		return getenv("KARTON_DESKTOP_CORNER_BOTTOM_RIGHT");
+	}
+	return NULL;
+}
+
+static enum lab_hot_corner
+hot_corner_from_cursor(void)
+{
+	if (!hot_corner_enabled()) {
+		return LAB_HOT_CORNER_NONE;
+	}
+
+	struct output *output = output_nearest_to_cursor();
+	if (!output || !output_is_usable(output)) {
+		return LAB_HOT_CORNER_NONE;
+	}
+
+	struct wlr_box box = output_usable_area_in_layout_coords(output);
+	if (box.width <= 0 || box.height <= 0) {
+		return LAB_HOT_CORNER_NONE;
+	}
+
+	int size = hot_corner_size_px();
+	double x = server.seat.cursor->x;
+	double y = server.seat.cursor->y;
+
+	bool left = x >= box.x && x <= box.x + size;
+	bool right = x >= box.x + box.width - size && x <= box.x + box.width;
+	bool top = y >= box.y && y <= box.y + size;
+	bool bottom = y >= box.y + box.height - size && y <= box.y + box.height;
+
+	if (left && top) {
+		return LAB_HOT_CORNER_TOP_LEFT;
+	}
+	if (right && top) {
+		return LAB_HOT_CORNER_TOP_RIGHT;
+	}
+	if (left && bottom) {
+		return LAB_HOT_CORNER_BOTTOM_LEFT;
+	}
+	if (right && bottom) {
+		return LAB_HOT_CORNER_BOTTOM_RIGHT;
+	}
+
+	return LAB_HOT_CORNER_NONE;
+}
+
+static void
+run_hot_corner_action(enum lab_hot_corner corner)
+{
+	const char *action = hot_corner_action_name(corner);
+	if (!action || !*action || !strcmp(action, "disabled")) {
+		return;
+	}
+
+	if (!strcmp(action, "show-desktop")) {
+		show_desktop_toggle();
+		return;
+	}
+
+	if (!strcmp(action, "workspace-left") || !strcmp(action, "workspace-right")) {
+		bool wrap = workspace_wrap_enabled();
+		struct workspace *target = workspaces_find(
+			server.workspaces.current,
+			!strcmp(action, "workspace-left") ? "left" : "right",
+			wrap);
+		if (target) {
+			workspaces_switch_to(target, true);
+		}
+		return;
+	}
+
+	if (!strcmp(action, "workspace-overview") || !strcmp(action, "launcher")) {
+		spawn_async_no_shell("sh -lc 'karton-launcher || \"$HOME/.local-karton/bin/karton-launcher\"'");
+	}
+}
+
+static void
+hot_corner_process(const struct cursor_context *ctx)
+{
+	if (!ctx) {
+		g_last_hot_corner = LAB_HOT_CORNER_NONE;
+		return;
+	}
+
+	enum lab_hot_corner current = hot_corner_from_cursor();
+	if (current == LAB_HOT_CORNER_NONE) {
+		g_last_hot_corner = LAB_HOT_CORNER_NONE;
+		return;
+	}
+
+	if (current == g_last_hot_corner) {
+		return;
+	}
+
+	g_last_hot_corner = current;
+	run_hot_corner_action(current);
+}
 
 enum lab_cursors
 cursor_get_from_edge(enum lab_edge resize_edges)
@@ -638,6 +810,7 @@ cursor_process_motion(uint32_t time, double *sx, double *sy)
 	/* Otherwise, find view under the pointer and send the event along */
 	struct cursor_context ctx = get_cursor_context();
 	struct seat *seat = &server.seat;
+	hot_corner_process(&ctx);
 
 	if (ctx.type == LAB_NODE_MENUITEM) {
 		menu_process_cursor_motion(ctx.node);
@@ -1566,7 +1739,14 @@ cursor_load(struct seat *seat)
 {
 	const char *xcursor_theme = getenv("XCURSOR_THEME");
 	const char *xcursor_size = getenv("XCURSOR_SIZE");
-	uint32_t size = xcursor_size ? atoi(xcursor_size) : 24;
+	uint32_t size = 24;
+	if (xcursor_size && *xcursor_size) {
+		char *end = NULL;
+		long parsed = strtol(xcursor_size, &end, 10);
+		if (end != xcursor_size && *end == '\0' && parsed >= 8 && parsed <= 256) {
+			size = (uint32_t)parsed;
+		}
+	}
 
 	if (seat->xcursor_manager) {
 		wlr_xcursor_manager_destroy(seat->xcursor_manager);

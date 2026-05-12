@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: labwc\n"
 "Report-Msgid-Bugs-To: https://github.com/labwc/labwc/issues\n"
-"POT-Creation-Date: 2024-09-19 21:09+1000\n"
+"POT-Creation-Date: 2026-05-10 11:47+0200\n"
 "PO-Revision-Date: 2025-10-11 20:01+0000\n"
 "Last-Translator: p-bo <pavel.borecki@gmail.com>\n"
 "Language-Team: Czech <https://translate.lxqt-project.org/projects/labwc/"
@@ -19,62 +19,72 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
 "X-Generator: Weblate 4.2.1\n"
 
-#: src/menu/menu.c:1016
-msgid "Go there..."
-msgstr "Přejít tam..."
-
-#: src/menu/menu.c:1034
-msgid "Terminal"
-msgstr "Terminál"
-
-#: src/menu/menu.c:1040
-msgid "Reconfigure"
-msgstr "Přenastavit"
-
-#: src/menu/menu.c:1042
-msgid "Exit"
-msgstr "Ukončit"
-
-#: src/menu/menu.c:1056
-msgid "Minimize"
-msgstr "Minimalizovat"
-
-#: src/menu/menu.c:1058
-msgid "Maximize"
-msgstr "Maximalizovat"
-
-#: src/menu/menu.c:1060
-msgid "Fullscreen"
-msgstr "Na celou obrazovku"
-
-#: src/menu/menu.c:1062
-msgid "Roll Up/Down"
-msgstr "Posouvat nahoru/dolů"
-
-#: src/menu/menu.c:1064
-msgid "Decorations"
-msgstr "Dekorace"
-
-#: src/menu/menu.c:1066
-msgid "Always on Top"
-msgstr "Vždy nahoře"
-
-#: src/menu/menu.c:1071
-msgid "Move Left"
-msgstr "Posunout doleva"
-
-#: src/menu/menu.c:1078
-msgid "Move Right"
-msgstr "Posunout doprava"
-
-#: src/menu/menu.c:1083
+#: src/menu/menu.c:842
 msgid "Always on Visible Workspace"
 msgstr "Vždy na viditelné Pracovní ploše"
 
-#: src/menu/menu.c:1086
+#: src/menu/menu.c:899
+msgid "Go there..."
+msgstr "Přejít tam..."
+
+#: src/menu/menu.c:918
+msgid "Create folder"
+msgstr ""
+
+#: src/menu/menu.c:929
+msgid "Terminal"
+msgstr "Terminál"
+
+#: src/menu/menu.c:934
+msgid "Settings"
+msgstr ""
+
+#: src/menu/menu.c:940
+msgid "Reconfigure"
+msgstr "Přenastavit"
+
+#: src/menu/menu.c:942
+msgid "Exit"
+msgstr "Ukončit"
+
+#: src/menu/menu.c:956
+msgid "Minimize"
+msgstr "Minimalizovat"
+
+#: src/menu/menu.c:958
+msgid "Maximize"
+msgstr "Maximalizovat"
+
+#: src/menu/menu.c:960
+msgid "Fullscreen"
+msgstr "Na celou obrazovku"
+
+#: src/menu/menu.c:962
+msgid "Roll Up/Down"
+msgstr "Posouvat nahoru/dolů"
+
+#: src/menu/menu.c:964
+msgid "Decorations"
+msgstr "Dekorace"
+
+#: src/menu/menu.c:966
+msgid "Always on Top"
+msgstr "Vždy nahoře"
+
+#: src/menu/menu.c:970 src/menu/menu.c:989 src/config/rcxml.c:1857
 msgid "Workspace"
 msgstr "Pracovní plocha"
 
-#: src/menu/menu.c:1089
+#: src/menu/menu.c:973
 msgid "Close"
 msgstr "Zavřít"
+
+#: src/menu/menu.c:988
+msgid "Windows"
+msgstr ""
+
+#~ msgid "Move Left"
+#~ msgstr "Posunout doleva"
+
+#~ msgid "Move Right"
+#~ msgstr "Posunout doprava"

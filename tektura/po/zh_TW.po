@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: labwc\n"
 "Report-Msgid-Bugs-To: https://github.com/labwc/labwc/issues\n"
-"POT-Creation-Date: 2024-09-19 21:09+1000\n"
+"POT-Creation-Date: 2026-05-10 11:47+0200\n"
 "PO-Revision-Date: 2025-07-30 08:01+0000\n"
 "Last-Translator: BigELK176 ≡ <BigELK176@gmail.com>\n"
 "Language-Team: Chinese (Traditional) <https://translate.lxqt-project.org/"
@@ -19,62 +19,72 @@ msgstr ""
 "Plural-Forms: nplurals=1; plural=0;\n"
 "X-Generator: Weblate 4.2.1\n"
 
-#: src/menu/menu.c:1016
-msgid "Go there..."
-msgstr "前往…"
-
-#: src/menu/menu.c:1034
-msgid "Terminal"
-msgstr "終端"
-
-#: src/menu/menu.c:1040
-msgid "Reconfigure"
-msgstr "重新設定"
-
-#: src/menu/menu.c:1042
-msgid "Exit"
-msgstr "退出"
-
-#: src/menu/menu.c:1056
-msgid "Minimize"
-msgstr "最小化"
-
-#: src/menu/menu.c:1058
-msgid "Maximize"
-msgstr "最大化"
-
-#: src/menu/menu.c:1060
-msgid "Fullscreen"
-msgstr "全螢幕"
-
-#: src/menu/menu.c:1062
-msgid "Roll Up/Down"
-msgstr "捲上/捲下"
-
-#: src/menu/menu.c:1064
-msgid "Decorations"
-msgstr "裝飾"
-
-#: src/menu/menu.c:1066
-msgid "Always on Top"
-msgstr "總是在最上層"
-
-#: src/menu/menu.c:1071
-msgid "Move Left"
-msgstr "移左"
-
-#: src/menu/menu.c:1078
-msgid "Move Right"
-msgstr "移右"
-
-#: src/menu/menu.c:1083
+#: src/menu/menu.c:842
 msgid "Always on Visible Workspace"
 msgstr "總是在可見工作區"
 
-#: src/menu/menu.c:1086
+#: src/menu/menu.c:899
+msgid "Go there..."
+msgstr "前往…"
+
+#: src/menu/menu.c:918
+msgid "Create folder"
+msgstr ""
+
+#: src/menu/menu.c:929
+msgid "Terminal"
+msgstr "終端"
+
+#: src/menu/menu.c:934
+msgid "Settings"
+msgstr ""
+
+#: src/menu/menu.c:940
+msgid "Reconfigure"
+msgstr "重新設定"
+
+#: src/menu/menu.c:942
+msgid "Exit"
+msgstr "退出"
+
+#: src/menu/menu.c:956
+msgid "Minimize"
+msgstr "最小化"
+
+#: src/menu/menu.c:958
+msgid "Maximize"
+msgstr "最大化"
+
+#: src/menu/menu.c:960
+msgid "Fullscreen"
+msgstr "全螢幕"
+
+#: src/menu/menu.c:962
+msgid "Roll Up/Down"
+msgstr "捲上/捲下"
+
+#: src/menu/menu.c:964
+msgid "Decorations"
+msgstr "裝飾"
+
+#: src/menu/menu.c:966
+msgid "Always on Top"
+msgstr "總是在最上層"
+
+#: src/menu/menu.c:970 src/menu/menu.c:989 src/config/rcxml.c:1857
 msgid "Workspace"
 msgstr "工作區"
 
-#: src/menu/menu.c:1089
+#: src/menu/menu.c:973
 msgid "Close"
 msgstr "關閉"
+
+#: src/menu/menu.c:988
+msgid "Windows"
+msgstr ""
+
+#~ msgid "Move Left"
+#~ msgstr "移左"
+
+#~ msgid "Move Right"
+#~ msgstr "移右"

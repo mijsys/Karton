@@ -60,6 +60,30 @@ parse_workspace_index(const char *name)
 	return index;
 }
 
+static int
+desktop_workspace_count_override(void)
+{
+	const char *value = getenv("KARTON_DESKTOP_WORKSPACE_COUNT");
+	if (!value || !*value) {
+		return 0;
+	}
+
+	char *end = NULL;
+	long parsed = strtol(value, &end, 10);
+	if (end == value || (end && *end != '\0')) {
+		return 0;
+	}
+
+	if (parsed < 1) {
+		parsed = 1;
+	}
+	if (parsed > 12) {
+		parsed = 12;
+	}
+
+	return (int)parsed;
+}
+
 static void
 _osd_update(void)
 {
@@ -400,9 +424,18 @@ workspaces_init(void)
 
 	wl_list_init(&server.workspaces.all);
 
-	struct workspace_config *conf;
-	wl_list_for_each(conf, &rc.workspace_config.workspaces, link) {
-		add_workspace(conf->name);
+	int workspace_override = desktop_workspace_count_override();
+	if (workspace_override > 0) {
+		for (int i = 1; i <= workspace_override; i++) {
+			char name[16];
+			snprintf(name, sizeof(name), "%d", i);
+			add_workspace(name);
+		}
+	} else {
+		struct workspace_config *conf;
+		wl_list_for_each(conf, &rc.workspace_config.workspaces, link) {
+			add_workspace(conf->name);
+		}
 	}
 
 	/*
@@ -565,28 +598,56 @@ workspaces_reconfigure(void)
 	 */
 
 	struct wl_list *workspace_link = server.workspaces.all.next;
+	int workspace_override = desktop_workspace_count_override();
 
-	struct workspace_config *conf;
-	wl_list_for_each(conf, &rc.workspace_config.workspaces, link) {
-		struct workspace *workspace = wl_container_of(
-			workspace_link, workspace, link);
+	if (workspace_override > 0) {
+		for (int i = 1; i <= workspace_override; i++) {
+			char desired_name[16];
+			snprintf(desired_name, sizeof(desired_name), "%d", i);
 
-		if (workspace_link == &server.workspaces.all) {
-			/* # of configured workspaces increased */
-			wlr_log(WLR_DEBUG, "Adding workspace \"%s\"",
-				conf->name);
-			add_workspace(conf->name);
-			continue;
+			if (workspace_link == &server.workspaces.all) {
+				wlr_log(WLR_DEBUG, "Adding workspace \"%s\"",
+					desired_name);
+				add_workspace(desired_name);
+				continue;
+			}
+
+			struct workspace *workspace = wl_container_of(
+				workspace_link, workspace, link);
+
+			if (strcmp(workspace->name, desired_name)) {
+				wlr_log(WLR_DEBUG, "Renaming workspace \"%s\" to \"%s\"",
+					workspace->name, desired_name);
+				xstrdup_replace(workspace->name, desired_name);
+				wlr_ext_workspace_handle_v1_set_name(
+					workspace->ext_workspace, workspace->name);
+			}
+
+			workspace_link = workspace_link->next;
 		}
-		if (strcmp(workspace->name, conf->name)) {
-			/* Workspace is renamed */
-			wlr_log(WLR_DEBUG, "Renaming workspace \"%s\" to \"%s\"",
-				workspace->name, conf->name);
-			xstrdup_replace(workspace->name, conf->name);
-			wlr_ext_workspace_handle_v1_set_name(
-				workspace->ext_workspace, workspace->name);
+	} else {
+		struct workspace_config *conf;
+		wl_list_for_each(conf, &rc.workspace_config.workspaces, link) {
+			struct workspace *workspace = wl_container_of(
+				workspace_link, workspace, link);
+
+			if (workspace_link == &server.workspaces.all) {
+				/* # of configured workspaces increased */
+				wlr_log(WLR_DEBUG, "Adding workspace \"%s\"",
+					conf->name);
+				add_workspace(conf->name);
+				continue;
+			}
+			if (strcmp(workspace->name, conf->name)) {
+				/* Workspace is renamed */
+				wlr_log(WLR_DEBUG, "Renaming workspace \"%s\" to \"%s\"",
+					workspace->name, conf->name);
+				xstrdup_replace(workspace->name, conf->name);
+				wlr_ext_workspace_handle_v1_set_name(
+					workspace->ext_workspace, workspace->name);
+			}
+			workspace_link = workspace_link->next;
 		}
-		workspace_link = workspace_link->next;
 	}
 
 	if (workspace_link == &server.workspaces.all) {

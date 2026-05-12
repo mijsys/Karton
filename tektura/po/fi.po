@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: labwc\n"
 "Report-Msgid-Bugs-To: https://github.com/labwc/labwc/issues\n"
-"POT-Creation-Date: 2024-09-19 21:09+1000\n"
+"POT-Creation-Date: 2026-05-10 11:47+0200\n"
 "PO-Revision-Date: 2025-10-23 23:27+0000\n"
 "Last-Translator: sudoasd <asdwasd@meiliboxi.fi>\n"
 "Language-Team: Finnish <https://translate.lxqt-project.org/projects/labwc/"
@@ -19,62 +19,72 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 "X-Generator: Weblate 4.2.1\n"
 
-#: src/menu/menu.c:1016
-msgid "Go there..."
-msgstr "Mene..."
-
-#: src/menu/menu.c:1034
-msgid "Terminal"
-msgstr "Pääte"
-
-#: src/menu/menu.c:1040
-msgid "Reconfigure"
-msgstr "Uudelleenmääritä"
-
-#: src/menu/menu.c:1042
-msgid "Exit"
-msgstr "Poistu"
-
-#: src/menu/menu.c:1056
-msgid "Minimize"
-msgstr "Pienennä"
-
-#: src/menu/menu.c:1058
-msgid "Maximize"
-msgstr "Suurenna"
-
-#: src/menu/menu.c:1060
-msgid "Fullscreen"
-msgstr "Koko näyttö"
-
-#: src/menu/menu.c:1062
-msgid "Roll Up/Down"
-msgstr "Rullaa ylös/alas"
-
-#: src/menu/menu.c:1064
-msgid "Decorations"
-msgstr "Kehykset"
-
-#: src/menu/menu.c:1066
-msgid "Always on Top"
-msgstr "Aina päällimmäisenä"
-
-#: src/menu/menu.c:1071
-msgid "Move Left"
-msgstr "Siirrä vasemmalle"
-
-#: src/menu/menu.c:1078
-msgid "Move Right"
-msgstr "Siirrä oikealle"
-
-#: src/menu/menu.c:1083
+#: src/menu/menu.c:842
 msgid "Always on Visible Workspace"
 msgstr "Aina näkyvässä työtilassa"
 
-#: src/menu/menu.c:1086
+#: src/menu/menu.c:899
+msgid "Go there..."
+msgstr "Mene..."
+
+#: src/menu/menu.c:918
+msgid "Create folder"
+msgstr ""
+
+#: src/menu/menu.c:929
+msgid "Terminal"
+msgstr "Pääte"
+
+#: src/menu/menu.c:934
+msgid "Settings"
+msgstr ""
+
+#: src/menu/menu.c:940
+msgid "Reconfigure"
+msgstr "Uudelleenmääritä"
+
+#: src/menu/menu.c:942
+msgid "Exit"
+msgstr "Poistu"
+
+#: src/menu/menu.c:956
+msgid "Minimize"
+msgstr "Pienennä"
+
+#: src/menu/menu.c:958
+msgid "Maximize"
+msgstr "Suurenna"
+
+#: src/menu/menu.c:960
+msgid "Fullscreen"
+msgstr "Koko näyttö"
+
+#: src/menu/menu.c:962
+msgid "Roll Up/Down"
+msgstr "Rullaa ylös/alas"
+
+#: src/menu/menu.c:964
+msgid "Decorations"
+msgstr "Kehykset"
+
+#: src/menu/menu.c:966
+msgid "Always on Top"
+msgstr "Aina päällimmäisenä"
+
+#: src/menu/menu.c:970 src/menu/menu.c:989 src/config/rcxml.c:1857
 msgid "Workspace"
 msgstr "Työtila"
 
-#: src/menu/menu.c:1089
+#: src/menu/menu.c:973
 msgid "Close"
 msgstr "Sulje"
+
+#: src/menu/menu.c:988
+msgid "Windows"
+msgstr ""
+
+#~ msgid "Move Left"
+#~ msgstr "Siirrä vasemmalle"
+
+#~ msgid "Move Right"
+#~ msgstr "Siirrä oikealle"

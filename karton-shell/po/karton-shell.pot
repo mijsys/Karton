@@ -1,14 +1,14 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the PACKAGE package.
+# This file is distributed under the same license as the karton-shell package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: karton-shell\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-05 16:02+0200\n"
+"POT-Creation-Date: 2026-05-10 12:12+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,57 +17,136 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/karton-shell.c:465
+#: src/karton-shell.c:415
+msgid "Logout"
+msgstr ""
+
+#: src/karton-shell.c:417
+msgid "Sleep"
+msgstr ""
+
+#: src/karton-shell.c:419
+msgid "Restart"
+msgstr ""
+
+#: src/karton-shell.c:421
+msgid "Power off"
+msgstr ""
+
+#: src/karton-shell.c:651 src/karton-shell.c:664
+#, c-format
+msgid "%a, %d %b"
+msgstr ""
+
+#: src/karton-shell.c:766
 #, c-format
 msgid "karton-shell: cannot create %s: %s\n"
 msgstr ""
 
-#: src/karton-shell.c:855
+#: src/karton-shell.c:1459 src/karton-shell.c:7348
+msgid "Sound"
+msgstr ""
+
+#: src/karton-shell.c:1459
+msgid "Could not change the default device"
+msgstr ""
+
+#: src/karton-shell.c:1535 src/karton-shell.c:1640 src/karton-shell.c:1681
+#: src/karton-shell.c:2035 src/karton-shell.c:6555
 msgid "Not connected"
 msgstr ""
 
-#: src/karton-shell.c:1463
+#: src/karton-shell.c:2028
+msgid "Enable Wi-Fi before connecting to a network"
+msgstr ""
+
+#: src/karton-shell.c:2114
+msgid "Enter the password to connect"
+msgstr ""
+
+#: src/karton-shell.c:2137
+msgid "Invalid password. Try again."
+msgstr ""
+
+#: src/karton-shell.c:2145
+msgid "Wrong password or connection failed"
+msgstr ""
+
+#: src/karton-shell.c:2146 src/karton-shell.c:7940
+msgid "Wi-Fi"
+msgstr ""
+
+#: src/karton-shell.c:2360
+msgid "Open screenshot folder"
+msgstr ""
+
+#: src/karton-shell.c:2361
+msgid "Open file location"
+msgstr ""
+
+#: src/karton-shell.c:2368
+msgid "Open app"
+msgstr ""
+
+#: src/karton-shell.c:3329
 msgid "All"
 msgstr ""
 
-#: src/karton-shell.c:1465
+#: src/karton-shell.c:3331 src/karton-shell.c:8309
 msgid "Favorites"
 msgstr ""
 
-#: src/karton-shell.c:1467
+#: src/karton-shell.c:3333
 msgid "Internet"
 msgstr ""
 
-#: src/karton-shell.c:1469
+#: src/karton-shell.c:3335
 msgid "Office"
 msgstr ""
 
-#: src/karton-shell.c:1471
+#: src/karton-shell.c:3337
 msgid "Media"
 msgstr ""
 
-#: src/karton-shell.c:1473
+#: src/karton-shell.c:3339
 msgid "Development"
 msgstr ""
 
-#: src/karton-shell.c:1475
+#: src/karton-shell.c:3341
 msgid "System"
 msgstr ""
 
-#: src/karton-shell.c:1477
+#: src/karton-shell.c:3343
 msgid "Utility"
 msgstr ""
 
-#: src/karton-shell.c:1479
+#: src/karton-shell.c:3345
 msgid "Other"
 msgstr ""
 
-#: src/karton-shell.c:1561 src/karton-shell.c:1583 src/karton-shell.c:3095
+#: src/karton-shell.c:3465 src/karton-shell.c:3487 src/karton-shell.c:3509
+#: src/karton-shell.c:5415
 #, c-format
 msgid "karton-shell: cannot write %s: %s\n"
 msgstr ""
 
-#: src/karton-shell.c:2019
+#: src/karton-shell.c:4007 src/karton-shell.c:4012 src/karton-shell.c:4017
+msgid "Add to favorites"
+msgstr ""
+
+#: src/karton-shell.c:4016
+msgid "Remove from favorites"
+msgstr ""
+
+#: src/karton-shell.c:4025 src/karton-shell.c:4030 src/karton-shell.c:4035
+msgid "Pin to panel"
+msgstr ""
+
+#: src/karton-shell.c:4034
+msgid "Unpin from panel"
+msgstr ""
+
+#: src/karton-shell.c:4042
 #, c-format
 msgid ""
 "Usage: %s [--top-only|--side-only]\n"
@@ -75,192 +154,475 @@ msgid ""
 "  --side-only  Run only the side dock\n"
 msgstr ""
 
-#: src/karton-shell.c:2655 src/karton-shell.c:2674
+#: src/karton-shell.c:4929 src/karton-shell.c:4948
 msgid "Menu"
 msgstr ""
 
-#: src/karton-shell.c:3171
+#: src/karton-shell.c:5491 src/karton-shell.c:5564
 msgid "Theme: Light"
 msgstr ""
 
-#: src/karton-shell.c:3174
+#: src/karton-shell.c:5494 src/karton-shell.c:5566
 msgid "Theme: Dark"
 msgstr ""
 
-#: src/karton-shell.c:3176
+#: src/karton-shell.c:5496 src/karton-shell.c:5561
 msgid "Theme: Auto"
 msgstr ""
 
-#: src/karton-shell.c:3929 src/karton-shell.c:3933
-msgid "--:--"
+#: src/karton-shell.c:5556
+msgid "Turn Wi-Fi off"
 msgstr ""
 
-#: src/karton-shell.c:3997
-msgid "Calendar"
+#: src/karton-shell.c:5556
+msgid "Turn Wi-Fi on"
 msgstr ""
 
-#: src/karton-shell.c:4073
-msgid "Events and Tasks"
-msgstr ""
-
-#: src/karton-shell.c:4093
-msgid "No events or tasks"
-msgstr ""
-
-#: src/karton-shell.c:4110
-msgid "World Clocks"
-msgstr ""
-
-#: src/karton-shell.c:4124
-msgid "Choose timezone"
-msgstr ""
-
-#: src/karton-shell.c:4150
-msgid "Local time"
-msgstr ""
-
-#: src/karton-shell.c:4175
-msgid "Click + to add timezone"
-msgstr ""
-
-#: src/karton-shell.c:4208
-msgid "Notifications"
-msgstr ""
-
-#: src/karton-shell.c:4208
-msgid "Quick Settings"
-msgstr ""
-
-#: src/karton-shell.c:4213
-msgid "Review recent notifications"
-msgstr ""
-
-#: src/karton-shell.c:4213
-msgid "Network, sound and appearance"
-msgstr ""
-
-#: src/karton-shell.c:4244
-msgid "Mark all as read"
-msgstr ""
-
-#: src/karton-shell.c:4244
-msgid "Clear all"
-msgstr ""
-
-#: src/karton-shell.c:4263
-msgid "No notifications"
-msgstr ""
-
-#: src/karton-shell.c:4283
-msgid "Read"
-msgstr ""
-
-#: src/karton-shell.c:4283
-msgid "Unread"
-msgstr ""
-
-#: src/karton-shell.c:4289
-msgid "Brightness"
-msgstr ""
-
-#: src/karton-shell.c:4290
-msgid "Volume"
-msgstr ""
-
-#: src/karton-shell.c:4351
-msgid "Wi-Fi"
-msgstr ""
-
-#: src/karton-shell.c:4352
-msgid "Bluetooth"
-msgstr ""
-
-#: src/karton-shell.c:4354
-msgid "Do not disturb: On"
-msgstr ""
-
-#: src/karton-shell.c:4354
-msgid "Do not disturb: Off"
-msgstr ""
-
-#: src/karton-shell.c:4390
+#: src/karton-shell.c:5556 src/karton-shell.c:7975
 msgid "Open network settings"
 msgstr ""
 
-#: src/karton-shell.c:4390
+#: src/karton-shell.c:5558
+msgid "Turn Bluetooth off"
+msgstr ""
+
+#: src/karton-shell.c:5558
+msgid "Turn Bluetooth on"
+msgstr ""
+
+#: src/karton-shell.c:5558 src/karton-shell.c:7975
 msgid "Open Bluetooth settings"
 msgstr ""
 
-#: src/karton-shell.c:4390
+#: src/karton-shell.c:5568 src/karton-shell.c:7943
+msgid "Do not disturb: Off"
+msgstr ""
+
+#: src/karton-shell.c:5568 src/karton-shell.c:7943
+msgid "Do not disturb: On"
+msgstr ""
+
+#: src/karton-shell.c:7046 src/karton-shell.c:7050
+msgid "--:--"
+msgstr ""
+
+#: src/karton-shell.c:7132
+msgid "%B %Y"
+msgstr ""
+
+#: src/karton-shell.c:7137
+msgid "Calendar"
+msgstr ""
+
+#: src/karton-shell.c:7213
+msgid "Events and Tasks"
+msgstr ""
+
+#: src/karton-shell.c:7233
+msgid "No events or tasks"
+msgstr ""
+
+#: src/karton-shell.c:7250
+msgid "World Clocks"
+msgstr ""
+
+#: src/karton-shell.c:7264
+msgid "Choose timezone"
+msgstr ""
+
+#: src/karton-shell.c:7295
+msgid "Local time"
+msgstr ""
+
+#: src/karton-shell.c:7320
+msgid "Click + to add timezone"
+msgstr ""
+
+#: src/karton-shell.c:7346
+msgid "Notifications"
+msgstr ""
+
+#: src/karton-shell.c:7347
+msgid "Network"
+msgstr ""
+
+#: src/karton-shell.c:7349
+msgid "Power"
+msgstr ""
+
+#: src/karton-shell.c:7350
+msgid "Quick Settings"
+msgstr ""
+
+#: src/karton-shell.c:7352
+msgid "Review recent notifications"
+msgstr ""
+
+#: src/karton-shell.c:7353
+msgid "Connection and nearby devices"
+msgstr ""
+
+#: src/karton-shell.c:7354
+msgid "Outputs, inputs and volume"
+msgstr ""
+
+#: src/karton-shell.c:7355
+msgid "Battery and session actions"
+msgstr ""
+
+#: src/karton-shell.c:7356
+msgid "Network, sound and appearance"
+msgstr ""
+
+#: src/karton-shell.c:7393
+msgid "No notifications"
+msgstr ""
+
+#: src/karton-shell.c:7415
+msgid "Read"
+msgstr ""
+
+#: src/karton-shell.c:7415
+msgid "Unread"
+msgstr ""
+
+#: src/karton-shell.c:7439
+msgid "Connected via Wi-Fi"
+msgstr ""
+
+#: src/karton-shell.c:7440
+msgid "Connected via Ethernet"
+msgstr ""
+
+#: src/karton-shell.c:7441
+msgid "No active connection"
+msgstr ""
+
+#: src/karton-shell.c:7442
+msgid "Unknown network"
+msgstr ""
+
+#: src/karton-shell.c:7449
+msgid "Down:"
+msgstr ""
+
+#: src/karton-shell.c:7450
+msgid "Up:"
+msgstr ""
+
+#: src/karton-shell.c:7474
+msgid "No interface"
+msgstr ""
+
+#: src/karton-shell.c:7481
+msgid "Wi-Fi enabled"
+msgstr ""
+
+#: src/karton-shell.c:7481
+msgid "Wi-Fi disabled"
+msgstr ""
+
+#: src/karton-shell.c:7485
+msgid "Detected Wi-Fi networks"
+msgstr ""
+
+#: src/karton-shell.c:7494
+msgid "No nearby Wi-Fi networks"
+msgstr ""
+
+#: src/karton-shell.c:7529
+msgid "Connected now"
+msgstr ""
+
+#: src/karton-shell.c:7531
+msgid "Saved password available"
+msgstr ""
+
+#: src/karton-shell.c:7533
+msgid "Password required before connecting"
+msgstr ""
+
+#: src/karton-shell.c:7537
+msgid "Tap to open actions"
+msgstr ""
+
+#: src/karton-shell.c:7585
+msgid "Password"
+msgstr ""
+
+#: src/karton-shell.c:7597
+msgid "Security:"
+msgstr ""
+
+#: src/karton-shell.c:7598
+msgid "Unknown"
+msgstr ""
+
+#: src/karton-shell.c:7600
+msgid "Signal:"
+msgstr ""
+
+#: src/karton-shell.c:7602
+msgid "Signal unavailable"
+msgstr ""
+
+#: src/karton-shell.c:7605
+msgid "NetworkManager secret:"
+msgstr ""
+
+#: src/karton-shell.c:7606
+msgid "Saved"
+msgstr ""
+
+#: src/karton-shell.c:7606
+msgid "Missing"
+msgstr ""
+
+#: src/karton-shell.c:7630
+msgid "Connected"
+msgstr ""
+
+#: src/karton-shell.c:7631
+msgid "Connect now"
+msgstr ""
+
+#: src/karton-shell.c:7633
+msgid "Enter password"
+msgstr ""
+
+#: src/karton-shell.c:7633
+msgid "Connect"
+msgstr ""
+
+#: src/karton-shell.c:7641
+msgid "Hide details"
+msgstr ""
+
+#: src/karton-shell.c:7641
+msgid "Show details"
+msgstr ""
+
+#: src/karton-shell.c:7659
+msgid "Refresh"
+msgstr ""
+
+#: src/karton-shell.c:7666 src/karton-shell.c:8020
+msgid "Open settings"
+msgstr ""
+
+#: src/karton-shell.c:7671
+msgid "Speakers"
+msgstr ""
+
+#: src/karton-shell.c:7671
+msgid "Microphone"
+msgstr ""
+
+#: src/karton-shell.c:7674
+msgid "Default output"
+msgstr ""
+
+#: src/karton-shell.c:7675
+msgid "Default input"
+msgstr ""
+
+#: src/karton-shell.c:7732
+msgid "Output devices"
+msgstr ""
+
+#: src/karton-shell.c:7748 src/karton-shell.c:7771
+msgid "Default"
+msgstr ""
+
+#: src/karton-shell.c:7755
+msgid "Input devices"
+msgstr ""
+
+#: src/karton-shell.c:7780
+msgid "Open sound settings"
+msgstr ""
+
+#: src/karton-shell.c:7790
+msgid "Battery:"
+msgstr ""
+
+#: src/karton-shell.c:7802
+msgid "Charging"
+msgstr ""
+
+#: src/karton-shell.c:7802
+msgid "Discharging"
+msgstr ""
+
+#: src/karton-shell.c:7809
+msgid "Time to full:"
+msgstr ""
+
+#: src/karton-shell.c:7809
+msgid "Time remaining:"
+msgstr ""
+
+#: src/karton-shell.c:7809
+msgid "Time estimate unavailable"
+msgstr ""
+
+#: src/karton-shell.c:7818
+msgid "No battery detected"
+msgstr ""
+
+#: src/karton-shell.c:7839
+msgid "Mounted devices"
+msgstr ""
+
+#: src/karton-shell.c:7847
+msgid "No removable devices"
+msgstr ""
+
+#: src/karton-shell.c:7869
+msgid "Open power settings"
+msgstr ""
+
+#: src/karton-shell.c:7874
+msgid "Brightness"
+msgstr ""
+
+#: src/karton-shell.c:7875
+msgid "Volume"
+msgstr ""
+
+#: src/karton-shell.c:7941
+msgid "Bluetooth"
+msgstr ""
+
+#: src/karton-shell.c:7975
 msgid "Switch theme mode"
 msgstr ""
 
-#: src/karton-shell.c:4390
+#: src/karton-shell.c:7975
 msgid "Toggle quiet mode"
 msgstr ""
 
-#: src/karton-shell.c:4526
-msgid "Launcher"
+#: src/karton-shell.c:8296
+msgid "Search applications..."
 msgstr ""
 
-#: src/karton-shell.c:4560
-msgid "Type to filter applications"
+#: src/karton-shell.c:8347
+msgid "Categories"
 msgstr ""
 
-#: src/karton-shell.c:4593
+#: src/karton-shell.c:8350
+msgid "All applications"
+msgstr ""
+
+#: src/karton-shell.c:8382
 msgid "No applications found"
 msgstr ""
 
-#: src/karton-shell.c:4647
+#: src/karton-shell.c:8438
 #, c-format
 msgid "and %zu more..."
 msgstr ""
 
-#: src/karton-shell.c:4659
-msgid "Toggle favorite"
+#: src/karton-shell.c:8451
+msgid "Send to desktop"
 msgstr ""
 
-#: src/karton-shell.c:4660
+#: src/karton-shell.c:8453
+msgid "Uninstall application"
+msgstr ""
+
+#: src/karton-shell.c:8454
 msgid "Category: Internet"
 msgstr ""
 
-#: src/karton-shell.c:4661
+#: src/karton-shell.c:8455
 msgid "Category: Office"
 msgstr ""
 
-#: src/karton-shell.c:4662
+#: src/karton-shell.c:8456
 msgid "Category: Media"
 msgstr ""
 
-#: src/karton-shell.c:4663
+#: src/karton-shell.c:8457
 msgid "Category: Development"
 msgstr ""
 
-#: src/karton-shell.c:4664
+#: src/karton-shell.c:8458
 msgid "Category: System"
 msgstr ""
 
-#: src/karton-shell.c:4665
+#: src/karton-shell.c:8459
 msgid "Category: Utility"
 msgstr ""
 
-#: src/karton-shell.c:4666
-msgid "Uninstall local entry"
+#: src/karton-shell.c:8521
+msgid "Mouse wheel"
 msgstr ""
 
-#: src/karton-shell.c:5225
+#: src/karton-shell.c:9349 src/karton-shell.c:9358 src/karton-shell.c:9372
+#: src/karton-shell.c:9380 src/karton-shell.c:9392 src/karton-shell.c:9401
+#: src/karton-shell.c:9408 src/karton-shell.c:9417 src/karton-shell.c:9448
+#: src/karton-shell.c:9492 src/karton-shell.c:9497 src/karton-shell.c:9525
+msgid "Launcher"
+msgstr ""
+
+#: src/karton-shell.c:9349
+msgid "No desktop entry path for this app"
+msgstr ""
+
+#: src/karton-shell.c:9358
+msgid "Could not resolve desktop directory"
+msgstr ""
+
+#: src/karton-shell.c:9372
+msgid "Could not create desktop directory"
+msgstr ""
+
+#: src/karton-shell.c:9380 src/karton-shell.c:9392
+msgid "Desktop shortcut path is too long"
+msgstr ""
+
+#: src/karton-shell.c:9402
+msgid "Could not read desktop entry"
+msgstr ""
+
+#: src/karton-shell.c:9409
+msgid "Could not create desktop shortcut"
+msgstr ""
+
+#: src/karton-shell.c:9417
+msgid "Shortcut added to desktop"
+msgstr ""
+
+#: src/karton-shell.c:9438
 #, c-format
 msgid "karton-shell: cannot remove %s: %s\n"
 msgstr ""
 
-#: src/karton-shell.c:6339
+#: src/karton-shell.c:9448
+msgid "Removed local launcher entry"
+msgstr ""
+
+#: src/karton-shell.c:9492
+msgid "Could not detect package owner for this app"
+msgstr ""
+
+#: src/karton-shell.c:9497
+msgid "pkexec is required to uninstall system applications"
+msgstr ""
+
+#: src/karton-shell.c:9525
+msgid "Started uninstall task. Authorize to continue."
+msgstr ""
+
+#: src/karton-shell.c:10927
 msgid "karton-shell: cannot connect to wayland display"
 msgstr ""
 
-#: src/karton-shell.c:6349
+#: src/karton-shell.c:10937
 msgid "karton-shell: required wayland globals are missing"
 msgstr ""
 
-#: src/karton-shell.c:6356
+#: src/karton-shell.c:10944
 msgid "karton-shell: failed to create layer surfaces"
 msgstr ""

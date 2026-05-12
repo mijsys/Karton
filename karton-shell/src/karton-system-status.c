@@ -2,12 +2,14 @@
 #include <pulse/pulseaudio.h>
 #include <dirent.h>
 #include <errno.h>
+#include <ctype.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #define MAX_SCAN_NETWORKS 8
@@ -19,6 +21,8 @@ struct pulse_audio_state {
 	pa_context *context;
 	char default_sink_name[256];
 	char default_source_name[256];
+	char default_sink_label[96];
+	char default_source_label[96];
 	char output_names[MAX_AUDIO_DEVICES][256];
 	char output_devices[MAX_AUDIO_DEVICES][96];
 	char input_names[MAX_AUDIO_DEVICES][256];
@@ -118,6 +122,55 @@ out[--n] = '\0';
 return out[0] != '\0';
 }
 
+static void
+compact_audio_label(const char *input, char *out, size_t out_size)
+{
+	if (!out || out_size == 0) {
+		return;
+	}
+
+	out[0] = '\0';
+	if (!input || !*input) {
+		return;
+	}
+
+	while (*input && isspace((unsigned char)*input)) {
+		input++;
+	}
+	if (!*input) {
+		return;
+	}
+
+	char tmp[256] = { 0 };
+	snprintf(tmp, sizeof(tmp), "%s", input);
+
+	size_t len = strlen(tmp);
+	while (len > 0 && isspace((unsigned char)tmp[len - 1])) {
+		tmp[--len] = '\0';
+	}
+
+	if (!tmp[0]) {
+		return;
+	}
+
+	const glong max_chars = 44;
+	glong chars = g_utf8_strlen(tmp, -1);
+	if (chars <= max_chars) {
+		snprintf(out, out_size, "%s", tmp);
+		return;
+	}
+
+	const char *cut = g_utf8_offset_to_pointer(tmp, max_chars - 3);
+	size_t bytes = (size_t)(cut - tmp);
+	if (bytes > out_size - 4) {
+		bytes = out_size - 4;
+	}
+
+	memcpy(out, tmp, bytes);
+	out[bytes] = '\0';
+	strncat(out, "...", out_size - strlen(out) - 1);
+}
+
 static size_t
 read_command_lines(const char *command, char out[][96], size_t max_lines)
 {
@@ -155,6 +208,96 @@ count++;
 
 pclose(f);
 return count;
+}
+
+static bool
+notifications_dnd_from_mako(bool *enabled_out)
+{
+if (!enabled_out) {
+return false;
+}
+
+int status = system("sh -lc 'command -v makoctl >/dev/null 2>&1 && makoctl mode 2>/dev/null | tr \" \" \"\\n\" | grep -Fxq do-not-disturb'");
+if (status == -1) {
+return false;
+}
+
+if (!WIFEXITED(status)) {
+return false;
+}
+
+*enabled_out = WEXITSTATUS(status) == 0;
+return true;
+}
+
+static bool
+notifications_dnd_from_env(bool *enabled_out)
+{
+if (!enabled_out) {
+return false;
+}
+
+char path[PATH_MAX] = { 0 };
+const char *xdg = getenv("XDG_CONFIG_HOME");
+if (xdg && *xdg) {
+snprintf(path, sizeof(path), "%s/karton/environment", xdg);
+} else {
+const char *home = getenv("HOME");
+if (!home || !*home) {
+return false;
+}
+snprintf(path, sizeof(path), "%s/.config/karton/environment", home);
+}
+
+FILE *f = fopen(path, "r");
+if (!f) {
+return false;
+}
+
+char line[256] = { 0 };
+while (fgets(line, sizeof(line), f)) {
+char *key = "KARTON_NOTIFICATIONS_DND=";
+size_t key_len = strlen(key);
+if (strncmp(line, key, key_len) != 0) {
+continue;
+}
+
+char *value = line + key_len;
+while (*value == ' ' || *value == '\t') {
+value++;
+}
+
+size_t len = strlen(value);
+while (len > 0 && (value[len - 1] == '\n' || value[len - 1] == '\r' || value[len - 1] == ' ' || value[len - 1] == '\t')) {
+value[--len] = '\0';
+}
+
+*enabled_out = (!strcasecmp(value, "1")
+|| !strcasecmp(value, "yes")
+|| !strcasecmp(value, "true")
+|| !strcasecmp(value, "on"));
+fclose(f);
+return true;
+}
+
+fclose(f);
+return false;
+}
+
+static bool
+notifications_dnd_enabled(void)
+{
+bool enabled = false;
+
+if (notifications_dnd_from_mako(&enabled)) {
+return enabled;
+}
+
+if (notifications_dnd_from_env(&enabled)) {
+return enabled;
+}
+
+return false;
 }
 
 static int
@@ -294,17 +437,19 @@ pulse_sink_info_cb(pa_context *context, const pa_sink_info *info, int eol, void 
 	}
 
 	const char *label = info->description && info->description[0] ? info->description : info->name;
+	char short_label[96] = { 0 };
+	compact_audio_label(label, short_label, sizeof(short_label));
 	if (label && *label) {
 		snprintf(state->output_names[state->output_count], sizeof(state->output_names[0]), "%s", info->name ? info->name : "");
-		snprintf(state->output_devices[state->output_count], sizeof(state->output_devices[0]), "%s", label);
+		snprintf(state->output_devices[state->output_count], sizeof(state->output_devices[0]), "%s", short_label[0] ? short_label : label);
 		state->output_count++;
 	}
 
 	if (info->name && state->default_sink_name[0] && strcmp(info->name, state->default_sink_name) == 0) {
 		int percent = (int)((double)pa_cvolume_avg(&info->volume) * 100.0 / (double)PA_VOLUME_NORM + 0.5);
 		state->output_volume = clamp_percent(percent);
-		if (label && *label) {
-			snprintf(state->default_sink_name, sizeof(state->default_sink_name), "%s", label);
+		if ((short_label[0] || (label && *label)) && !state->default_sink_label[0]) {
+			snprintf(state->default_sink_label, sizeof(state->default_sink_label), "%s", short_label[0] ? short_label : label);
 		}
 	}
 }
@@ -323,17 +468,19 @@ pulse_source_info_cb(pa_context *context, const pa_source_info *info, int eol, v
 	}
 
 	const char *label = info->description && info->description[0] ? info->description : info->name;
+	char short_label[96] = { 0 };
+	compact_audio_label(label, short_label, sizeof(short_label));
 	if (label && *label) {
 		snprintf(state->input_names[state->input_count], sizeof(state->input_names[0]), "%s", info->name ? info->name : "");
-		snprintf(state->input_devices[state->input_count], sizeof(state->input_devices[0]), "%s", label);
+		snprintf(state->input_devices[state->input_count], sizeof(state->input_devices[0]), "%s", short_label[0] ? short_label : label);
 		state->input_count++;
 	}
 
 	if (info->name && state->default_source_name[0] && strcmp(info->name, state->default_source_name) == 0) {
 		int percent = (int)((double)pa_cvolume_avg(&info->volume) * 100.0 / (double)PA_VOLUME_NORM + 0.5);
 		state->input_volume = clamp_percent(percent);
-		if (label && *label) {
-			snprintf(state->default_source_name, sizeof(state->default_source_name), "%s", label);
+		if ((short_label[0] || (label && *label)) && !state->default_source_label[0]) {
+			snprintf(state->default_source_label, sizeof(state->default_source_label), "%s", short_label[0] ? short_label : label);
 		}
 	}
 }
@@ -375,10 +522,18 @@ pulse_source_lookup_cb(pa_context *context, const pa_source_info *info, int eol,
 }
 
 static bool
-pulse_load_audio_state(char output_devices[MAX_AUDIO_DEVICES][96], size_t *output_count,
-	char *default_output, size_t default_output_size, int *output_volume,
-	char input_devices[MAX_AUDIO_DEVICES][96], size_t *input_count,
-	char *default_input, size_t default_input_size, int *input_volume)
+pulse_load_audio_state(char output_devices[MAX_AUDIO_DEVICES][96],
+	char output_ids[MAX_AUDIO_DEVICES][96],
+	size_t *output_count,
+	char *default_output, size_t default_output_size,
+	char *default_output_id, size_t default_output_id_size,
+	int *output_volume,
+	char input_devices[MAX_AUDIO_DEVICES][96],
+	char input_ids[MAX_AUDIO_DEVICES][96],
+	size_t *input_count,
+	char *default_input, size_t default_input_size,
+	char *default_input_id, size_t default_input_id_size,
+	int *input_volume)
 {
 	struct pulse_audio_state state;
 	if (!pulse_connect(&state)) {
@@ -406,11 +561,20 @@ pulse_load_audio_state(char output_devices[MAX_AUDIO_DEVICES][96], size_t *outpu
 			snprintf(output_devices[i], 96, "%s", state.output_devices[i]);
 		}
 	}
+	if (output_ids) {
+		for (size_t i = 0; i < state.output_count; i++) {
+			snprintf(output_ids[i], 96, "%.95s", state.output_names[i]);
+		}
+	}
 	if (output_count) {
 		*output_count = state.output_count;
 	}
 	if (default_output && default_output_size > 0) {
-		snprintf(default_output, default_output_size, "%s", state.default_sink_name);
+		snprintf(default_output, default_output_size, "%s",
+			state.default_sink_label[0] ? state.default_sink_label : state.default_sink_name);
+	}
+	if (default_output_id && default_output_id_size > 0) {
+		snprintf(default_output_id, default_output_id_size, "%.95s", state.default_sink_name);
 	}
 	if (output_volume) {
 		*output_volume = state.output_volume;
@@ -421,11 +585,20 @@ pulse_load_audio_state(char output_devices[MAX_AUDIO_DEVICES][96], size_t *outpu
 			snprintf(input_devices[i], 96, "%s", state.input_devices[i]);
 		}
 	}
+	if (input_ids) {
+		for (size_t i = 0; i < state.input_count; i++) {
+			snprintf(input_ids[i], 96, "%.95s", state.input_names[i]);
+		}
+	}
 	if (input_count) {
 		*input_count = state.input_count;
 	}
 	if (default_input && default_input_size > 0) {
-		snprintf(default_input, default_input_size, "%s", state.default_source_name);
+		snprintf(default_input, default_input_size, "%s",
+			state.default_source_label[0] ? state.default_source_label : state.default_source_name);
+	}
+	if (default_input_id && default_input_id_size > 0) {
+		snprintf(default_input_id, default_input_id_size, "%.95s", state.default_source_name);
 	}
 	if (input_volume) {
 		*input_volume = state.input_volume;
@@ -1133,6 +1306,7 @@ print_quick_status(void)
 {
 bool wifi_enabled = false;
 bool bluetooth_enabled = false;
+bool dnd_enabled = false;
 char conn_type[16] = "none";
 char conn_name[96] = "Not connected";
 char iface[32] = "";
@@ -1141,9 +1315,13 @@ unsigned long long tx_bytes = 0;
 char networks[MAX_SCAN_NETWORKS][96] = {{ 0 }};
 size_t network_count = 0;
 char output_devices[MAX_AUDIO_DEVICES][96] = {{ 0 }};
+char output_ids[MAX_AUDIO_DEVICES][96] = {{ 0 }};
 char input_devices[MAX_AUDIO_DEVICES][96] = {{ 0 }};
+	char input_ids[MAX_AUDIO_DEVICES][96] = {{ 0 }};
 	char default_output[96] = { 0 };
+	char default_output_id[96] = { 0 };
 	char default_input[96] = { 0 };
+	char default_input_id[96] = { 0 };
 	int output_volume = 0;
 	int input_volume = 0;
 char removable_paths[MAX_REMOVABLE_DEVICES][96] = {{ 0 }};
@@ -1181,10 +1359,14 @@ int bat_min_empty = -1;
 int bat_min_full = -1;
 battery_info(&bat_present, &bat_percent, &bat_charging, &bat_min_empty, &bat_min_full);
 
-	(void)pulse_load_audio_state(output_devices, &output_count,
-		default_output, sizeof(default_output), &output_volume,
-		input_devices, &input_count,
-		default_input, sizeof(default_input), &input_volume);
+dnd_enabled = notifications_dnd_enabled();
+
+	(void)pulse_load_audio_state(output_devices, output_ids, &output_count,
+		default_output, sizeof(default_output),
+		default_output_id, sizeof(default_output_id), &output_volume,
+		input_devices, input_ids, &input_count,
+		default_input, sizeof(default_input),
+		default_input_id, sizeof(default_input_id), &input_volume);
 	(void)backlight_get_percent(&brightness);
 
 char removable_rows[MAX_REMOVABLE_DEVICES][96] = {{ 0 }};
@@ -1205,6 +1387,7 @@ snprintf(removable_names[i], sizeof(removable_names[i]), "%s", sep + 1);
 
 printf("wifi_enabled=%s\n", wifi_enabled ? "yes" : "no");
 printf("bluetooth_enabled=%s\n", bluetooth_enabled ? "yes" : "no");
+printf("dnd_enabled=%s\n", dnd_enabled ? "yes" : "no");
 printf("wifi_name=%s\n", conn_name[0] ? conn_name : "Not connected");
 printf("connection_type=%s\n", conn_type);
 printf("connection_name=%s\n", conn_name[0] ? conn_name : "Not connected");
@@ -1216,12 +1399,16 @@ printf("network_%zu=%s\n", i, networks[i]);
 }
 for (size_t i = 0; i < output_count; i++) {
 printf("output_%zu=%s\n", i, output_devices[i]);
+printf("output_id_%zu=%s\n", i, output_ids[i]);
 }
 for (size_t i = 0; i < input_count; i++) {
 printf("input_%zu=%s\n", i, input_devices[i]);
+printf("input_id_%zu=%s\n", i, input_ids[i]);
 }
 	printf("default_output=%s\n", default_output);
+	printf("default_output_id=%s\n", default_output_id);
 	printf("default_input=%s\n", default_input);
+	printf("default_input_id=%s\n", default_input_id);
 	printf("output_volume=%d\n", output_volume);
 	printf("input_volume=%d\n", input_volume);
 	printf("brightness=%d\n", brightness);
