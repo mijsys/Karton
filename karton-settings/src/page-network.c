@@ -898,6 +898,31 @@ static char *apply_runtime_network(void)
             }
             g_free(cmd);
             g_free(quoted);
+        } else {
+            run_command_success("sh -lc 'nmcli connection down Hotspot >/dev/null 2>&1 || true'");
+            run_command_success("sh -lc 'nmcli connection down \"Karton Hotspot\" >/dev/null 2>&1 || true'");
+        }
+
+        if (gtk_switch_get_active(GTK_SWITCH(g_vpn_switch))) {
+            const char *vpn_text = gtk_editable_get_text(GTK_EDITABLE(g_vpn_name_entry));
+            if (vpn_text && *vpn_text) {
+                char *quoted = g_shell_quote(vpn_text);
+                char *cmd = g_strdup_printf("sh -lc 'nmcli connection up %s >/dev/null 2>&1'", quoted);
+                if (!run_command_success(cmd)) {
+                    g_string_append(issues, _("Could not connect to the specified VPN. "));
+                }
+                g_free(cmd);
+                g_free(quoted);
+            }
+        } else {
+            const char *vpn_text = gtk_editable_get_text(GTK_EDITABLE(g_vpn_name_entry));
+            if (vpn_text && *vpn_text) {
+                char *quoted = g_shell_quote(vpn_text);
+                char *cmd = g_strdup_printf("sh -lc 'nmcli connection down %s >/dev/null 2>&1'", quoted);
+                run_command_success(cmd);
+                g_free(cmd);
+                g_free(quoted);
+            }
         }
     } else {
         g_string_append(issues, _("NetworkManager CLI (nmcli) not found. Runtime network apply is limited. "));
