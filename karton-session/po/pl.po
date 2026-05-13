@@ -26,5 +26,5 @@ msgstr "Szukaj aplikacji..."
 msgid "karton-notifyd: mako not found, running idle fallback"
 msgstr "karton-notifyd: nie znaleziono mako, uruchamiam tryb zapasowy"
 
-msgid "karton-settingsd: no backends found (kanshi/swayidle), running idle fallback"
-msgstr "karton-settingsd: nie znaleziono backendów (kanshi/swayidle), uruchamiam tryb zapasowy"
+msgid "karton-settingsd: no backends found (kanshi/karton-idle), running idle fallback"
+msgstr "karton-settingsd: nie znaleziono backendów (kanshi/karton-idle), uruchamiam tryb zapasowy"

@@ -26,5 +26,5 @@ msgstr "Apps suchen..."
 msgid "karton-notifyd: mako not found, running idle fallback"
 msgstr "karton-notifyd: mako nicht gefunden, starte Leerlauf-Fallback"
 
-msgid "karton-settingsd: no backends found (kanshi/swayidle), running idle fallback"
-msgstr "karton-settingsd: keine Backends gefunden (kanshi/swayidle), starte Leerlauf-Fallback"
+msgid "karton-settingsd: no backends found (kanshi/karton-idle), running idle fallback"
+msgstr "karton-settingsd: keine Backends gefunden (kanshi/karton-idle), starte Leerlauf-Fallback"

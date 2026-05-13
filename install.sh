@@ -6,6 +6,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEKTURA_DIR="$SCRIPT_DIR/tektura"
 SHELL_DIR="$SCRIPT_DIR/karton-shell"
 SESSION_DIR="$SCRIPT_DIR/karton-session"
+DAEMON_DIR="$SCRIPT_DIR/karton-idle"
+LOCK_DIR="$SCRIPT_DIR/karton-lock"
 SETTINGS_DIR="$SCRIPT_DIR/karton-settings"
 FILES_DIR="$SCRIPT_DIR/karton-files"
 TERMINAL_DIR="$SCRIPT_DIR/karton-terminal"
@@ -27,7 +29,7 @@ print_usage() {
 Usage: ./install.sh [options] [command]
 
 Configure, build, and optionally install the Karton compositor, shell, session,
-settings, files, and terminal components.
+idle, lock, settings, files, and terminal components.
 
 Commands:
   install             Configure, build, and install all components (default)
@@ -1463,25 +1465,27 @@ restart_running_session() {
   pkill -x karton-shell 2>/dev/null || true
   pkill -f 'karton-sessiond' 2>/dev/null || true
   pkill -f 'karton-screenshot --daemon' 2>/dev/null || true
+  pkill -f 'karton-idle' 2>/dev/null || true
   pkill -f 'karton-settingsd' 2>/dev/null || true
   pkill -f 'karton-notifyd' 2>/dev/null || true
   pkill -f 'karton-notify-log' 2>/dev/null || true
   pkill -f "dbus-monitor --session interface='org.freedesktop.Notifications',member='Notify'" 2>/dev/null || true
 
   local attempts=30
-  while pgrep -fa 'karton-sessiond|karton-shell --top-only|karton-shell --side-only|karton-screenshot --daemon|karton-settingsd|karton-notifyd|karton-notify-log' >/dev/null 2>&1 \
+  while pgrep -fa 'karton-sessiond|karton-shell --top-only|karton-shell --side-only|karton-screenshot --daemon|karton-idle|karton-settingsd|karton-notifyd|karton-notify-log' >/dev/null 2>&1 \
     && [[ "$attempts" -gt 0 ]]; do
     attempts=$((attempts - 1))
     sleep 0.1
   done
 
-  if pgrep -fa 'karton-sessiond|karton-shell --top-only|karton-shell --side-only|karton-screenshot --daemon|karton-settingsd|karton-notifyd|karton-notify-log' >/dev/null 2>&1; then
+  if pgrep -fa 'karton-sessiond|karton-shell --top-only|karton-shell --side-only|karton-screenshot --daemon|karton-idle|karton-settingsd|karton-notifyd|karton-notify-log' >/dev/null 2>&1; then
     log "Forcing shutdown of leftover karton session processes"
     pkill -KILL -f 'karton-shell --top-only' 2>/dev/null || true
     pkill -KILL -f 'karton-shell --side-only' 2>/dev/null || true
     pkill -KILL -x karton-shell 2>/dev/null || true
     pkill -KILL -f 'karton-sessiond' 2>/dev/null || true
     pkill -KILL -f 'karton-screenshot --daemon' 2>/dev/null || true
+    pkill -KILL -f 'karton-idle' 2>/dev/null || true
     pkill -KILL -f 'karton-settingsd' 2>/dev/null || true
     pkill -KILL -f 'karton-notifyd' 2>/dev/null || true
     pkill -KILL -f 'karton-notify-log' 2>/dev/null || true
@@ -1507,7 +1511,7 @@ restart_running_session() {
   pgrep -fa 'karton-shell --side-only' >/dev/null 2>&1 || karton-side-dock >/dev/null 2>&1 &
 
   sleep 1
-  pgrep -fa 'karton-shell --top-only|karton-shell --side-only|karton-screenshot --daemon|karton-settingsd|karton-notifyd' || true
+  pgrep -fa 'karton-shell --top-only|karton-shell --side-only|karton-screenshot --daemon|karton-idle|karton-settingsd|karton-notifyd' || true
 }
 
 while [[ $# -gt 0 ]]; do
@@ -1583,6 +1587,8 @@ need_cmd ninja
 [[ -d "$TEKTURA_DIR" ]] || die "Missing directory: $TEKTURA_DIR"
 [[ -d "$SHELL_DIR" ]] || die "Missing directory: $SHELL_DIR"
 [[ -d "$SESSION_DIR" ]] || die "Missing directory: $SESSION_DIR"
+  [[ -d "$DAEMON_DIR" ]] || die "Missing directory: $DAEMON_DIR"
+[[ -d "$LOCK_DIR" ]] || die "Missing directory: $LOCK_DIR"
 [[ -d "$SETTINGS_DIR" ]] || die "Missing directory: $SETTINGS_DIR"
 [[ -d "$FILES_DIR" ]] || die "Missing directory: $FILES_DIR"
 [[ -d "$TERMINAL_DIR" ]] || die "Missing directory: $TERMINAL_DIR"
@@ -1605,6 +1611,8 @@ fi
 
 build_project "$SHELL_DIR"
 build_project "$SESSION_DIR"
+build_project "$DAEMON_DIR"
+build_project "$LOCK_DIR"
 build_project "$SETTINGS_DIR"
 build_project "$FILES_DIR"
 build_project "$TERMINAL_DIR"

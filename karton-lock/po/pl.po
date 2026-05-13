@@ -1,0 +1,29 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: karton-lock 0.7.5\n"
+"POT-Creation-Date: 2026-05-13 00:00+0000\n"
+"PO-Revision-Date: 2026-05-13 00:00+0000\n"
+"Last-Translator: Karton Team\n"
+"Language-Team: Polish\n"
+"Language: pl\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Karton Lock"
+msgstr "Karton Lock"
+
+msgid "Unlock"
+msgstr "Odblokuj"
+
+msgid "Too many attempts. Try again in %.1f s"
+msgstr "Zbyt wiele prob. Sprobuj ponownie za %.1f s"
+
+msgid "Invalid password"
+msgstr "Bledne haslo"
+
+msgid "Invalid password (or missing KARTON_LOCK_PASSWORD / ~/.config/karton/lock-password)"
+msgstr "Bledne haslo (lub brak KARTON_LOCK_PASSWORD / ~/.config/karton/lock-password)"
+
+msgid "Unlocked"
+msgstr "Odblokowano"
