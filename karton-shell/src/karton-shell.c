@@ -513,6 +513,7 @@ register_runtime_signals(void)
 struct sigaction sa;
 memset(&sa, 0, sizeof(sa));
 sa.sa_handler = handle_runtime_signal;
+sa.sa_flags = SA_RESTART;
 sigemptyset(&sa.sa_mask);
 
 sigaction(SIGUSR1, &sa, NULL);
@@ -10935,6 +10936,7 @@ destroy_buffer(&panel->buffers[i]);
 int
 main(int argc, char **argv)
 {
+register_runtime_signals();
 init_i18n();
 
 enum run_mode mode = RUN_BOTH;
@@ -10967,8 +10969,6 @@ struct app app = {
 .quick_menu_hover_item = -1,
 .global_menu_open_top = -1,
 };
-
-register_runtime_signals();
 
 load_shell_style(&app.style);
 if (need_top) {
@@ -11034,7 +11034,7 @@ if (need_side && anim_active) {
 panel_draw(&app.side);
 }
 
-if (wl_display_flush(app.display) == -1 && errno != EAGAIN) {
+if (wl_display_flush(app.display) == -1 && errno != EAGAIN && errno != EINTR) {
 break;
 }
 
