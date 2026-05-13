@@ -1,6 +1,6 @@
 pkgbase=kartonde
 pkgname=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-session' 'kartonde')
-pkgver=0.7.5
+pkgver=0.7.6
 pkgrel=1
 arch=('x86_64')
 url='https://github.com/mijsys/Tektura-i-Karton'
@@ -77,6 +77,11 @@ package_karton-settings() {
   pkgdesc='KartonDE desktop settings application (WIP build)'
   depends=('glib2' 'gtk4')
   optdepends=(
+    'networkmanager: nmcli backend for Wi-Fi, hotspot and VPN settings'
+    'bluez-utils: bluetoothctl backend for Bluetooth settings'
+    'upower: battery status backend for power settings'
+    'power-profiles-daemon: power profile backend (powerprofilesctl)'
+    'xdg-utils: open folders/files from settings (xdg-open)'
     'wlr-randr: monitor layout backend for display settings'
     'brightnessctl: brightness backend for internal displays'
     'ddcutil: brightness fallback backend for external displays'
@@ -98,7 +103,15 @@ package_karton-files() {
 package_karton-session() {
   pkgdesc='Session services and desktop helpers for KartONDE'
   depends=('glib2' 'gtk4')
-  optdepends=('grim: screenshot backend' 'slurp: area screenshot selection' 'wl-clipboard: copy screenshots to clipboard')
+  optdepends=(
+    'swayidle: idle detection backend for automatic lock and DPMS'
+    'swaylock: lockscreen backend'
+    'wlopm: output power management backend for idle DPMS'
+    'kanshi: output profile backend'
+    'grim: screenshot backend'
+    'slurp: area screenshot selection'
+    'wl-clipboard: copy screenshots to clipboard'
+  )
 
   _install_component karton-session "$pkgdir"
 }
@@ -107,6 +120,15 @@ package_kartonde() {
   pkgdesc='Complete KartONDE desktop environment metapackage'
   depends=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-session')
   optdepends=(
+    'networkmanager: nmcli backend for Wi-Fi, hotspot and VPN settings'
+    'bluez-utils: bluetoothctl backend for Bluetooth settings'
+    'upower: battery status backend for power settings'
+    'power-profiles-daemon: power profile backend (powerprofilesctl)'
+    'xdg-utils: open folders/files from settings (xdg-open)'
+    'swayidle: idle detection backend for automatic lock and DPMS'
+    'swaylock: lockscreen backend'
+    'wlopm: output power management backend for idle DPMS'
+    'kanshi: output profile backend'
     'wlr-randr: monitor layout backend for display settings'
     'brightnessctl: brightness backend for internal displays'
     'ddcutil: brightness fallback backend for external displays'

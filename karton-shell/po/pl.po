@@ -239,7 +239,7 @@ msgstr "Kliknij + aby dodać strefę"
 #: src/karton-shell.c:7346
 #, fuzzy
 msgid "Notifications"
-msgstr "Aplikacje"
+msgstr "Powiadomiena"
 
 #: src/karton-shell.c:7347
 msgid "Network"
@@ -524,7 +524,7 @@ msgstr "i jeszcze %zu..."
 
 #: src/karton-shell.c:8451
 msgid "Send to desktop"
-msgstr ""
+msgstr "Wyślij na pulpit"
 
 #: src/karton-shell.c:8453
 #, fuzzy
@@ -593,7 +593,7 @@ msgstr ""
 
 #: src/karton-shell.c:9417
 msgid "Shortcut added to desktop"
-msgstr ""
+msgstr "Dodano skrót na pulpit"
 
 #: src/karton-shell.c:9438
 #, c-format

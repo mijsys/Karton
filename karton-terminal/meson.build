@@ -1,5 +1,5 @@
 project('karton-terminal', 'c',
-  version: '0.7.5',
+  version: '0.7.6',
   default_options: ['warning_level=2', 'c_std=c11']
 )
 

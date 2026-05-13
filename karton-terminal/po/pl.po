@@ -1,0 +1,52 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: karton-terminal 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-10 10:13+0200\n"
+"PO-Revision-Date: 2026-05-10 00:00+0000\n"
+"Last-Translator: KartON Team\n"
+"Language-Team: Polish\n"
+"Language: pl\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n==1?0:n%10>=2 && n%10<=4 && (n%100<12 || "
+"n%100>14)?1:2);\n"
+
+#: src/window.c:71
+#, fuzzy, c-format
+msgid "Cannot start shell: %s\r\n"
+msgstr "Nie mozna uruchomic powloki: %s\\r\\n"
+
+#: src/window.c:93
+#, fuzzy
+msgid ""
+"Autosuggestions: fish active. Press Right arrow or End to accept hints.\r\n"
+msgstr ""
+"Podpowiedzi: fish aktywny. Nacisnij strzalke w prawo lub End, aby "
+"zaakceptowac.\\r\\n"
+
+#: src/window.c:95
+#, fuzzy
+msgid "Tip: press Tab for completion. Install fish for live suggestions.\r\n"
+msgstr ""
+"Wskazowka: nacisnij Tab, aby uzupelniac. Zainstaluj fish dla podpowiedzi na "
+"zywo.\\r\\n"
+
+#: src/window.c:123
+#, fuzzy
+msgid ""
+"\r\n"
+"Shell exited. Press Ctrl+Shift+R to restart.\r\n"
+msgstr ""
+"\\r\\nPowloka zakonczona. Nacisnij Ctrl+Shift+R, aby uruchomic ponownie."
+"\\r\\n"
+
+#: src/window.c:176
+msgid "Karton Terminal"
+msgstr "Terminal Karton"
+
+#: src/window.c:209
+#, fuzzy
+msgid "Starting shell...\r\n"
+msgstr "Uruchamianie powloki...\\r\\n"

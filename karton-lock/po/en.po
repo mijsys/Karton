@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: karton-lock 0.7.5\n"
+"Project-Id-Version: karton-lock 0.7.6\n"
 "POT-Creation-Date: 2026-05-13 00:00+0000\n"
 "PO-Revision-Date: 2026-05-13 00:00+0000\n"
 "Last-Translator: Karton Team\n"
