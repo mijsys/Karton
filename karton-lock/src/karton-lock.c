@@ -399,7 +399,7 @@ apply_css(void)
 		"label.ok { color: #90e6ae; }";
 
 	GtkCssProvider *provider = gtk_css_provider_new();
-	gtk_css_provider_load_from_data(provider, css, -1);
+	gtk_css_provider_load_from_string(provider, css);
 	gtk_style_context_add_provider_for_display(
 		gdk_display_get_default(),
 		GTK_STYLE_PROVIDER(provider),
@@ -423,7 +423,7 @@ create_lock_window(struct lock_ui *ui, GtkApplication *app, GdkMonitor *monitor,
 	gtk_layer_init_for_window(GTK_WINDOW(window));
 	gtk_layer_set_layer(GTK_WINDOW(window), GTK_LAYER_SHELL_LAYER_OVERLAY);
 	gtk_layer_set_exclusive_zone(GTK_WINDOW(window), -1);
-	gtk_layer_set_keyboard_interactivity(GTK_WINDOW(window), TRUE);
+	gtk_layer_set_keyboard_mode(GTK_WINDOW(window), GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE);
 	gtk_layer_set_anchor(GTK_WINDOW(window), GTK_LAYER_SHELL_EDGE_LEFT, TRUE);
 	gtk_layer_set_anchor(GTK_WINDOW(window), GTK_LAYER_SHELL_EDGE_RIGHT, TRUE);
 	gtk_layer_set_anchor(GTK_WINDOW(window), GTK_LAYER_SHELL_EDGE_TOP, TRUE);
