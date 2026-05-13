@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <title>Karton Action Settings</title>
+  <circle cx="12" cy="12" r="4.3" fill="none" stroke="#7b66f0" stroke-width="2.1"/>
+  <path d="M12 3.6v2.4M12 18v2.4M20.4 12H18M6 12H3.6M17.9 6.1l-1.8 1.8M7.9 16.1l-1.8 1.8M17.9 17.9l-1.8-1.8M7.9 7.9 6.1 6.1" fill="none" stroke="#5dcdc3" stroke-width="2" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Karton Terminal
+Name[pl]=Terminal Karton
+Name[de]=Karton-Terminal
+Comment=Simple terminal emulator for Karton
+Comment[pl]=Prosty emulator terminala dla KartON
+Comment[de]=Einfacher Terminal-Emulator fuer Karton
+Exec=karton-terminal
+Icon=io.karton.Terminal
+Categories=System;Utility;TerminalEmulator;
+MimeType=x-scheme-handler/terminal;x-scheme-handler/karton-terminal;application/vnd.karton.terminal;
+StartupNotify=true
+Terminal=false

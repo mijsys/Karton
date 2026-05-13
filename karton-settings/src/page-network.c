@@ -995,7 +995,7 @@ static void on_apply_network_clicked(GtkButton *btn, gpointer data)
     char *issues = apply_runtime_network();
     refresh_shell_and_top_panel();
     if (issues) {
-        status_set(issues, FALSE);
+        status_set(issues, TRUE);
         g_free(issues);
         return;
     }
