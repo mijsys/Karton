@@ -1,0 +1,44 @@
+#!/usr/bin/env sh
+
+set -eu
+
+config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+config_dir="$config_home/karton"
+desktop_dir="$data_home/applications"
+icon_dir="$data_home/icons/hicolor/scalable/apps"
+
+copy_if_missing() {
+  src="$1"
+  dst="$2"
+
+  [ -f "$src" ] || return 0
+  [ -e "$dst" ] && return 0
+
+  dst_parent=$(dirname "$dst")
+  mkdir -p "$dst_parent"
+  cp "$src" "$dst"
+}
+
+mkdir -p "$config_dir" "$desktop_dir" "$icon_dir"
+
+copy_if_missing "/etc/xdg/karton/autostart" "$config_dir/autostart"
+copy_if_missing "/etc/xdg/karton/environment" "$config_dir/environment"
+copy_if_missing "/etc/xdg/karton/rc.xml" "$config_dir/rc.xml"
+copy_if_missing "/etc/xdg/karton/theme.toml" "$config_dir/theme.toml"
+
+if [ -f "$config_dir/autostart" ]; then
+  chmod +x "$config_dir/autostart" 2>/dev/null || true
+fi
+
+copy_if_missing "/usr/share/applications/io.karton.Settings.desktop" "$desktop_dir/io.karton.Settings.desktop"
+copy_if_missing "/usr/share/applications/io.karton.Files.desktop" "$desktop_dir/io.karton.Files.desktop"
+copy_if_missing "/usr/share/applications/io.karton.Terminal.desktop" "$desktop_dir/io.karton.Terminal.desktop"
+
+copy_if_missing "/usr/share/icons/hicolor/scalable/apps/io.karton.Settings.svg" "$icon_dir/io.karton.Settings.svg"
+copy_if_missing "/usr/share/icons/hicolor/scalable/apps/io.karton.Files.svg" "$icon_dir/io.karton.Files.svg"
+copy_if_missing "/usr/share/icons/hicolor/scalable/apps/io.karton.Terminal.svg" "$icon_dir/io.karton.Terminal.svg"
+
+if command -v karton-apply-theme >/dev/null 2>&1; then
+  karton-apply-theme --sync-from-css >/dev/null 2>&1 || true
+fi

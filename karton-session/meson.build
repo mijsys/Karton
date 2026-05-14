@@ -25,6 +25,7 @@ executable(
 
 install_data(
   [
+    'bin/karton-bootstrap-user',
     'bin/karton-launcher',
     'bin/karton-login-manager',
     'bin/karton-notifyd',

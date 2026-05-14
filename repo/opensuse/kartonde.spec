@@ -1,6 +1,6 @@
 Name:           kartonde
 Version:        0.7.7
-Release:        0
+Release:        1
 Summary:        Complete KartONDE desktop environment metapackage
 License:        GPL-2.0-only
 URL:            https://github.com/mijsys/Tektura-i-Karton
@@ -169,6 +169,9 @@ install -Dm644 repo/archlinux/config/theme.toml %{buildroot}/etc/xdg/karton/them
 %{_datadir}/karton/lock-style.example
 
 %changelog
+* Thu May 14 2026 Patryk <patryk@example.com> 0.7.7-1
+- Add automatic per-user bootstrap on session start (defaults, desktop entries, icons).
+
 * Thu May 14 2026 Patryk <patryk@example.com> 0.7.7-0
 - Version bump to 0.7.7.
 

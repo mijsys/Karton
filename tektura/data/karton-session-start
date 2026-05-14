@@ -33,4 +33,8 @@ if [ -z "${XDG_CONFIG_DIRS:-}" ]; then
   export XDG_CONFIG_DIRS="/etc/xdg"
 fi
 
+if command -v karton-bootstrap-user >/dev/null 2>&1; then
+  karton-bootstrap-user >/dev/null 2>&1 || true
+fi
+
 exec env WLR_NO_HARDWARE_CURSORS=1 WLR_DRM_NO_ATOMIC=1 "$KARTON_BIN"
