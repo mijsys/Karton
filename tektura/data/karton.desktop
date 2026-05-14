@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Karton
 Comment=A wayland stacking compositor
-Exec=sh -lc "export PATH=\"\\$HOME/.local-karton/bin:\\$PATH\"; karton-sessiond >/dev/null 2>&1 & exec env WLR_NO_HARDWARE_CURSORS=1 WLR_DRM_NO_ATOMIC=1 karton"
+Exec=sh -lc 'if [ -x /usr/bin/karton ]; then KARTON_BIN=/usr/bin/karton; elif [ -x "$HOME/.local-karton/bin/karton" ]; then KARTON_BIN="$HOME/.local-karton/bin/karton"; else KARTON_BIN="$(command -v karton 2>/dev/null || true)"; fi; [ -n "$KARTON_BIN" ] || exit 1; KARTON_BINDIR="${KARTON_BIN%/*}"; export PATH="$KARTON_BINDIR:/usr/bin:/usr/local/bin:$PATH"; if [ -x "$KARTON_BINDIR/karton-sessiond" ]; then "$KARTON_BINDIR/karton-sessiond" >/dev/null 2>&1 & elif command -v karton-sessiond >/dev/null 2>&1; then karton-sessiond >/dev/null 2>&1 & fi; exec env WLR_NO_HARDWARE_CURSORS=1 WLR_DRM_NO_ATOMIC=1 "$KARTON_BIN"'
 Icon=karton
 Type=Application
 DesktopNames=karton;wlroots

@@ -1139,6 +1139,7 @@ build_project() {
 ensure_user_config() {
   local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/${CONFIG_NAME}"
   local autostart_file="$config_dir/autostart"
+  local preferred_sessiond="$PREFIX/bin/karton-sessiond"
   local style_file="$config_dir/shell.css"
   local rcxml_file="$config_dir/rc.xml"
   local environment_file="$config_dir/environment"
@@ -1158,6 +1159,7 @@ ensure_user_config() {
   local xkb_variant=""
   local xkb_options=""
   local managed_keyboard_env_block=""
+  local managed_autostart_block=""
 
   managed_ssd_block="$(cat <<'EOF'
   <!-- BEGIN KartON managed SSD rules -->
@@ -1274,6 +1276,39 @@ EOF
     mv "$tmp_file" "$file"
   }
 
+  write_managed_autostart_block() {
+    local file="$1"
+    local block="$2"
+    local begin_marker="# BEGIN KartON managed session bootstrap"
+    local end_marker="# END KartON managed session bootstrap"
+    local tmp_file
+
+    tmp_file="$(mktemp)"
+    if [[ -f "$file" ]]; then
+      awk -v begin="$begin_marker" -v end="$end_marker" '
+        $0 == begin { skip = 1; next }
+        $0 == end { skip = 0; next }
+        skip { next }
+        { print }
+      ' "$file" > "$tmp_file"
+    fi
+
+    {
+      if [[ -s "$tmp_file" ]]; then
+        cat "$tmp_file"
+        printf '\n'
+      elif [[ ! -f "$file" ]]; then
+        printf '#!/bin/sh\n\n'
+      fi
+      printf '%s\n' "$begin_marker"
+      printf '%s\n' "$block"
+      printf '%s\n' "$end_marker"
+    } > "$file"
+
+    rm -f "$tmp_file"
+    chmod +x "$file"
+  }
+
   mkdir -p "$config_dir"
 
   xkb_layout="$(read_localectl_field 'X11 Layout' || true)"
@@ -1304,29 +1339,26 @@ EOF
       "$managed_keyboard_env_block"
   fi
 
-  if [[ ! -f "$autostart_file" ]]; then
-    log "Creating default autostart: $autostart_file"
-    cat > "$autostart_file" <<EOF
-#!/bin/sh
-export PATH="$PREFIX/bin:\$PATH"
-karton-sessiond >/dev/null 2>&1 &
-EOF
-    chmod +x "$autostart_file"
-  else
-    log "Autostart already exists: $autostart_file"
-    if ! grep -q "karton-sessiond" "$autostart_file"; then
-      log "Patching autostart to include karton-sessiond bootstrap"
-      cat >> "$autostart_file" <<EOF
+  if [[ ! -x "$preferred_sessiond" ]]; then
+    preferred_sessiond="$(command -v karton-sessiond 2>/dev/null || true)"
+  fi
+  if [[ -n "$preferred_sessiond" ]]; then
+    managed_autostart_block="export PATH=\"$PREFIX/bin:\$PATH\""
+    managed_autostart_block+=$'\n'
+    managed_autostart_block+="\"$preferred_sessiond\" >/dev/null 2>&1 &"
 
-# Added by KartON installer to ensure shell/session services start on login
-export PATH="$PREFIX/bin:\$PATH"
-karton-sessiond >/dev/null 2>&1 &
-EOF
-
-      if [[ ! -x "$autostart_file" ]]; then
-        chmod +x "$autostart_file"
-      fi
+    if [[ -f "$autostart_file" ]]; then
+      log "Autostart already exists: $autostart_file"
+      # Remove legacy installer lines so only one managed bootstrap remains.
+      sed -i "\|^export PATH=\"$PREFIX/bin:\\$PATH\"$|d" "$autostart_file"
+      sed -i "\|^karton-sessiond >/dev/null 2>&1 &$|d" "$autostart_file"
+    else
+      log "Creating default autostart: $autostart_file"
     fi
+
+    write_managed_autostart_block "$autostart_file" "$managed_autostart_block"
+  else
+    log "Warning: karton-sessiond not found; skipping managed autostart bootstrap"
   fi
 
   if [[ -f "$SHELL_DIR/shell.css.example" && ! -f "$style_file" ]]; then

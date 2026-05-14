@@ -30,6 +30,7 @@ BuildRequires:  pkgconfig(libxml-2.0)
 BuildRequires:  pkgconfig(pixman-1)
 BuildRequires:  pkgconfig(vte-2.91-gtk4)
 BuildRequires:  pkgconfig(gtk4-layer-shell-0)
+BuildRequires:  pkgconfig(systemd)
 BuildRequires:  scdoc
 BuildRequires:  pam-devel
 
@@ -117,16 +118,15 @@ install -Dm644 repo/archlinux/config/theme.toml %{buildroot}/etc/xdg/karton/them
 /etc/xdg/karton/*
 
 %files -n tektura
-%{_bindir}/tektura
-%{_bindir}/tektura-bg
-%{_bindir}/tektura-msg
-%{_datadir}/wayland-sessions/tektura.desktop
-%{_datadir}/tektura/
-%{_mandir}/man1/tektura.1*
-%{_mandir}/man1/tektura-bg.1*
-%{_mandir}/man1/tektura-msg.1*
-%{_mandir}/man5/tektura.5*
-%{_mandir}/man5/tektura-bg.5*
+%{_bindir}/karton
+%{_bindir}/labnag
+%{_bindir}/lab-sensible-terminal
+%{_datadir}/wayland-sessions/karton.desktop
+%{_datadir}/xdg-desktop-portal/karton-portals.conf
+%{_datadir}/themes/KartONFlat/
+%{_datadir}/icons/hicolor/scalable/apps/karton.svg
+%{_datadir}/icons/hicolor/scalable/apps/karton-symbolic.svg
+%{_userunitdir}/karton-session.target
 
 %files -n karton-shell -f karton-shell.lang
 %{_bindir}/karton-shell
