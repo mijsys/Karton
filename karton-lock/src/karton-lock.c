@@ -40,14 +40,7 @@ struct lock_ui {
 	guint failed_attempts;
 	gint64 cooldown_until_us;
 	guint clock_timer_id;
-};
-
-static gboolean
-constant_time_equals(const gchar *a, const gchar *b)
-{
-	if (a == NULL || b == NULL) {
-		return FALSE;
-	}
+        gboolean syncing_entries;
 
 	gsize a_len = strlen(a);
 	gsize b_len = strlen(b);
@@ -322,6 +315,28 @@ try_unlock(struct lock_window *win)
 }
 
 static void
+on_entry_changed(GtkEditable *editable, gpointer data)
+{
+        struct lock_window *win = data;
+        struct lock_ui *ui = win->ui;
+
+        if (ui->syncing_entries) {
+                return;
+        }
+
+        ui->syncing_entries = TRUE;
+        const char *text = gtk_editable_get_text(editable);
+
+        for (guint i = 0; i < ui->windows->len; i++) {
+                struct lock_window *w = g_ptr_array_index(ui->windows, i);
+                if (w->entry != GTK_WIDGET(editable)) {
+                        gtk_editable_set_text(GTK_EDITABLE(w->entry), text);
+                }
+        }
+        ui->syncing_entries = FALSE;
+}
+
+static void
 on_entry_activate(GtkWidget *entry, gpointer data)
 {
 	(void)entry;
@@ -423,7 +438,7 @@ create_lock_window(struct lock_ui *ui, GtkApplication *app, GdkMonitor *monitor,
 	gtk_layer_init_for_window(GTK_WINDOW(window));
 	gtk_layer_set_layer(GTK_WINDOW(window), GTK_LAYER_SHELL_LAYER_OVERLAY);
 	gtk_layer_set_exclusive_zone(GTK_WINDOW(window), -1);
-	gtk_layer_set_keyboard_mode(GTK_WINDOW(window), GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE);
+	if (focus_entry) { gtk_layer_set_keyboard_mode(GTK_WINDOW(window), GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE); } else { gtk_layer_set_keyboard_mode(GTK_WINDOW(window), GTK_LAYER_SHELL_KEYBOARD_MODE_ON_DEMAND); }
 	gtk_layer_set_anchor(GTK_WINDOW(window), GTK_LAYER_SHELL_EDGE_LEFT, TRUE);
 	gtk_layer_set_anchor(GTK_WINDOW(window), GTK_LAYER_SHELL_EDGE_RIGHT, TRUE);
 	gtk_layer_set_anchor(GTK_WINDOW(window), GTK_LAYER_SHELL_EDGE_TOP, TRUE);
@@ -468,8 +483,7 @@ create_lock_window(struct lock_ui *ui, GtkApplication *app, GdkMonitor *monitor,
 	gtk_widget_set_hexpand(entry, TRUE);
 	gtk_editable_set_text(GTK_EDITABLE(entry), "");
 	g_signal_connect(entry, "activate", G_CALLBACK(on_entry_activate), win);
-	gtk_box_append(GTK_BOX(center), entry);
-
+        g_signal_connect(entry, "changed", G_CALLBACK(on_entry_changed), win);
 	GtkWidget *button = gtk_button_new_with_label(_("Unlock"));
 	g_signal_connect(button, "clicked", G_CALLBACK(on_unlock_clicked), win);
 	gtk_box_append(GTK_BOX(center), button);

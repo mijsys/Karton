@@ -898,6 +898,8 @@ static char *apply_runtime_power(void)
         g_free(cmd);
         g_free(q_lid);
         g_free(q_profile);
+
+        (void)run_command_success("sh -lc 'killall karton-idle 2>/dev/null; karton-idle >/dev/null 2>&1 & true'");
     }
 
     g_free(env_path);
