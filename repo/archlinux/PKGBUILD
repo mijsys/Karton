@@ -110,7 +110,7 @@ package_karton-files() {
 
 package_karton-terminal() {
   pkgdesc='KartonDE VTE-based terminal emulator'
-  depends=('glib2' 'gtk4' 'vte3-gtk4')
+  depends=('glib2' 'gtk4' 'vte4')
 
   _install_component karton-terminal "$pkgdir"
 }
