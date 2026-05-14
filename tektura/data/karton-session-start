@@ -15,10 +15,22 @@ fi
 KARTON_BINDIR=${KARTON_BIN%/*}
 export PATH="$KARTON_BINDIR:/usr/bin:/usr/local/bin:$PATH"
 
-if [ -x "$KARTON_BINDIR/karton-sessiond" ]; then
-  "$KARTON_BINDIR/karton-sessiond" >/dev/null 2>&1 &
-elif command -v karton-sessiond >/dev/null 2>&1; then
-  karton-sessiond >/dev/null 2>&1 &
+default_data_dirs="/usr/local/share:/usr/share"
+if [ -d "$HOME/.local-karton/share" ]; then
+  default_data_dirs="$HOME/.local-karton/share:$default_data_dirs"
+fi
+if [ -d "$HOME/.local/share" ]; then
+  default_data_dirs="$HOME/.local/share:$default_data_dirs"
+fi
+
+if [ -n "${XDG_DATA_DIRS:-}" ]; then
+  export XDG_DATA_DIRS="$default_data_dirs:$XDG_DATA_DIRS"
+else
+  export XDG_DATA_DIRS="$default_data_dirs"
+fi
+
+if [ -z "${XDG_CONFIG_DIRS:-}" ]; then
+  export XDG_CONFIG_DIRS="/etc/xdg"
 fi
 
 exec env WLR_NO_HARDWARE_CURSORS=1 WLR_DRM_NO_ATOMIC=1 "$KARTON_BIN"

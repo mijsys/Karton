@@ -28,6 +28,16 @@ if ! grep -q '^Exec=/usr/bin/karton-session-start$' "$desktop_file"; then
 fi
 ok "karton.desktop Exec is stable"
 
+if grep -q 'karton-sessiond' "$wrapper_file"; then
+  fail "karton-session-start must not start karton-sessiond directly (avoids duplicate panels)"
+fi
+ok "wrapper does not duplicate karton-sessiond startup"
+
+if ! grep -q 'XDG_DATA_DIRS=' "$wrapper_file"; then
+  fail "karton-session-start should export XDG_DATA_DIRS for app icons/desktop entries"
+fi
+ok "wrapper exports XDG_DATA_DIRS"
+
 if ! sh -n "$wrapper_file"; then
   fail "karton-session-start has shell syntax errors"
 fi

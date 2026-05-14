@@ -937,8 +937,14 @@ dialog_radius=$dialog_radius
 dialog_spacing=$dialog_spacing
 EOF
 
+karton_cmd=""
 if command -v karton >/dev/null 2>&1; then
-  karton --reconfigure >/dev/null 2>&1 || true
+  karton_cmd="$(command -v karton)"
+elif [ -x "$HOME/.local-karton/bin/karton" ]; then
+  karton_cmd="$HOME/.local-karton/bin/karton"
+fi
+if [ -n "$karton_cmd" ]; then
+  "$karton_cmd" --reconfigure >/dev/null 2>&1 || true
 fi
 if [ -n "${KARTON_PID:-}" ]; then
   kill -HUP "$KARTON_PID" >/dev/null 2>&1 || true
