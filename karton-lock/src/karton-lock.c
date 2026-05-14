@@ -41,6 +41,15 @@ struct lock_ui {
 	gint64 cooldown_until_us;
 	guint clock_timer_id;
         gboolean syncing_entries;
+};
+
+static gboolean
+constant_time_equals(const gchar *a, const gchar *b)
+{
+        if (a == NULL || b == NULL) {
+                return FALSE;
+        }
+
 
 	gsize a_len = strlen(a);
 	gsize b_len = strlen(b);

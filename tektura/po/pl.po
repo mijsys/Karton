@@ -30,7 +30,7 @@ msgstr "Przejdź tam..."
 
 #: src/menu/menu.c:918
 msgid "Create folder"
-msgstr ""
+msgstr "Stwórz folder"
 
 #: src/menu/menu.c:929
 msgid "Terminal"
@@ -38,7 +38,7 @@ msgstr "Terminal"
 
 #: src/menu/menu.c:934
 msgid "Settings"
-msgstr ""
+msgstr "Ustawienia"
 
 #: src/menu/menu.c:940
 msgid "Reconfigure"

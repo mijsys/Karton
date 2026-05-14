@@ -223,6 +223,48 @@ warn_portal_runtime_deps() {
   fi
 }
 
+warn_stage1_core_runtime_deps() {
+  local missing=()
+
+  for cmd in swaylock swayidle wlopm; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+      missing+=("$cmd")
+    fi
+  done
+
+  if ! command -v cliphist >/dev/null 2>&1; then
+    missing+=("cliphist")
+  fi
+
+  if ! command -v /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 >/dev/null 2>&1 \
+      && ! command -v /usr/libexec/polkit-gnome-authentication-agent-1 >/dev/null 2>&1 \
+      && ! command -v /usr/lib/polkit-kde-authentication-agent-1 >/dev/null 2>&1 \
+      && ! command -v /usr/libexec/polkit-kde-authentication-agent-1 >/dev/null 2>&1 \
+      && ! command -v /usr/lib/lxqt-policykit-agent/lxqt-policykit-agent >/dev/null 2>&1 \
+      && ! command -v /usr/libexec/lxqt-policykit-agent >/dev/null 2>&1 \
+      && ! command -v /usr/lib/mate-polkit/polkit-mate-authentication-agent-1 >/dev/null 2>&1 \
+      && ! command -v /usr/libexec/polkit-mate-authentication-agent-1 >/dev/null 2>&1 \
+      && ! command -v mate-polkit >/dev/null 2>&1; then
+    missing+=("polkit-agent")
+  fi
+
+  if [[ ${#missing[@]} -eq 0 ]]; then
+    return
+  fi
+
+  log "Warning: Stage 1 core features may be limited; missing tools: ${missing[*]}"
+
+  if command -v pacman >/dev/null 2>&1; then
+    log "Install hint (Arch): sudo pacman -S --needed swaylock swayidle wlopm kanshi cliphist polkit-gnome"
+  elif command -v apt >/dev/null 2>&1; then
+    log "Install hint (Debian/Ubuntu): sudo apt install swaylock swayidle cliphist policykit-1-gnome"
+  elif command -v dnf >/dev/null 2>&1; then
+    log "Install hint (Fedora): sudo dnf install swaylock swayidle wlroots-utils cliphist polkit-gnome"
+  elif command -v zypper >/dev/null 2>&1; then
+    log "Install hint (openSUSE): sudo zypper install swaylock swayidle wlopm cliphist polkit-gnome"
+  fi
+}
+
 run_install() {
   if [[ "$USE_SUDO" -eq 1 ]]; then
     sudo meson install -C "$1"
@@ -1620,6 +1662,7 @@ build_project "$TERMINAL_DIR"
 if [[ "$ACTION" == "install" && "$SYSTEM_MODE" -eq 0 ]]; then
   migrate_legacy_config
   ensure_user_config
+  warn_stage1_core_runtime_deps
   warn_monitor_runtime_deps
   warn_display_tweak_runtime_deps
   warn_screenshot_runtime_deps
