@@ -119,6 +119,7 @@ install -Dm644 repo/archlinux/config/theme.toml %{buildroot}/etc/xdg/karton/them
 
 %files -n tektura
 %{_bindir}/karton
+%{_bindir}/karton-session-start
 %{_bindir}/labnag
 %{_bindir}/lab-sensible-terminal
 %{_datadir}/wayland-sessions/karton.desktop

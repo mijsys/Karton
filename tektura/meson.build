@@ -237,6 +237,10 @@ install_subdir('themes/KartONFlat', install_dir: get_option('datadir') / 'themes
 
 install_data('data/karton.desktop', install_dir: get_option('datadir') / 'wayland-sessions')
 
+install_data('data/karton-session-start',
+  install_dir: get_option('bindir'),
+  install_mode: 'rwxr-xr-x')
+
 install_data('data/karton-portals.conf', install_dir: get_option('datadir') / 'xdg-desktop-portal')
 
 # Install karton-session.target so that systemd user services with
