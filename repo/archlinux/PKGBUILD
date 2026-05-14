@@ -1,5 +1,5 @@
 pkgbase=kartonde
-pkgname=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-session' 'kartonde')
+pkgname=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock' 'kartonde')
 pkgver=0.7.6
 pkgrel=1
 arch=('x86_64')
@@ -54,6 +54,15 @@ build() {
   _setup_component karton-files
   _build_component karton-files
 
+  _setup_component karton-terminal
+  _build_component karton-terminal
+
+  _setup_component karton-idle
+  _build_component karton-idle
+
+  _setup_component karton-lock
+  _build_component karton-lock
+
   _setup_component karton-session
   _build_component karton-session
 }
@@ -99,6 +108,26 @@ package_karton-files() {
   _install_component karton-files "$pkgdir"
 }
 
+package_karton-terminal() {
+  pkgdesc='KartonDE VTE-based terminal emulator'
+  depends=('glib2' 'gtk4' 'vte3-gtk4')
+
+  _install_component karton-terminal "$pkgdir"
+}
+
+package_karton-idle() {
+  pkgdesc='Wayland ext-idle-notify desktop idle manager for KartONDE'
+  depends=('wayland' 'glib2')
+
+  _install_component karton-idle "$pkgdir"
+}
+
+package_karton-lock() {
+  pkgdesc='Wayland ext-session-lock screen locker for KartONDE'
+  depends=('wayland' 'gtk4' 'gtk4-layer-shell' 'cairo' 'pam')
+
+  _install_component karton-lock "$pkgdir"
+}
 
 package_karton-session() {
   pkgdesc='Session services and desktop helpers for KartONDE'
@@ -118,7 +147,7 @@ package_karton-session() {
 
 package_kartonde() {
   pkgdesc='Complete KartONDE desktop environment metapackage'
-  depends=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-session')
+  depends=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock')
   optdepends=(
     'networkmanager: nmcli backend for Wi-Fi, hotspot and VPN settings'
     'bluez-utils: bluetoothctl backend for Bluetooth settings'
