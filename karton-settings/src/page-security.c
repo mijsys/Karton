@@ -329,14 +329,25 @@ typedef struct {
     gint response_id;
 } PasswordDialogState;
 
-static void on_password_dialog_response(GtkDialog *dialog, gint response_id, gpointer user_data)
+static void on_modal_window_response(GtkWidget *widget, gpointer user_data)
 {
-    (void)dialog;
+    gint response_id = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(widget), "response-id"));
     PasswordDialogState *state = (PasswordDialogState *)user_data;
     state->response_id = response_id;
     if (state->loop) {
         g_main_loop_quit(state->loop);
     }
+}
+
+static gboolean on_modal_window_close_request(GtkWindow *window, gpointer user_data)
+{
+    (void)window;
+    PasswordDialogState *state = (PasswordDialogState *)user_data;
+    state->response_id = GTK_RESPONSE_CANCEL;
+    if (state->loop) {
+        g_main_loop_quit(state->loop);
+    }
+    return TRUE;
 }
 
 static gboolean prompt_password_dialog(GtkWidget *parent, char **password_out, gboolean *cancelled)
@@ -348,7 +359,7 @@ static gboolean prompt_password_dialog(GtkWidget *parent, char **password_out, g
         *cancelled = FALSE;
     }
 
-    GtkWidget *dialog = gtk_dialog_new();
+    GtkWidget *dialog = gtk_window_new();
     gtk_window_set_title(GTK_WINDOW(dialog), _("Enter password"));
     gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
     gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
@@ -357,16 +368,12 @@ static gboolean prompt_password_dialog(GtkWidget *parent, char **password_out, g
         gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(parent));
     }
 
-    gtk_dialog_add_button(GTK_DIALOG(dialog), _("Cancel"), GTK_RESPONSE_CANCEL);
-    gtk_dialog_add_button(GTK_DIALOG(dialog), _("Apply"), GTK_RESPONSE_OK);
-    gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_OK);
-
-    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
+    gtk_widget_set_margin_start(content, 16);
+    gtk_widget_set_margin_end(content, 16);
+    gtk_widget_set_margin_top(content, 16);
+    gtk_widget_set_margin_bottom(content, 16);
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
-    gtk_widget_set_margin_start(box, 16);
-    gtk_widget_set_margin_end(box, 16);
-    gtk_widget_set_margin_top(box, 16);
-    gtk_widget_set_margin_bottom(box, 16);
 
     GtkWidget *help = gtk_label_new(_("Type your administrator password to apply security settings."));
     gtk_widget_set_halign(help, GTK_ALIGN_START);
@@ -383,13 +390,27 @@ static gboolean prompt_password_dialog(GtkWidget *parent, char **password_out, g
     gtk_box_append(GTK_BOX(box), help);
     gtk_box_append(GTK_BOX(box), password_label);
     gtk_box_append(GTK_BOX(box), password_entry);
+    GtkWidget *buttons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    gtk_widget_set_halign(buttons, GTK_ALIGN_END);
+    GtkWidget *cancel_button = gtk_button_new_with_label(_("Cancel"));
+    GtkWidget *apply_button = gtk_button_new_with_label(_("Apply"));
+    g_object_set_data(G_OBJECT(cancel_button), "response-id", GINT_TO_POINTER(GTK_RESPONSE_CANCEL));
+    g_object_set_data(G_OBJECT(apply_button), "response-id", GINT_TO_POINTER(GTK_RESPONSE_OK));
+    gtk_box_append(GTK_BOX(buttons), cancel_button);
+    gtk_box_append(GTK_BOX(buttons), apply_button);
+
     gtk_box_append(GTK_BOX(content), box);
+    gtk_box_append(GTK_BOX(content), buttons);
+    gtk_window_set_child(GTK_WINDOW(dialog), content);
+    gtk_window_set_default_widget(GTK_WINDOW(dialog), apply_button);
 
     PasswordDialogState state = {0};
     state.loop = g_main_loop_new(NULL, FALSE);
     state.response_id = GTK_RESPONSE_NONE;
 
-    g_signal_connect(dialog, "response", G_CALLBACK(on_password_dialog_response), &state);
+    g_signal_connect(cancel_button, "clicked", G_CALLBACK(on_modal_window_response), &state);
+    g_signal_connect(apply_button, "clicked", G_CALLBACK(on_modal_window_response), &state);
+    g_signal_connect(dialog, "close-request", G_CALLBACK(on_modal_window_close_request), &state);
 
     gtk_window_present(GTK_WINDOW(dialog));
     gtk_widget_grab_focus(password_entry);

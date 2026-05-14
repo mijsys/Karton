@@ -37,6 +37,33 @@ static GtkWidget *g_status_label = NULL;
 static const char *detect_package_backend(void);
 static void repositories_list_set_text(const char *text);
 
+static gboolean session_is_graphical(void)
+{
+    return (g_getenv("WAYLAND_DISPLAY") && *g_getenv("WAYLAND_DISPLAY"))
+        || (g_getenv("DISPLAY") && *g_getenv("DISPLAY"));
+}
+
+static char *deferred_desktop_update_command_for_backend(const char *backend)
+{
+    if (g_strcmp0(backend, "pacman") == 0) {
+        return g_strdup("sudo pacman -Syu tektura kartonde karton-shell karton-session karton-settings karton-files karton-terminal karton-idle karton-lock");
+    }
+
+    if (g_strcmp0(backend, "dnf") == 0) {
+        return g_strdup("sudo dnf upgrade 'tektura*' 'kartonde*' 'karton-shell*' 'karton-session*' 'karton-settings*' 'karton-files*' 'karton-terminal*' 'karton-idle*' 'karton-lock*'");
+    }
+
+    if (g_strcmp0(backend, "zypper") == 0) {
+        return g_strdup("sudo zypper update tektura kartonde karton-shell karton-session karton-settings karton-files karton-terminal karton-idle karton-lock");
+    }
+
+    if (g_strcmp0(backend, "apt") == 0) {
+        return g_strdup("sudo apt-get update && sudo apt-get install --only-upgrade tektura kartonde karton-shell karton-session karton-settings karton-files karton-terminal karton-idle karton-lock");
+    }
+
+    return NULL;
+}
+
 typedef struct {
     GMainLoop *loop;
     gint response_id;
@@ -379,14 +406,25 @@ static gboolean write_repositories_system_file(const char *path,
     return ok;
 }
 
-static void on_password_dialog_response(GtkDialog *dialog, gint response_id, gpointer user_data)
+static void on_modal_window_response(GtkWidget *widget, gpointer user_data)
 {
-    (void)dialog;
+    gint response_id = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(widget), "response-id"));
     PasswordDialogState *state = (PasswordDialogState *)user_data;
     state->response_id = response_id;
     if (state->loop) {
         g_main_loop_quit(state->loop);
     }
+}
+
+static gboolean on_modal_window_close_request(GtkWindow *window, gpointer user_data)
+{
+    (void)window;
+    PasswordDialogState *state = (PasswordDialogState *)user_data;
+    state->response_id = GTK_RESPONSE_CANCEL;
+    if (state->loop) {
+        g_main_loop_quit(state->loop);
+    }
+    return TRUE;
 }
 
 static gboolean prompt_password_dialog(GtkWidget *parent, char **password_out, gboolean *cancelled)
@@ -398,7 +436,7 @@ static gboolean prompt_password_dialog(GtkWidget *parent, char **password_out, g
         *cancelled = FALSE;
     }
 
-    GtkWidget *dialog = gtk_dialog_new();
+    GtkWidget *dialog = gtk_window_new();
     gtk_window_set_title(GTK_WINDOW(dialog), _("Enter password"));
     gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
     gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
@@ -407,16 +445,12 @@ static gboolean prompt_password_dialog(GtkWidget *parent, char **password_out, g
         gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(parent));
     }
 
-    gtk_dialog_add_button(GTK_DIALOG(dialog), _("Cancel"), GTK_RESPONSE_CANCEL);
-    gtk_dialog_add_button(GTK_DIALOG(dialog), _("Apply"), GTK_RESPONSE_OK);
-    gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_OK);
-
-    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
+    gtk_widget_set_margin_start(content, 16);
+    gtk_widget_set_margin_end(content, 16);
+    gtk_widget_set_margin_top(content, 16);
+    gtk_widget_set_margin_bottom(content, 16);
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
-    gtk_widget_set_margin_start(box, 16);
-    gtk_widget_set_margin_end(box, 16);
-    gtk_widget_set_margin_top(box, 16);
-    gtk_widget_set_margin_bottom(box, 16);
 
     GtkWidget *help = gtk_label_new(_("Type your administrator password to continue."));
     gtk_widget_set_halign(help, GTK_ALIGN_START);
@@ -433,13 +467,27 @@ static gboolean prompt_password_dialog(GtkWidget *parent, char **password_out, g
     gtk_box_append(GTK_BOX(box), help);
     gtk_box_append(GTK_BOX(box), password_label);
     gtk_box_append(GTK_BOX(box), password_entry);
+    GtkWidget *buttons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    gtk_widget_set_halign(buttons, GTK_ALIGN_END);
+    GtkWidget *cancel_button = gtk_button_new_with_label(_("Cancel"));
+    GtkWidget *apply_button = gtk_button_new_with_label(_("Apply"));
+    g_object_set_data(G_OBJECT(cancel_button), "response-id", GINT_TO_POINTER(GTK_RESPONSE_CANCEL));
+    g_object_set_data(G_OBJECT(apply_button), "response-id", GINT_TO_POINTER(GTK_RESPONSE_OK));
+    gtk_box_append(GTK_BOX(buttons), cancel_button);
+    gtk_box_append(GTK_BOX(buttons), apply_button);
+
     gtk_box_append(GTK_BOX(content), box);
+    gtk_box_append(GTK_BOX(content), buttons);
+    gtk_window_set_child(GTK_WINDOW(dialog), content);
+    gtk_window_set_default_widget(GTK_WINDOW(dialog), apply_button);
 
     PasswordDialogState state = {0};
     state.loop = g_main_loop_new(NULL, FALSE);
     state.response_id = GTK_RESPONSE_NONE;
 
-    g_signal_connect(dialog, "response", G_CALLBACK(on_password_dialog_response), &state);
+    g_signal_connect(cancel_button, "clicked", G_CALLBACK(on_modal_window_response), &state);
+    g_signal_connect(apply_button, "clicked", G_CALLBACK(on_modal_window_response), &state);
+    g_signal_connect(dialog, "close-request", G_CALLBACK(on_modal_window_close_request), &state);
 
     gtk_window_present(GTK_WINDOW(dialog));
     gtk_widget_grab_focus(password_entry);
@@ -512,22 +560,50 @@ static char *default_repositories_template(void)
         "# Add entries in the format used by your package manager.\n");
 }
 
-static const char *update_command_for_backend(const char *backend)
+static char *update_command_for_backend(const char *backend, gboolean protect_session)
 {
     if (g_strcmp0(backend, "apt") == 0) {
-        return "DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y upgrade";
+        if (protect_session) {
+            return g_strdup(
+                "DEBIAN_FRONTEND=noninteractive apt-get update && "
+                "DEBIAN_FRONTEND=noninteractive apt-get -y upgrade && "
+                "printf '\\nNote: KartON packages are not excluded on APT backend. "
+                "If you update karton/tektura packages, log out first to avoid session disruption.\\n'");
+        }
+        return g_strdup("DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y upgrade");
     }
 
     if (g_strcmp0(backend, "dnf") == 0) {
-        return "dnf -y upgrade --refresh";
+        if (protect_session) {
+            return g_strdup(
+                "dnf -y upgrade --refresh "
+                "--exclude=tektura* --exclude=kartonde* --exclude=karton-shell* "
+                "--exclude=karton-session* --exclude=karton-settings* --exclude=karton-files* "
+                "--exclude=karton-terminal* --exclude=karton-idle* --exclude=karton-lock*");
+        }
+        return g_strdup("dnf -y upgrade --refresh");
     }
 
     if (g_strcmp0(backend, "pacman") == 0) {
-        return "pacman -Syu --noconfirm";
+        if (protect_session) {
+            return g_strdup(
+                "pacman -Syu --noconfirm "
+                "--ignore tektura,kartonde,karton-shell,karton-session,karton-settings,"
+                "karton-files,karton-terminal,karton-idle,karton-lock");
+        }
+        return g_strdup("pacman -Syu --noconfirm");
     }
 
     if (g_strcmp0(backend, "zypper") == 0) {
-        return "zypper --non-interactive refresh && zypper --non-interactive update";
+        if (protect_session) {
+            return g_strdup(
+                "zypper --non-interactive refresh && "
+                "zypper --non-interactive update "
+                "--exclude tektura --exclude kartonde --exclude karton-shell --exclude karton-session "
+                "--exclude karton-settings --exclude karton-files --exclude karton-terminal "
+                "--exclude karton-idle --exclude karton-lock");
+        }
+        return g_strdup("zypper --non-interactive refresh && zypper --non-interactive update");
     }
 
     return NULL;
@@ -625,7 +701,8 @@ static char *install_updates_now(GtkWidget *parent,
     }
 
     const char *backend = detect_package_backend();
-    const char *update_cmd = update_command_for_backend(backend);
+    gboolean protect_session = session_is_graphical();
+    char *update_cmd = update_command_for_backend(backend, protect_session);
     if (!update_cmd) {
         return g_strdup(_("No supported package manager backend found."));
     }
@@ -650,7 +727,7 @@ static char *install_updates_now(GtkWidget *parent,
         }
     }
 
-    GtkWidget *dialog = gtk_dialog_new();
+    GtkWidget *dialog = gtk_window_new();
     gtk_window_set_title(GTK_WINDOW(dialog), _("Installing system updates"));
     gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
     gtk_window_set_default_size(GTK_WINDOW(dialog), 760, 460);
@@ -661,17 +738,17 @@ static char *install_updates_now(GtkWidget *parent,
         gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(parent));
     }
 
-    gtk_dialog_add_button(GTK_DIALOG(dialog), _("Close"), GTK_RESPONSE_CLOSE);
-    gtk_dialog_set_response_sensitive(GTK_DIALOG(dialog), GTK_RESPONSE_CLOSE, FALSE);
-
-    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_set_margin_start(content, 16);
+    gtk_widget_set_margin_end(content, 16);
+    gtk_widget_set_margin_top(content, 16);
+    gtk_widget_set_margin_bottom(content, 16);
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-    gtk_widget_set_margin_start(box, 16);
-    gtk_widget_set_margin_end(box, 16);
-    gtk_widget_set_margin_top(box, 16);
-    gtk_widget_set_margin_bottom(box, 16);
 
-    GtkWidget *info = gtk_label_new(_("Update process is running. Live output is shown below."));
+    const char *info_text = protect_session
+        ? _("Update process is running in session-safe mode. KartON session packages are deferred to avoid breaking the current desktop session.")
+        : _("Update process is running. Live output is shown below.");
+    GtkWidget *info = gtk_label_new(info_text);
     gtk_widget_set_halign(info, GTK_ALIGN_START);
     gtk_label_set_wrap(GTK_LABEL(info), TRUE);
 
@@ -694,11 +771,26 @@ static char *install_updates_now(GtkWidget *parent,
     gtk_box_append(GTK_BOX(box), info);
     gtk_box_append(GTK_BOX(box), spinner);
     gtk_box_append(GTK_BOX(box), scrolled);
+
+    GtkWidget *buttons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    gtk_widget_set_halign(buttons, GTK_ALIGN_END);
+    GtkWidget *close_button = gtk_button_new_with_label(_("Close"));
+    gtk_widget_set_sensitive(close_button, FALSE);
+    g_object_set_data(G_OBJECT(close_button), "response-id", GINT_TO_POINTER(GTK_RESPONSE_CLOSE));
+    gtk_box_append(GTK_BOX(buttons), close_button);
+
     gtk_box_append(GTK_BOX(content), box);
+    gtk_box_append(GTK_BOX(content), buttons);
+    gtk_window_set_child(GTK_WINDOW(dialog), content);
 
     gtk_window_present(GTK_WINDOW(dialog));
 
     append_update_log(log_buffer, _("Starting package manager update...\n"));
+        if (protect_session) {
+                append_update_log(log_buffer,
+                                                    _("Session-safe mode is enabled: desktop environment packages are deferred.\n"
+                                                        "Run deferred desktop update after logout from TTY to avoid session crash.\n"));
+        }
 
     GPid child_pid = 0;
     gint stdin_fd = -1;
@@ -744,24 +836,30 @@ static char *install_updates_now(GtkWidget *parent,
         append_update_log(log_buffer, "\n");
         g_free(msg);
 
-        gtk_dialog_set_response_sensitive(GTK_DIALOG(dialog), GTK_RESPONSE_CLOSE, TRUE);
+        gtk_widget_set_sensitive(close_button, TRUE);
         gtk_window_set_deletable(GTK_WINDOW(dialog), TRUE);
 
         PasswordDialogState close_state = {0};
         close_state.loop = g_main_loop_new(NULL, FALSE);
         close_state.response_id = GTK_RESPONSE_NONE;
-        g_signal_connect(dialog, "response", G_CALLBACK(on_password_dialog_response), &close_state);
+        g_signal_connect(close_button, "clicked", G_CALLBACK(on_modal_window_response), &close_state);
+        g_signal_connect(dialog, "close-request", G_CALLBACK(on_modal_window_close_request), &close_state);
         g_main_loop_run(close_state.loop);
         g_main_loop_unref(close_state.loop);
 
         gtk_window_destroy(GTK_WINDOW(dialog));
+        g_free(update_cmd);
         return g_strdup(_("System update command failed. Please check package manager logs."));
     }
 
     if (stdin_fd >= 0) {
         if (geteuid() != 0 && password && *password) {
             char *stdin_payload = g_strdup_printf("%s\n", password);
-            (void)write(stdin_fd, stdin_payload, strlen(stdin_payload));
+            size_t payload_len = strlen(stdin_payload);
+            ssize_t bytes_written = write(stdin_fd, stdin_payload, payload_len);
+            if (bytes_written < 0 || (size_t)bytes_written != payload_len) {
+                append_update_log(log_buffer, _("[stderr] Warning: failed to write complete sudo password payload.\n"));
+            }
             g_free(stdin_payload);
         }
         close(stdin_fd);
@@ -856,21 +954,34 @@ static char *install_updates_now(GtkWidget *parent,
     gboolean ok = WIFEXITED(run.wait_status) && WEXITSTATUS(run.wait_status) == 0;
     if (ok) {
         append_update_log(log_buffer, _("\nUpdate process finished successfully.\n"));
+        if (protect_session) {
+            char *deferred_cmd = deferred_desktop_update_command_for_backend(backend);
+            append_update_log(log_buffer,
+                              _("Desktop environment update (deferred):\n"
+                                "1. Log out from graphical session\n"
+                                "2. Switch to TTY (Ctrl+Alt+F3)\n"
+                                "3. Run command:\n"));
+            append_update_log(log_buffer, deferred_cmd ? deferred_cmd : _("(no backend-specific command available)"));
+            append_update_log(log_buffer, "\n");
+            g_free(deferred_cmd);
+        }
     } else {
         append_update_log(log_buffer, _("\nUpdate process failed.\n"));
     }
 
-    gtk_dialog_set_response_sensitive(GTK_DIALOG(dialog), GTK_RESPONSE_CLOSE, TRUE);
+    gtk_widget_set_sensitive(close_button, TRUE);
     gtk_window_set_deletable(GTK_WINDOW(dialog), TRUE);
 
     PasswordDialogState close_state = {0};
     close_state.loop = g_main_loop_new(NULL, FALSE);
     close_state.response_id = GTK_RESPONSE_NONE;
-    g_signal_connect(dialog, "response", G_CALLBACK(on_password_dialog_response), &close_state);
+    g_signal_connect(close_button, "clicked", G_CALLBACK(on_modal_window_response), &close_state);
+    g_signal_connect(dialog, "close-request", G_CALLBACK(on_modal_window_close_request), &close_state);
     g_main_loop_run(close_state.loop);
     g_main_loop_unref(close_state.loop);
 
     gtk_window_destroy(GTK_WINDOW(dialog));
+    g_free(update_cmd);
 
     if (ok) {
         return NULL;
@@ -1587,6 +1698,20 @@ static void on_install_updates_clicked(GtkButton *btn, gpointer data)
         status_set(issues, TRUE);
         g_free(issues);
         return;
+    }
+
+    if (session_is_graphical()) {
+        const char *backend = detect_package_backend();
+        char *deferred_cmd = deferred_desktop_update_command_for_backend(backend);
+        if (deferred_cmd) {
+            char *msg = g_strdup_printf(
+                _("System update finished in session-safe mode. Desktop environment update is deferred; run after logout from TTY:\n%s"),
+                deferred_cmd);
+            status_set(msg, FALSE);
+            g_free(msg);
+            g_free(deferred_cmd);
+            return;
+        }
     }
 
     status_set(_("System update finished successfully."), FALSE);
