@@ -401,7 +401,7 @@ const char *command;
 
 static const struct launcher_power_action launcher_power_actions[] = {
     /* Fallback glyph | Preferred icon | Command */
-	{ "󰈆", "logout", "sh -lc 'if command -v karton >/dev/null 2>&1; then karton --exit; elif command -v labwc >/dev/null 2>&1; then labwc --exit; else loginctl terminate-session self; fi'" },
+	{ "󰈆", "logout", "sh -lc 'if command -v karton >/dev/null 2>&1; then karton --exit; elif command -v labwc >/dev/null 2>&1; then labwc --exit; elif [ -n \"$XDG_SESSION_ID\" ]; then loginctl terminate-session \"$XDG_SESSION_ID\"; elif command -v systemctl >/dev/null 2>&1; then systemctl --user exit; else loginctl terminate-user \"$USER\"; fi'" },
     { "󰤄", "sleep", "systemctl suspend" },
     { "󰑓", "reboot", "systemctl reboot" },
     { "󰐥", "power", "systemctl poweroff" },
