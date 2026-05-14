@@ -2744,6 +2744,7 @@ return true;
 }
 
 const char *home = getenv("HOME");
+const char *xdg_data_dirs = getenv("XDG_DATA_DIRS");
 const char *karton_prefix_env = getenv("KARTON_PREFIX");
 char user_local[PATH_MAX] = { 0 };
 char user_icons[PATH_MAX] = { 0 };
@@ -2854,6 +2855,106 @@ return true;
 }
 }
 }
+}
+}
+
+if (xdg_data_dirs && *xdg_data_dirs) {
+char *dirs_copy = g_strdup(xdg_data_dirs);
+if (dirs_copy) {
+char *saveptr = NULL;
+for (char *token = strtok_r(dirs_copy, ":", &saveptr);
+token;
+token = strtok_r(NULL, ":", &saveptr)) {
+char *base = trim_in_place(token);
+if (!base[0]) {
+continue;
+}
+
+if (has_ext) {
+snprintf(out, out_size, "%s/icons/%s", base, icon_name);
+if (access(out, R_OK) == 0) {
+g_free(dirs_copy);
+return true;
+}
+}
+
+for (size_t t = 0; t < sizeof(themes) / sizeof(themes[0]); t++) {
+if (!themes[t] || !themes[t][0]) {
+continue;
+}
+for (size_t c = 0; c < sizeof(contexts) / sizeof(contexts[0]); c++) {
+for (size_t s = 0; s < sizeof(sizes) / sizeof(sizes[0]); s++) {
+if (has_ext) {
+snprintf(out, out_size, "%s/icons/%s/%dx%d/%s/%s",
+base, themes[t], sizes[s], sizes[s], contexts[c], icon_name);
+if (access(out, R_OK) == 0) {
+g_free(dirs_copy);
+return true;
+}
+continue;
+}
+
+for (size_t ext = 0; ext < sizeof(extensions) / sizeof(extensions[0]); ext++) {
+snprintf(out, out_size, "%s/icons/%s/%dx%d/%s/%s%s",
+base, themes[t], sizes[s], sizes[s], contexts[c], icon_name, extensions[ext]);
+if (access(out, R_OK) == 0) {
+g_free(dirs_copy);
+return true;
+}
+}
+}
+
+if (has_ext) {
+snprintf(out, out_size, "%s/icons/%s/scalable/%s/%s",
+base, themes[t], contexts[c], icon_name);
+if (access(out, R_OK) == 0) {
+g_free(dirs_copy);
+return true;
+}
+snprintf(out, out_size, "%s/icons/%s/%s/%s",
+base, themes[t], contexts[c], icon_name);
+if (access(out, R_OK) == 0) {
+g_free(dirs_copy);
+return true;
+}
+continue;
+}
+
+for (size_t ext = 0; ext < sizeof(extensions) / sizeof(extensions[0]); ext++) {
+snprintf(out, out_size, "%s/icons/%s/scalable/%s/%s%s",
+base, themes[t], contexts[c], icon_name, extensions[ext]);
+if (access(out, R_OK) == 0) {
+g_free(dirs_copy);
+return true;
+}
+snprintf(out, out_size, "%s/icons/%s/%s/%s%s",
+base, themes[t], contexts[c], icon_name, extensions[ext]);
+if (access(out, R_OK) == 0) {
+g_free(dirs_copy);
+return true;
+}
+}
+}
+}
+
+if (has_ext) {
+snprintf(out, out_size, "%s/pixmaps/%s", base, icon_name);
+if (access(out, R_OK) == 0) {
+g_free(dirs_copy);
+return true;
+}
+} else {
+for (size_t ext = 0; ext < sizeof(extensions) / sizeof(extensions[0]); ext++) {
+snprintf(out, out_size, "%s/pixmaps/%s%s", base, icon_name, extensions[ext]);
+if (access(out, R_OK) == 0) {
+g_free(dirs_copy);
+return true;
+}
+}
+}
+}
+
+g_free(dirs_copy);
 }
 }
 
@@ -3942,6 +4043,7 @@ char dir_xdg[PATH_MAX] = { 0 };
 char dir_karton_prefix[PATH_MAX] = { 0 };
 const char *home = getenv("HOME");
 const char *xdg_data = getenv("XDG_DATA_HOME");
+const char *xdg_data_dirs = getenv("XDG_DATA_DIRS");
 const char *karton_prefix_env = getenv("KARTON_PREFIX");
 
 if (karton_prefix_env && *karton_prefix_env) {
@@ -3960,6 +4062,26 @@ add_launcher_entries_from_dir(app, dir_local);
 if (!dir_karton_prefix[0]) {
 snprintf(dir_karton_prefix, sizeof(dir_karton_prefix), "%s/.local-karton/share/applications", home);
 add_launcher_entries_from_dir(app, dir_karton_prefix);
+}
+}
+
+if (xdg_data_dirs && *xdg_data_dirs) {
+char *dirs_copy = g_strdup(xdg_data_dirs);
+if (dirs_copy) {
+char *saveptr = NULL;
+for (char *token = strtok_r(dirs_copy, ":", &saveptr);
+token;
+token = strtok_r(NULL, ":", &saveptr)) {
+char *base = trim_in_place(token);
+if (!base[0]) {
+continue;
+}
+
+char xdg_apps_dir[PATH_MAX] = { 0 };
+snprintf(xdg_apps_dir, sizeof(xdg_apps_dir), "%s/applications", base);
+add_launcher_entries_from_dir(app, xdg_apps_dir);
+}
+g_free(dirs_copy);
 }
 }
 add_launcher_entries_from_dir(app, "/usr/local/share/applications");
