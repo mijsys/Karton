@@ -16,6 +16,7 @@ static GtkWidget *g_animation_switch = NULL;
 static GtkWidget *g_font_dropdown = NULL;
 static GtkWidget *g_cursor_dropdown = NULL;
 static GtkWidget *g_cursor_size_slider = NULL;
+static GtkWidget *g_icon_style_dropdown = NULL;
 static GtkWidget *g_wallpaper_entry = NULL;
 static GtkWidget *g_lockscreen_entry = NULL;
 static GtkWidget *g_wallpaper_status_label = NULL;
@@ -27,6 +28,7 @@ static GSettings *g_background_settings = NULL;
 static GSettings *g_screensaver_settings = NULL;
 static GtkStringList *g_font_model = NULL;
 static GtkStringList *g_cursor_model = NULL;
+static GtkStringList *g_icon_style_model = NULL;
 static GPtrArray *g_cursor_values = NULL;
 
 static guint g_theme_apply_timeout_id = 0;
@@ -89,6 +91,10 @@ static char *cursor_theme_path(void) {
 
 static char *cursor_size_path(void) {
     return g_build_filename(g_get_home_dir(), ".config", "karton", "cursor-size", NULL);
+}
+
+static char *icon_style_path(void) {
+    return g_build_filename(g_get_home_dir(), ".config", "karton", "icon-style", NULL);
 }
 
 static char *wallpaper_override_path(void) {
@@ -562,6 +568,68 @@ static void on_choose_image_from_defaults_clicked(GtkButton *btn, gpointer data)
     open_image_file_dialog_for_entry(GTK_WIDGET(data), TRUE);
 }
 
+static gboolean icon_style_is_monochrome_value(const char *value) {
+    if (!value || !*value) {
+        return FALSE;
+    }
+
+    return g_ascii_strcasecmp(value, "monochrome") == 0
+        || g_ascii_strcasecmp(value, "bw") == 0
+        || g_ascii_strcasecmp(value, "blackwhite") == 0
+        || g_ascii_strcasecmp(value, "symbolic") == 0;
+}
+
+static guint icon_style_index_from_value(const char *value) {
+    return icon_style_is_monochrome_value(value) ? 1u : 0u;
+}
+
+static gboolean appearance_use_monochrome_icons(void) {
+    const char *env_style = g_getenv("KARTON_ICON_STYLE");
+    if (env_style && *env_style) {
+        return icon_style_is_monochrome_value(env_style);
+    }
+
+    char *cfg = icon_style_path();
+    char *raw = read_text_file_trimmed(cfg);
+    gboolean monochrome = icon_style_is_monochrome_value(raw);
+    g_free(raw);
+    g_free(cfg);
+    return monochrome;
+}
+
+static const char *icon_style_value_from_index(guint idx) {
+    return idx == 1 ? "monochrome" : "colorful";
+}
+
+static void notify_icon_style_runtime_change(void) {
+    GError *error = NULL;
+    g_spawn_command_line_async(
+        "sh -lc 'pkill -USR1 -f karton-shell >/dev/null 2>&1 || true'",
+        &error
+    );
+    g_clear_error(&error);
+}
+
+static void on_icon_style_changed(GObject *obj, GParamSpec *pspec, gpointer data) {
+    (void)obj;
+    (void)pspec;
+    (void)data;
+
+    if (g_block_runtime_handlers || !g_icon_style_dropdown) {
+        return;
+    }
+
+    guint idx = gtk_drop_down_get_selected(GTK_DROP_DOWN(g_icon_style_dropdown));
+    const char *value = icon_style_value_from_index(idx);
+    char *cfg = icon_style_path();
+
+    if (write_text_file(cfg, value)) {
+        notify_icon_style_runtime_change();
+    }
+
+    g_free(cfg);
+}
+
 static gboolean schema_exists(const char *schema_name) {
     GSettingsSchemaSource *source = g_settings_schema_source_get_default();
     if (!source) {
@@ -581,7 +649,9 @@ static GtkWidget *create_theme_choice_content(const char *label) {
     gtk_widget_add_css_class(preview, "theme-choice-preview");
     gtk_widget_set_size_request(preview, 112, 62);
 
-    GtkWidget *glyph = gtk_image_new_from_resource("/io/karton/Settings/icons/theme.svg");
+    GtkWidget *glyph = appearance_use_monochrome_icons()
+        ? gtk_image_new_from_icon_name("preferences-desktop-theme-symbolic")
+        : gtk_image_new_from_resource("/io/karton/Settings/icons/theme.svg");
     gtk_widget_add_css_class(glyph, "theme-choice-glyph");
     gtk_image_set_pixel_size(GTK_IMAGE(glyph), 20);
     gtk_widget_set_halign(glyph, GTK_ALIGN_CENTER);
@@ -782,6 +852,18 @@ static void sync_controls_from_files(void) {
         g_block_runtime_handlers = FALSE;
     }
 
+    if (g_icon_style_dropdown) {
+        char *cfg = icon_style_path();
+        char *raw = read_text_file_trimmed(cfg);
+        guint idx = icon_style_index_from_value(raw);
+        g_free(cfg);
+        g_free(raw);
+
+        g_block_runtime_handlers = TRUE;
+        gtk_drop_down_set_selected(GTK_DROP_DOWN(g_icon_style_dropdown), idx);
+        g_block_runtime_handlers = FALSE;
+    }
+
 }
 
 static void read_initial_mode(void) {
@@ -809,6 +891,7 @@ static gboolean is_theme_mode_file(GFile *file) {
         g_strcmp0(base, "desktop-effects") == 0 ||
         g_strcmp0(base, "cursor-theme") == 0 ||
         g_strcmp0(base, "cursor-size") == 0 ||
+        g_strcmp0(base, "icon-style") == 0 ||
         g_strcmp0(base, "wallpaper-path") == 0 ||
         g_strcmp0(base, "lockscreen-path") == 0;
     g_free(base);
@@ -1377,6 +1460,10 @@ static void on_page_destroy(GtkWidget *widget, gpointer data) {
         g_object_unref(g_cursor_model);
         g_cursor_model = NULL;
     }
+    if (g_icon_style_model) {
+        g_object_unref(g_icon_style_model);
+        g_icon_style_model = NULL;
+    }
     if (g_cursor_values) {
         g_ptr_array_unref(g_cursor_values);
         g_cursor_values = NULL;
@@ -1510,6 +1597,14 @@ GtkWidget *page_appearance_new(void) {
     gtk_scale_set_draw_value(GTK_SCALE(g_cursor_size_slider), TRUE);
     g_signal_connect(g_cursor_size_slider, "value-changed", G_CALLBACK(on_cursor_size_changed), NULL);
     gtk_box_append(GTK_BOX(ux_box), create_slider_row(_("Cursor size"), _("Pointer size in pixels"), g_cursor_size_slider));
+
+    gtk_box_append(GTK_BOX(ux_box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
+    g_icon_style_model = gtk_string_list_new(NULL);
+    gtk_string_list_append(g_icon_style_model, _("Colorful"));
+    gtk_string_list_append(g_icon_style_model, _("Monochrome"));
+    g_icon_style_dropdown = gtk_drop_down_new(G_LIST_MODEL(g_icon_style_model), NULL);
+    g_signal_connect(g_icon_style_dropdown, "notify::selected", G_CALLBACK(on_icon_style_changed), NULL);
+    gtk_box_append(GTK_BOX(ux_box), create_row(_("Icon style"), g_icon_style_dropdown));
 
     gtk_box_append(GTK_BOX(box), ux_frame);
 

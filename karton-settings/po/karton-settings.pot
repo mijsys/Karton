@@ -1931,6 +1931,64 @@ msgstr ""
 msgid "Apply users settings"
 msgstr ""
 
+#: src/page-users.c:283
+msgid "Delete user account"
+msgstr ""
+
+#: src/page-users.c:297
+#, c-format
+msgid "Do you want to permanently delete user '%s' and home files?"
+msgstr ""
+
+#: src/page-users.c:305
+msgid "Delete user"
+msgstr ""
+
+#: src/page-users.c:1255
+msgid "Delete selected user"
+msgstr ""
+
+#: src/page-users.c:1190
+msgid "Select a user to delete."
+msgstr ""
+
+#: src/page-users.c:1196
+msgid "Deleting the root user is not allowed."
+msgstr ""
+
+#: src/page-users.c:1203
+msgid "Deleting the currently logged in user is not allowed."
+msgstr ""
+
+#: src/page-users.c:1214 src/page-users.c:1226
+msgid "Deleting user account was canceled."
+msgstr ""
+
+#: src/page-users.c:1230
+msgid "Administrator password is required to delete users."
+msgstr ""
+
+#: src/page-users.c:1250
+msgid "Could not delete user account (missing privileges or user is currently in use)."
+msgstr ""
+
+#: src/page-users.c:1264
+#, c-format
+msgid "User '%s' was deleted."
+msgstr ""
+
+#: src/page-users.c:1233
+msgid "Select existing users, create new user accounts and remove accounts you no longer need."
+msgstr ""
+
+#: src/page-users.c:1298
+msgid "Applying users and accounts settings was canceled."
+msgstr ""
+
+#: src/page-users.c:1300
+msgid "Administrator password is required to apply users and accounts settings."
+msgstr ""
+
 #: src/page-security.c:352 src/page-updates.c:402
 #: src/page-session-startup.c:220
 msgid "Enter password"
@@ -2073,6 +2131,10 @@ msgstr ""
 
 #: src/page-security.c:864
 msgid "Applying security settings was canceled."
+msgstr ""
+
+#: src/page-security.c:874
+msgid "Administrator password is required to apply security settings."
 msgstr ""
 
 #: src/page-security.c:866
@@ -2281,6 +2343,86 @@ msgstr ""
 
 #: src/page-notifications.c:912
 msgid "Alert sounds"
+msgstr ""
+
+#: src/page-notifications.c:500
+msgid "Could not open custom notification sound picker"
+msgstr ""
+
+#: src/page-notifications.c:516
+msgid "Choose custom notification sound"
+msgstr ""
+
+#: src/page-notifications.c:521
+msgid "Audio files"
+msgstr ""
+
+#: src/page-notifications.c:585
+msgid "No notification history entries found."
+msgstr ""
+
+#: src/page-notifications.c:590
+msgid "Notification history list"
+msgstr ""
+
+#: src/page-notifications.c:787
+msgid "Custom notification sound file is missing or invalid. "
+msgstr ""
+
+#: src/page-notifications.c:940
+msgid "Could not play selected notification sound."
+msgstr ""
+
+#: src/page-notifications.c:1032
+msgid "System sound"
+msgstr ""
+
+#: src/page-notifications.c:1033
+msgid "Custom sound"
+msgstr ""
+
+#: src/page-notifications.c:1046
+msgid "No custom notification sound selected"
+msgstr ""
+
+#: src/page-notifications.c:1050
+msgid "Choose custom sound"
+msgstr ""
+
+#: src/page-notifications.c:1062
+msgid "Sound source"
+msgstr ""
+
+#: src/page-notifications.c:1064
+msgid "Custom sound file"
+msgstr ""
+
+#: src/page-notifications.c:1124
+msgid "Open notification list"
+msgstr ""
+
+#: src/page-notifications.c:963
+msgid "Chat"
+msgstr ""
+
+#: src/page-notifications.c:964
+msgid "Test notification from chat applications"
+msgstr ""
+
+#: src/page-notifications.c:966
+msgid "System"
+msgstr ""
+
+#: src/page-notifications.c:967
+msgid "Test notification from system alerts"
+msgstr ""
+
+#: src/page-notifications.c:969
+msgid "Updates"
+msgstr ""
+
+#: src/page-notifications.c:970
+msgid "Test notification from updates"
 msgstr ""
 
 #: src/page-notifications.c:916

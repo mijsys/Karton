@@ -33,6 +33,16 @@ static GtkWidget *g_auto_updates_switch = NULL;
 static GtkWidget *g_channel_dropdown = NULL;
 static GtkWidget *g_repositories_text_view = NULL;
 static GtkWidget *g_status_label = NULL;
+static GtkWidget *g_check_btn = NULL;
+static GtkWidget *g_install_btn = NULL;
+static GtkWidget *g_reload_btn = NULL;
+static GtkWidget *g_apply_btn = NULL;
+static GtkWidget *g_edit_repos_btn = NULL;
+static GtkWidget *g_gate_hint_label = NULL;
+static guint g_updates_gate_source_id = 0;
+
+static void status_set(const char *text, gboolean is_error);
+static char *session_environment_path(void);
 
 static const char *detect_package_backend(void);
 static void repositories_list_set_text(const char *text);
@@ -41,6 +51,117 @@ static gboolean session_is_graphical(void)
 {
     return (g_getenv("WAYLAND_DISPLAY") && *g_getenv("WAYLAND_DISPLAY"))
         || (g_getenv("DISPLAY") && *g_getenv("DISPLAY"));
+}
+
+static gboolean parse_truthy(const char *value)
+{
+    if (!value) {
+        return FALSE;
+    }
+
+    while (*value && g_ascii_isspace(*value)) {
+        value++;
+    }
+
+    return g_ascii_strcasecmp(value, "1") == 0
+        || g_ascii_strcasecmp(value, "yes") == 0
+        || g_ascii_strcasecmp(value, "true") == 0
+        || g_ascii_strcasecmp(value, "on") == 0;
+}
+
+static char *advanced_config_path(void)
+{
+    return g_build_filename(g_get_home_dir(), ".config", "karton", "advanced.conf", NULL);
+}
+
+static gboolean updates_experimental_enabled(void)
+{
+    const char *env_direct = g_getenv("KARTON_ADV_EXPERIMENTAL");
+    if (env_direct && *env_direct) {
+        return parse_truthy(env_direct);
+    }
+
+    char *env_path = session_environment_path();
+    char *contents = NULL;
+    if (g_file_get_contents(env_path, &contents, NULL, NULL) && contents) {
+        gchar **lines = g_strsplit(contents, "\n", -1);
+        for (guint i = 0; lines[i] != NULL; i++) {
+            if (!g_str_has_prefix(lines[i], "KARTON_ADV_EXPERIMENTAL=")) {
+                continue;
+            }
+
+            const char *value = lines[i] + strlen("KARTON_ADV_EXPERIMENTAL=");
+            gboolean enabled = parse_truthy(value);
+            g_strfreev(lines);
+            g_free(contents);
+            g_free(env_path);
+            return enabled;
+        }
+        g_strfreev(lines);
+    }
+    g_free(contents);
+    g_free(env_path);
+
+    char *adv_path = advanced_config_path();
+    GKeyFile *kf = g_key_file_new();
+    gboolean enabled = FALSE;
+    if (g_key_file_load_from_file(kf, adv_path, G_KEY_FILE_NONE, NULL)) {
+        GError *error = NULL;
+        enabled = g_key_file_get_boolean(kf, "advanced", "experimental", &error);
+        if (error) {
+            g_clear_error(&error);
+            enabled = FALSE;
+        }
+    }
+
+    g_key_file_unref(kf);
+    g_free(adv_path);
+    return enabled;
+}
+
+static void updates_apply_gate_state(gboolean enabled)
+{
+    if (g_system_updates_switch) gtk_widget_set_sensitive(g_system_updates_switch, enabled);
+    if (g_repositories_switch) gtk_widget_set_sensitive(g_repositories_switch, enabled);
+    if (g_drivers_switch) gtk_widget_set_sensitive(g_drivers_switch, enabled);
+    if (g_auto_updates_switch) gtk_widget_set_sensitive(g_auto_updates_switch, enabled);
+    if (g_channel_dropdown) gtk_widget_set_sensitive(g_channel_dropdown, enabled);
+    if (g_repositories_text_view) gtk_widget_set_sensitive(g_repositories_text_view, enabled);
+    if (g_app_store_switch) gtk_widget_set_sensitive(g_app_store_switch, enabled);
+    if (g_flatpak_switch) gtk_widget_set_sensitive(g_flatpak_switch, enabled);
+    if (g_snap_switch) gtk_widget_set_sensitive(g_snap_switch, enabled);
+    if (g_appimage_switch) gtk_widget_set_sensitive(g_appimage_switch, enabled);
+    if (g_check_btn) gtk_widget_set_sensitive(g_check_btn, enabled);
+    if (g_install_btn) gtk_widget_set_sensitive(g_install_btn, enabled);
+    if (g_apply_btn) gtk_widget_set_sensitive(g_apply_btn, enabled);
+    if (g_edit_repos_btn) gtk_widget_set_sensitive(g_edit_repos_btn, enabled);
+
+    if (g_reload_btn) {
+        gtk_widget_set_sensitive(g_reload_btn, TRUE);
+    }
+
+    if (g_gate_hint_label) {
+        gtk_widget_set_visible(g_gate_hint_label, !enabled);
+    }
+}
+
+static gboolean ensure_updates_feature_enabled(void)
+{
+    gboolean enabled = updates_experimental_enabled();
+    updates_apply_gate_state(enabled);
+
+    if (!enabled) {
+        status_set(_("Updates and software are disabled. Enable Experimental features in Advanced and apply settings first."), TRUE);
+    }
+
+    return enabled;
+}
+
+static gboolean updates_gate_tick(gpointer data)
+{
+    (void)data;
+    updates_apply_gate_state(updates_experimental_enabled());
+    return G_SOURCE_CONTINUE;
 }
 
 static char *deferred_desktop_update_command_for_backend(const char *backend)
@@ -1652,6 +1773,10 @@ static void on_check_updates_clicked(GtkButton *btn, gpointer data)
     (void)btn;
     (void)data;
 
+    if (!ensure_updates_feature_enabled()) {
+        return;
+    }
+
     gboolean is_error = FALSE;
     char *message = check_updates_now(&is_error);
     status_set(message, is_error);
@@ -1662,6 +1787,10 @@ static void on_install_updates_clicked(GtkButton *btn, gpointer data)
 {
     (void)btn;
     (void)data;
+
+    if (!ensure_updates_feature_enabled()) {
+        return;
+    }
 
     GtkRoot *root = gtk_widget_get_root(g_status_label ? g_status_label : g_repositories_text_view);
     GtkWidget *parent = root ? GTK_WIDGET(root) : NULL;
@@ -1735,6 +1864,7 @@ static void on_reload_updates_clicked(GtkButton *btn, gpointer data)
     (void)data;
 
     load_updates_config();
+    updates_apply_gate_state(updates_experimental_enabled());
     status_set(_("Updates and software settings reloaded"), FALSE);
 }
 
@@ -1742,6 +1872,10 @@ static void on_apply_updates_clicked(GtkButton *btn, gpointer data)
 {
     (void)btn;
     (void)data;
+
+    if (!ensure_updates_feature_enabled()) {
+        return;
+    }
 
     save_updates_config();
 
@@ -1789,6 +1923,10 @@ static void on_edit_repositories_clicked(GtkButton *btn, gpointer data)
 {
     (void)btn;
     (void)data;
+
+    if (!ensure_updates_feature_enabled()) {
+        return;
+    }
 
     char *repo_system_path = repositories_system_path();
     if (repo_system_path && load_repositories_from_file(repo_system_path)) {
@@ -1868,9 +2006,9 @@ GtkWidget *page_updates_new(void)
     gtk_widget_set_halign(repos_label, GTK_ALIGN_START);
     gtk_box_append(GTK_BOX(repos_header), repos_label);
 
-    GtkWidget *edit_repos_btn = gtk_button_new_with_label(_("Edit repositories"));
-    g_signal_connect(edit_repos_btn, "clicked", G_CALLBACK(on_edit_repositories_clicked), NULL);
-    gtk_box_append(GTK_BOX(repos_header), edit_repos_btn);
+    g_edit_repos_btn = gtk_button_new_with_label(_("Edit repositories"));
+    g_signal_connect(g_edit_repos_btn, "clicked", G_CALLBACK(on_edit_repositories_clicked), NULL);
+    gtk_box_append(GTK_BOX(repos_header), g_edit_repos_btn);
     gtk_box_append(GTK_BOX(updates_box), repos_header);
 
     GtkWidget *repos_scrolled = gtk_scrolled_window_new();
@@ -1907,24 +2045,30 @@ GtkWidget *page_updates_new(void)
     GtkWidget *actions = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
     gtk_widget_set_halign(actions, GTK_ALIGN_END);
 
-    GtkWidget *check_btn = gtk_button_new_with_label(_("Check for updates now"));
-    g_signal_connect(check_btn, "clicked", G_CALLBACK(on_check_updates_clicked), NULL);
-    gtk_box_append(GTK_BOX(actions), check_btn);
+    g_check_btn = gtk_button_new_with_label(_("Check for updates now"));
+    g_signal_connect(g_check_btn, "clicked", G_CALLBACK(on_check_updates_clicked), NULL);
+    gtk_box_append(GTK_BOX(actions), g_check_btn);
 
-    GtkWidget *install_btn = gtk_button_new_with_label(_("Install updates now"));
-    g_signal_connect(install_btn, "clicked", G_CALLBACK(on_install_updates_clicked), NULL);
-    gtk_box_append(GTK_BOX(actions), install_btn);
+    g_install_btn = gtk_button_new_with_label(_("Install updates now"));
+    g_signal_connect(g_install_btn, "clicked", G_CALLBACK(on_install_updates_clicked), NULL);
+    gtk_box_append(GTK_BOX(actions), g_install_btn);
 
-    GtkWidget *reload_btn = gtk_button_new_with_label(_("Reload saved settings"));
-    g_signal_connect(reload_btn, "clicked", G_CALLBACK(on_reload_updates_clicked), NULL);
-    gtk_box_append(GTK_BOX(actions), reload_btn);
+    g_reload_btn = gtk_button_new_with_label(_("Reload saved settings"));
+    g_signal_connect(g_reload_btn, "clicked", G_CALLBACK(on_reload_updates_clicked), NULL);
+    gtk_box_append(GTK_BOX(actions), g_reload_btn);
 
-    GtkWidget *apply_btn = gtk_button_new_with_label(_("Apply updates settings"));
-    gtk_widget_add_css_class(apply_btn, "suggested-action");
-    g_signal_connect(apply_btn, "clicked", G_CALLBACK(on_apply_updates_clicked), NULL);
-    gtk_box_append(GTK_BOX(actions), apply_btn);
+    g_apply_btn = gtk_button_new_with_label(_("Apply updates settings"));
+    gtk_widget_add_css_class(g_apply_btn, "suggested-action");
+    g_signal_connect(g_apply_btn, "clicked", G_CALLBACK(on_apply_updates_clicked), NULL);
+    gtk_box_append(GTK_BOX(actions), g_apply_btn);
 
     gtk_box_append(GTK_BOX(box), actions);
+
+    g_gate_hint_label = gtk_label_new(_("This section is disabled. Enable Experimental features in Advanced to activate Updates and software."));
+    gtk_widget_set_halign(g_gate_hint_label, GTK_ALIGN_START);
+    gtk_label_set_wrap(GTK_LABEL(g_gate_hint_label), TRUE);
+    gtk_widget_add_css_class(g_gate_hint_label, "row-subtitle");
+    gtk_box_append(GTK_BOX(box), g_gate_hint_label);
 
     g_status_label = gtk_label_new("");
     gtk_widget_set_halign(g_status_label, GTK_ALIGN_START);
@@ -1948,8 +2092,13 @@ GtkWidget *page_updates_new(void)
     g_free(repositories_defaults);
 
     load_updates_config();
+    updates_apply_gate_state(updates_experimental_enabled());
 
-    if (gtk_switch_get_active(GTK_SWITCH(g_system_updates_switch))) {
+    if (g_updates_gate_source_id == 0) {
+        g_updates_gate_source_id = g_timeout_add_seconds(1, updates_gate_tick, NULL);
+    }
+
+    if (gtk_switch_get_active(GTK_SWITCH(g_system_updates_switch)) && updates_experimental_enabled()) {
         g_idle_add(check_updates_on_open_idle, NULL);
     }
 

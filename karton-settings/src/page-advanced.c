@@ -38,6 +38,15 @@ static GtkWidget *g_performance_dropdown = NULL;
 static GtkWidget *g_renderer_dropdown = NULL;
 static GtkWidget *g_status_label = NULL;
 
+typedef struct {
+    GtkWidget *window;
+    GtkWidget *subject_entry;
+    GtkWidget *details_view;
+} ReportFormWidgets;
+
+static char *advanced_config_path(void);
+static char *session_environment_path(void);
+
 static gboolean command_is_available(const char *name)
 {
     char *tool = g_find_program_in_path(name);
@@ -157,6 +166,215 @@ static void status_set(const char *text, gboolean is_error)
     gtk_widget_remove_css_class(g_status_label, "error");
     gtk_widget_remove_css_class(g_status_label, "success");
     gtk_widget_add_css_class(g_status_label, is_error ? "error" : "success");
+}
+
+static char *read_text_file_trimmed_limited(const char *path, gsize max_bytes)
+{
+    if (!path || !*path) {
+        return NULL;
+    }
+
+    char *content = NULL;
+    gsize len = 0;
+    if (!g_file_get_contents(path, &content, &len, NULL) || !content) {
+        g_free(content);
+        return NULL;
+    }
+
+    g_strstrip(content);
+    if (max_bytes > 0 && len > max_bytes) {
+        char *trimmed = g_strndup(content, max_bytes);
+        g_free(content);
+        content = trimmed;
+    }
+
+    return content;
+}
+
+static const char *safe_env(const char *key)
+{
+    const char *value = g_getenv(key);
+    return (value && *value) ? value : "(not set)";
+}
+
+static char *collect_environment_logs(void)
+{
+    GString *logs = g_string_new(NULL);
+
+    GDateTime *now = g_date_time_new_now_local();
+    char *now_str = g_date_time_format(now, "%Y-%m-%d %H:%M:%S %z");
+    g_string_append_printf(logs, "Timestamp: %s\n", now_str ? now_str : "(unknown)");
+    g_string_append_printf(logs, "App: karton-settings\n");
+    g_string_append_printf(logs, "OS: %s\n", g_get_os_info(G_OS_INFO_KEY_PRETTY_NAME));
+    g_string_append_printf(logs, "Host: %s\n", g_get_host_name());
+    g_string_append_printf(logs, "Session type: %s\n", safe_env("XDG_SESSION_TYPE"));
+    g_string_append_printf(logs, "Desktop: %s\n", safe_env("XDG_CURRENT_DESKTOP"));
+    g_string_append_printf(logs, "Wayland: %s\n", safe_env("WAYLAND_DISPLAY"));
+    g_string_append_printf(logs, "Display: %s\n", safe_env("DISPLAY"));
+    g_string_append_printf(logs, "Lang: %s\n", safe_env("LANG"));
+    g_string_append_printf(logs, "\n");
+
+    char *env_path = session_environment_path();
+    char *adv_path = advanced_config_path();
+    char *env_content = read_text_file_trimmed_limited(env_path, 3000);
+    char *adv_content = read_text_file_trimmed_limited(adv_path, 3000);
+
+    g_string_append(logs, "[~/.config/karton/environment]\n");
+    g_string_append(logs, env_content ? env_content : "(unavailable)");
+    g_string_append(logs, "\n\n[~/.config/karton/advanced.conf]\n");
+    g_string_append(logs, adv_content ? adv_content : "(unavailable)");
+    g_string_append(logs, "\n");
+
+    g_free(env_content);
+    g_free(adv_content);
+    g_free(env_path);
+    g_free(adv_path);
+    g_free(now_str);
+    if (now) {
+        g_date_time_unref(now);
+    }
+
+    return g_string_free(logs, FALSE);
+}
+
+static gboolean open_mailto_with_report(const char *subject, const char *details)
+{
+    const char *subject_raw = (subject && *subject) ? subject : _("Karton issue report");
+    const char *details_raw = (details && *details) ? details : _("No additional details.");
+    char *logs = collect_environment_logs();
+
+    GString *body = g_string_new(NULL);
+    g_string_append(body, _("Issue description:"));
+    g_string_append(body, "\n");
+    g_string_append(body, details_raw);
+    g_string_append(body, "\n\n--- Environment logs ---\n");
+    g_string_append(body, logs ? logs : "(no logs)");
+
+    char *subject_escaped = g_uri_escape_string(subject_raw, NULL, TRUE);
+    char *body_escaped = g_uri_escape_string(body->str, NULL, TRUE);
+    char *mailto_uri = g_strdup_printf("mailto:karton@mijsys.pl?subject=%s&body=%s",
+                                       subject_escaped ? subject_escaped : "",
+                                       body_escaped ? body_escaped : "");
+
+    GError *error = NULL;
+    gboolean ok = g_app_info_launch_default_for_uri(mailto_uri, NULL, &error);
+
+    g_clear_error(&error);
+    g_free(mailto_uri);
+    g_free(subject_escaped);
+    g_free(body_escaped);
+    g_string_free(body, TRUE);
+    g_free(logs);
+
+    return ok;
+}
+
+static void report_form_widgets_free(gpointer data)
+{
+    ReportFormWidgets *w = data;
+    if (!w) {
+        return;
+    }
+
+    g_free(w);
+}
+
+static void on_report_cancel_clicked(GtkButton *btn, gpointer data)
+{
+    (void)btn;
+    ReportFormWidgets *w = data;
+    if (!w || !w->window) {
+        return;
+    }
+
+    gtk_window_destroy(GTK_WINDOW(w->window));
+}
+
+static void on_report_send_clicked(GtkButton *btn, gpointer data)
+{
+    (void)btn;
+    ReportFormWidgets *w = data;
+    if (!w || !w->window || !w->subject_entry || !w->details_view) {
+        status_set(_("Cannot read contact form fields."), TRUE);
+        return;
+    }
+
+    GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(w->details_view));
+    GtkTextIter start;
+    GtkTextIter end;
+    gtk_text_buffer_get_bounds(buffer, &start, &end);
+
+    char *details = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
+    const char *subject = gtk_editable_get_text(GTK_EDITABLE(w->subject_entry));
+
+    if (open_mailto_with_report(subject, details)) {
+        status_set(_("Contact form prepared in your email client."), FALSE);
+        gtk_window_destroy(GTK_WINDOW(w->window));
+    } else {
+        status_set(_("Could not open the default email client for contact form."), TRUE);
+    }
+
+    g_free(details);
+}
+
+static void on_report_problem_clicked(GtkButton *btn, gpointer data)
+{
+    (void)data;
+
+    GtkRoot *root = gtk_widget_get_root(GTK_WIDGET(btn));
+    if (!root || !GTK_IS_WINDOW(root)) {
+        status_set(_("Cannot open report form in current context."), TRUE);
+        return;
+    }
+
+    ReportFormWidgets *w = g_new0(ReportFormWidgets, 1);
+
+    w->window = gtk_window_new();
+    gtk_window_set_transient_for(GTK_WINDOW(w->window), GTK_WINDOW(root));
+    gtk_window_set_modal(GTK_WINDOW(w->window), TRUE);
+    gtk_window_set_title(GTK_WINDOW(w->window), _("Report a problem"));
+    gtk_window_set_default_size(GTK_WINDOW(w->window), 620, 420);
+    gtk_widget_add_css_class(w->window, "settings-window");
+
+    GtkWidget *content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_set_margin_start(content, 12);
+    gtk_widget_set_margin_end(content, 12);
+    gtk_widget_set_margin_top(content, 12);
+    gtk_widget_set_margin_bottom(content, 12);
+    gtk_window_set_child(GTK_WINDOW(w->window), content);
+
+    GtkWidget *hint = gtk_label_new(_("Fill in details, then your email app opens with prepared message and environment logs."));
+    gtk_widget_set_halign(hint, GTK_ALIGN_START);
+    gtk_label_set_wrap(GTK_LABEL(hint), TRUE);
+    gtk_widget_add_css_class(hint, "row-subtitle");
+    gtk_box_append(GTK_BOX(content), hint);
+
+    w->subject_entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(w->subject_entry), _("Subject"));
+    gtk_box_append(GTK_BOX(content), w->subject_entry);
+
+    w->details_view = gtk_text_view_new();
+    gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(w->details_view), GTK_WRAP_WORD_CHAR);
+    gtk_widget_set_size_request(w->details_view, 540, 180);
+    GtkWidget *details_scroll = gtk_scrolled_window_new();
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(details_scroll), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(details_scroll), w->details_view);
+    gtk_box_append(GTK_BOX(content), details_scroll);
+
+    GtkWidget *actions = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    gtk_widget_set_halign(actions, GTK_ALIGN_END);
+    GtkWidget *cancel_btn = gtk_button_new_with_label(_("Cancel"));
+    GtkWidget *send_btn = gtk_button_new_with_label(_("Send email"));
+    gtk_widget_add_css_class(send_btn, "suggested-action");
+    gtk_box_append(GTK_BOX(actions), cancel_btn);
+    gtk_box_append(GTK_BOX(actions), send_btn);
+    gtk_box_append(GTK_BOX(content), actions);
+
+    g_object_set_data_full(G_OBJECT(w->window), "report-form-widgets", w, report_form_widgets_free);
+    g_signal_connect(cancel_btn, "clicked", G_CALLBACK(on_report_cancel_clicked), w);
+    g_signal_connect(send_btn, "clicked", G_CALLBACK(on_report_send_clicked), w);
+
+    gtk_window_present(GTK_WINDOW(w->window));
 }
 
 static char *advanced_config_path(void)
@@ -480,6 +698,15 @@ GtkWidget *page_advanced_new(void)
     gtk_box_append(GTK_BOX(features_box), create_row(_("Renderer configuration"), g_renderer_dropdown));
 
     gtk_box_append(GTK_BOX(box), features_frame);
+
+    GtkWidget *report_frame = create_section(
+        _("Report a problem"),
+        _("Open contact form and send issue report email to karton@mijsys.pl with environment logs."));
+    GtkWidget *report_box = gtk_frame_get_child(GTK_FRAME(report_frame));
+    GtkWidget *report_btn = gtk_button_new_with_label(_("Open contact form"));
+    g_signal_connect(report_btn, "clicked", G_CALLBACK(on_report_problem_clicked), NULL);
+    gtk_box_append(GTK_BOX(report_box), create_row(_("Support"), report_btn));
+    gtk_box_append(GTK_BOX(box), report_frame);
 
     GtkWidget *actions = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
     gtk_widget_set_halign(actions, GTK_ALIGN_END);

@@ -434,9 +434,38 @@ static gboolean prompt_password_dialog(GtkWidget *parent, char **password_out, g
     return accepted;
 }
 
+static gboolean gsettings_key_supported(const char *schema, const char *key)
+{
+    if (!schema || !*schema || !key || !*key) {
+        return FALSE;
+    }
+
+    GSettingsSchemaSource *source = g_settings_schema_source_get_default();
+    if (!source) {
+        return FALSE;
+    }
+
+    GSettingsSchema *schema_obj = g_settings_schema_source_lookup(source, schema, TRUE);
+    if (!schema_obj) {
+        return FALSE;
+    }
+
+    gboolean has_key = g_settings_schema_has_key(schema_obj, key);
+    g_settings_schema_unref(schema_obj);
+    return has_key;
+}
+
 static gboolean gsettings_set_bool(const char *schema, const char *key, gboolean value)
 {
     if (!command_is_available("gsettings")) {
+        return FALSE;
+    }
+
+    if (!gsettings_key_supported(schema, key)) {
+        return TRUE;
+    }
+
+    if (!schema || !*schema || !key || !*key) {
         return FALSE;
     }
 
@@ -873,20 +902,28 @@ static void on_reload_security_clicked(GtkButton *btn, gpointer data)
 
 static void on_apply_security_clicked(GtkButton *btn, gpointer data)
 {
-    (void)btn;
     (void)data;
 
     gboolean cancelled = FALSE;
     char *password = NULL;
-    GtkWidget *root = GTK_WIDGET(gtk_widget_get_root(GTK_WIDGET(btn)));
+    GtkRoot *root = gtk_widget_get_root(GTK_WIDGET(btn));
+    GtkWidget *parent = GTK_IS_WINDOW(root) ? GTK_WIDGET(root) : NULL;
 
-    if (!prompt_password_dialog(root, &password, &cancelled)) {
-        if (cancelled) {
-            status_set(_("Applying security settings was canceled."), TRUE);
-        } else {
-            status_set(_("Password is required."), TRUE);
+    if (geteuid() != 0) {
+        if (!prompt_password_dialog(parent, &password, &cancelled)) {
+            if (cancelled) {
+                status_set(_("Applying security settings was canceled."), TRUE);
+            } else {
+                status_set(_("Administrator password is required to apply security settings."), TRUE);
+            }
+            return;
         }
-        return;
+
+        if (!verify_password_with_sudo(password)) {
+            status_set(_("Authentication failed: invalid administrator password."), TRUE);
+            g_free(password);
+            return;
+        }
     }
 
     gboolean auth_failed = FALSE;

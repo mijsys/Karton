@@ -28,10 +28,18 @@ static const struct option_value g_priority_options[] = {
     { N_("Urgent"), "urgent" },
 };
 
+static const struct option_value g_sound_mode_options[] = {
+    { N_("System sound"), "system" },
+    { N_("Custom sound"), "custom" },
+};
+
 static GtkWidget *g_dnd_switch = NULL;
 static GtkWidget *g_position_dropdown = NULL;
 static GtkWidget *g_history_switch = NULL;
 static GtkWidget *g_alert_sounds_switch = NULL;
+static GtkWidget *g_sound_mode_dropdown = NULL;
+static GtkWidget *g_custom_sound_entry = NULL;
+static GtkWidget *g_choose_sound_btn = NULL;
 
 static GtkWidget *g_priority_chat_dropdown = NULL;
 static GtkWidget *g_priority_system_dropdown = NULL;
@@ -41,14 +49,26 @@ static GtkWidget *g_status_label = NULL;
 static GtkWidget *g_reload_btn = NULL;
 static GtkWidget *g_test_btn = NULL;
 static GtkWidget *g_apply_btn = NULL;
+static GtkWidget *g_open_list_btn = NULL;
 static GtkWidget *g_loading_box = NULL;
 static GtkWidget *g_loading_spinner = NULL;
 static GtkWidget *g_loading_label = NULL;
+static guint g_live_sync_source_id = 0;
+
+static gboolean notifications_position_supported(void)
+{
+    return FALSE;
+}
 
 static gboolean write_managed_env_block(const char *file_path,
                                         const char *begin_marker,
                                         const char *end_marker,
                                         const char *block);
+static void notifications_update_sound_controls(void);
+
+typedef struct {
+    GtkWidget *entry;
+} SoundPickContext;
 
 static gboolean run_command_capture(const char *command, char **stdout_out, char **stderr_out, int *wait_status_out)
 {
@@ -177,13 +197,22 @@ static void notifications_set_controls_sensitive(gboolean sensitive)
         gtk_widget_set_sensitive(g_dnd_switch, sensitive);
     }
     if (g_position_dropdown) {
-        gtk_widget_set_sensitive(g_position_dropdown, sensitive);
+        gtk_widget_set_sensitive(g_position_dropdown, sensitive && notifications_position_supported());
     }
     if (g_history_switch) {
         gtk_widget_set_sensitive(g_history_switch, sensitive);
     }
     if (g_alert_sounds_switch) {
         gtk_widget_set_sensitive(g_alert_sounds_switch, sensitive);
+    }
+    if (g_sound_mode_dropdown) {
+        gtk_widget_set_sensitive(g_sound_mode_dropdown, sensitive);
+    }
+    if (g_custom_sound_entry) {
+        gtk_widget_set_sensitive(g_custom_sound_entry, sensitive);
+    }
+    if (g_choose_sound_btn) {
+        gtk_widget_set_sensitive(g_choose_sound_btn, sensitive);
     }
     if (g_priority_chat_dropdown) {
         gtk_widget_set_sensitive(g_priority_chat_dropdown, sensitive);
@@ -200,8 +229,15 @@ static void notifications_set_controls_sensitive(gboolean sensitive)
     if (g_test_btn) {
         gtk_widget_set_sensitive(g_test_btn, sensitive);
     }
+    if (g_open_list_btn) {
+        gtk_widget_set_sensitive(g_open_list_btn, sensitive);
+    }
     if (g_apply_btn) {
         gtk_widget_set_sensitive(g_apply_btn, sensitive);
+    }
+
+    if (sensitive) {
+        notifications_update_sound_controls();
     }
 }
 
@@ -259,6 +295,42 @@ static const char *dropdown_selected_value(GtkWidget *dropdown, const struct opt
     return options[idx].value;
 }
 
+static void notifications_update_sound_controls(void)
+{
+    gboolean sounds_on = g_alert_sounds_switch && gtk_switch_get_active(GTK_SWITCH(g_alert_sounds_switch));
+    const char *mode = dropdown_selected_value(g_sound_mode_dropdown,
+                                               g_sound_mode_options,
+                                               G_N_ELEMENTS(g_sound_mode_options));
+    gboolean custom_mode = g_strcmp0(mode, "custom") == 0;
+    gboolean allow_custom = sounds_on && custom_mode;
+
+    if (g_sound_mode_dropdown) {
+        gtk_widget_set_sensitive(g_sound_mode_dropdown, sounds_on);
+    }
+    if (g_custom_sound_entry) {
+        gtk_widget_set_sensitive(g_custom_sound_entry, allow_custom);
+    }
+    if (g_choose_sound_btn) {
+        gtk_widget_set_sensitive(g_choose_sound_btn, allow_custom);
+    }
+}
+
+static void on_sound_mode_selected_changed(GObject *obj, GParamSpec *pspec, gpointer data)
+{
+    (void)obj;
+    (void)pspec;
+    (void)data;
+    notifications_update_sound_controls();
+}
+
+static void on_alert_sounds_switch_changed(GObject *obj, GParamSpec *pspec, gpointer data)
+{
+    (void)obj;
+    (void)pspec;
+    (void)data;
+    notifications_update_sound_controls();
+}
+
 static char *notifications_config_path(void)
 {
     return g_build_filename(g_get_home_dir(), ".config", "karton", "notifications.conf", NULL);
@@ -267,6 +339,16 @@ static char *notifications_config_path(void)
 static char *session_environment_path(void)
 {
     return g_build_filename(g_get_home_dir(), ".config", "karton", "environment", NULL);
+}
+
+static char *notifications_log_path(void)
+{
+    const char *cache_home = g_getenv("XDG_CACHE_HOME");
+    if (cache_home && *cache_home) {
+        return g_build_filename(cache_home, "karton", "notifications.log", NULL);
+    }
+
+    return g_build_filename(g_get_home_dir(), ".cache", "karton", "notifications.log", NULL);
 }
 
 static char *mako_config_path(void)
@@ -419,9 +501,43 @@ static gboolean notifications_dnd_from_environment(gboolean *dnd_out)
                 const char *value = lines[i] + strlen("KARTON_NOTIFICATIONS_DND=");
                 *dnd_out = parse_truthy(value);
                 found = TRUE;
-                break;
             }
         }
+        g_strfreev(lines);
+    }
+
+    g_free(contents);
+    g_free(env_path);
+    return found;
+}
+
+static gboolean notifications_env_get_value(const char *key, char **value_out)
+{
+    if (!key || !*key || !value_out) {
+        return FALSE;
+    }
+
+    *value_out = NULL;
+    char *env_path = session_environment_path();
+    char *contents = NULL;
+    gboolean found = FALSE;
+
+    if (g_file_get_contents(env_path, &contents, NULL, NULL) && contents) {
+        gchar **lines = g_strsplit(contents, "\n", -1);
+        char *prefix = g_strdup_printf("%s=", key);
+
+        for (guint i = 0; lines[i] != NULL; i++) {
+            if (!g_str_has_prefix(lines[i], prefix)) {
+                continue;
+            }
+
+            char *value = g_strdup(lines[i] + strlen(prefix));
+            g_strstrip(value);
+            *value_out = value;
+            found = TRUE;
+        }
+
+        g_free(prefix);
         g_strfreev(lines);
     }
 
@@ -434,6 +550,10 @@ static gboolean notifications_runtime_dnd_enabled(gboolean *dnd_out)
 {
     if (!dnd_out) {
         return FALSE;
+    }
+
+    if (notifications_dnd_from_environment(dnd_out)) {
+        return TRUE;
     }
 
     char *stdout_data = NULL;
@@ -450,7 +570,220 @@ static gboolean notifications_runtime_dnd_enabled(gboolean *dnd_out)
     }
 
     g_free(stdout_data);
-    return notifications_dnd_from_environment(dnd_out);
+    return FALSE;
+}
+
+static gboolean notifications_live_sync_tick(gpointer user_data)
+{
+    (void)user_data;
+
+    if (!g_dnd_switch || !g_loading_box) {
+        return G_SOURCE_CONTINUE;
+    }
+
+    if (gtk_widget_get_visible(g_loading_box)) {
+        return G_SOURCE_CONTINUE;
+    }
+
+    gboolean env_dnd = FALSE;
+    if (notifications_dnd_from_environment(&env_dnd)) {
+        gboolean current = gtk_switch_get_active(GTK_SWITCH(g_dnd_switch));
+        if (current != env_dnd) {
+            gtk_switch_set_active(GTK_SWITCH(g_dnd_switch), env_dnd);
+        }
+    }
+
+    if (notifications_position_supported() && g_position_dropdown) {
+        char *env_position = NULL;
+        if (notifications_env_get_value("KARTON_NOTIFICATIONS_POSITION", &env_position) && env_position && *env_position) {
+            const char *normalized = normalize_notification_position(env_position);
+            guint idx = find_option_index(g_position_options, G_N_ELEMENTS(g_position_options), normalized);
+            guint current_idx = gtk_drop_down_get_selected(GTK_DROP_DOWN(g_position_dropdown));
+            if (current_idx != idx) {
+                gtk_drop_down_set_selected(GTK_DROP_DOWN(g_position_dropdown), idx);
+            }
+        }
+        g_free(env_position);
+    }
+
+    return G_SOURCE_CONTINUE;
+}
+
+static void on_sound_file_dialog_response(GObject *source, GAsyncResult *res, gpointer user_data)
+{
+    SoundPickContext *ctx = user_data;
+    GError *error = NULL;
+    GFile *file = gtk_file_dialog_open_finish(GTK_FILE_DIALOG(source), res, &error);
+
+    if (file) {
+        char *path = g_file_get_path(file);
+        if (path && GTK_IS_EDITABLE(ctx->entry)) {
+            gtk_editable_set_text(GTK_EDITABLE(ctx->entry), path);
+        }
+        g_free(path);
+        g_object_unref(file);
+    }
+
+    if (error && !g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+        status_set(_("Could not open custom notification sound picker"), TRUE);
+    }
+    g_clear_error(&error);
+
+    g_object_unref(ctx->entry);
+    g_free(ctx);
+}
+
+static void on_choose_sound_clicked(GtkButton *btn, gpointer data)
+{
+    (void)btn;
+    GtkWidget *entry = GTK_WIDGET(data);
+    if (!entry) {
+        return;
+    }
+
+    GtkFileDialog *dialog = gtk_file_dialog_new();
+    gtk_file_dialog_set_title(dialog, _("Choose custom notification sound"));
+    gtk_file_dialog_set_accept_label(dialog, _("Select"));
+
+    GListStore *filters = g_list_store_new(GTK_TYPE_FILE_FILTER);
+    GtkFileFilter *audio = gtk_file_filter_new();
+    gtk_file_filter_set_name(audio, _("Audio files"));
+    gtk_file_filter_add_suffix(audio, "wav");
+    gtk_file_filter_add_suffix(audio, "oga");
+    gtk_file_filter_add_suffix(audio, "ogg");
+    gtk_file_filter_add_suffix(audio, "mp3");
+    gtk_file_filter_add_suffix(audio, "flac");
+    g_list_store_append(filters, audio);
+    gtk_file_dialog_set_filters(dialog, G_LIST_MODEL(filters));
+    gtk_file_dialog_set_default_filter(dialog, audio);
+
+    GFile *home = g_file_new_for_path(g_get_home_dir());
+    gtk_file_dialog_set_initial_folder(dialog, home);
+    g_object_unref(home);
+
+    SoundPickContext *ctx = g_new0(SoundPickContext, 1);
+    ctx->entry = g_object_ref(entry);
+
+    GtkRoot *root = gtk_widget_get_root(entry);
+    GtkWindow *parent = GTK_IS_WINDOW(root) ? GTK_WINDOW(root) : NULL;
+    gtk_file_dialog_open(dialog, parent, NULL, on_sound_file_dialog_response, ctx);
+
+    g_object_unref(audio);
+    g_object_unref(filters);
+    g_object_unref(dialog);
+}
+
+static void open_notification_history_window(GtkWidget *parent)
+{
+    char *log_path = notifications_log_path();
+    char *contents = NULL;
+    gboolean loaded = FALSE;
+
+    if (g_file_get_contents(log_path, &contents, NULL, NULL) && contents && *contents) {
+        loaded = TRUE;
+    } else {
+        g_free(contents);
+        contents = NULL;
+
+        char *stdout_data = NULL;
+        if (run_command_capture(
+                "sh -lc 'if command -v timeout >/dev/null 2>&1 && command -v makoctl >/dev/null 2>&1; then timeout 1s makoctl list 2>/dev/null; fi'",
+                &stdout_data,
+                NULL,
+                NULL)
+            && stdout_data && *stdout_data) {
+            contents = stdout_data;
+            loaded = TRUE;
+        } else {
+            g_free(stdout_data);
+        }
+    }
+
+    if (!loaded) {
+        contents = g_strdup(_("No notification history entries found."));
+    }
+
+    GtkWidget *dialog = gtk_window_new();
+    gtk_window_set_title(GTK_WINDOW(dialog), _("Notification history list"));
+    gtk_window_set_default_size(GTK_WINDOW(dialog), 680, 420);
+    gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
+
+    if (parent && GTK_IS_WINDOW(parent)) {
+        gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(parent));
+    }
+
+    GtkWidget *root_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_set_margin_start(root_box, 12);
+    gtk_widget_set_margin_end(root_box, 12);
+    gtk_widget_set_margin_top(root_box, 12);
+    gtk_widget_set_margin_bottom(root_box, 12);
+    gtk_window_set_child(GTK_WINDOW(dialog), root_box);
+
+    GtkWidget *scroll = gtk_scrolled_window_new();
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    gtk_widget_set_vexpand(scroll, TRUE);
+
+    GtkWidget *text = gtk_text_view_new();
+    gtk_text_view_set_editable(GTK_TEXT_VIEW(text), FALSE);
+    gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(text), FALSE);
+    gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(text), GTK_WRAP_WORD_CHAR);
+    gtk_text_view_set_monospace(GTK_TEXT_VIEW(text), TRUE);
+    GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text));
+    gtk_text_buffer_set_text(buffer, contents ? contents : "", -1);
+
+    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scroll), text);
+    gtk_box_append(GTK_BOX(root_box), scroll);
+
+    GtkWidget *actions = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    gtk_widget_set_halign(actions, GTK_ALIGN_END);
+    GtkWidget *close_btn = gtk_button_new_with_label(_("Close"));
+    g_signal_connect_swapped(close_btn, "clicked", G_CALLBACK(gtk_window_destroy), dialog);
+    gtk_box_append(GTK_BOX(actions), close_btn);
+    gtk_box_append(GTK_BOX(root_box), actions);
+
+    gtk_window_present(GTK_WINDOW(dialog));
+
+    g_free(contents);
+    g_free(log_path);
+}
+
+static void on_open_notification_list_clicked(GtkButton *btn, gpointer data)
+{
+    (void)data;
+    GtkRoot *root = gtk_widget_get_root(GTK_WIDGET(btn));
+    GtkWidget *parent = GTK_IS_WINDOW(root) ? GTK_WIDGET(root) : NULL;
+    open_notification_history_window(parent);
+}
+
+static gboolean play_custom_notification_sound(const char *sound_path)
+{
+    if (!sound_path || !*sound_path || !g_file_test(sound_path, G_FILE_TEST_EXISTS)) {
+        return FALSE;
+    }
+
+    char *q_path = g_shell_quote(sound_path);
+    char *cmd = g_strdup_printf(
+        "sh -lc 'if command -v pw-play >/dev/null 2>&1; then pw-play %s >/dev/null 2>&1; "
+        "elif command -v paplay >/dev/null 2>&1; then paplay %s >/dev/null 2>&1; "
+        "elif command -v aplay >/dev/null 2>&1; then aplay %s >/dev/null 2>&1; "
+        "else exit 1; fi'",
+        q_path,
+        q_path,
+        q_path);
+
+    gboolean ok = run_command_success(cmd);
+    g_free(cmd);
+    g_free(q_path);
+    return ok;
+}
+
+static gboolean play_system_notification_sound(void)
+{
+    return run_command_success(
+        "sh -lc 'if command -v canberra-gtk-play >/dev/null 2>&1; then canberra-gtk-play -i message >/dev/null 2>&1; "
+        "elif command -v paplay >/dev/null 2>&1; then paplay /usr/share/sounds/freedesktop/stereo/message.oga >/dev/null 2>&1 || true; "
+        "else exit 1; fi'"
+    );
 }
 
 static gboolean write_managed_env_block(const char *file_path,
@@ -521,6 +854,27 @@ static gboolean write_managed_env_block(const char *file_path,
 
 static gboolean gsettings_set_bool(const char *schema, const char *key, gboolean value)
 {
+    if (!schema || !*schema || !key || !*key) {
+        return FALSE;
+    }
+
+    GSettingsSchemaSource *source = g_settings_schema_source_get_default();
+    if (!source) {
+        return FALSE;
+    }
+
+    GSettingsSchema *schema_obj = g_settings_schema_source_lookup(source, schema, TRUE);
+    if (!schema_obj) {
+        return TRUE;
+    }
+
+    if (!g_settings_schema_has_key(schema_obj, key)) {
+        g_settings_schema_unref(schema_obj);
+        return TRUE;
+    }
+
+    g_settings_schema_unref(schema_obj);
+
     if (!command_is_available("gsettings")) {
         return FALSE;
     }
@@ -550,6 +904,16 @@ static void save_notifications_config(void)
     g_key_file_set_boolean(kf, "notifications", "dnd", gtk_switch_get_active(GTK_SWITCH(g_dnd_switch)));
     g_key_file_set_boolean(kf, "notifications", "history", gtk_switch_get_active(GTK_SWITCH(g_history_switch)));
     g_key_file_set_boolean(kf, "notifications", "alert_sounds", gtk_switch_get_active(GTK_SWITCH(g_alert_sounds_switch)));
+    g_key_file_set_string(kf,
+                          "notifications",
+                          "sound_mode",
+                          dropdown_selected_value(g_sound_mode_dropdown,
+                                                  g_sound_mode_options,
+                                                  G_N_ELEMENTS(g_sound_mode_options)));
+    g_key_file_set_string(kf,
+                          "notifications",
+                          "custom_sound",
+                          gtk_editable_get_text(GTK_EDITABLE(g_custom_sound_entry)));
 
     guint position_idx = gtk_drop_down_get_selected(GTK_DROP_DOWN(g_position_dropdown));
     guint chat_idx = gtk_drop_down_get_selected(GTK_DROP_DOWN(g_priority_chat_dropdown));
@@ -646,9 +1010,14 @@ static void load_notifications_config(void)
         g_clear_error(&error);
     }
 
-    gboolean runtime_dnd = FALSE;
-    if (notifications_runtime_dnd_enabled(&runtime_dnd)) {
-        dnd = runtime_dnd;
+    char *sound_mode = g_key_file_get_string(kf, "notifications", "sound_mode", &error);
+    if (error) {
+        g_clear_error(&error);
+    }
+
+    char *custom_sound = g_key_file_get_string(kf, "notifications", "custom_sound", &error);
+    if (error) {
+        g_clear_error(&error);
     }
 
     gtk_switch_set_active(GTK_SWITCH(g_dnd_switch), dnd);
@@ -657,13 +1026,22 @@ static void load_notifications_config(void)
 
     gtk_drop_down_set_selected(GTK_DROP_DOWN(g_position_dropdown),
                                find_option_index(g_position_options, G_N_ELEMENTS(g_position_options), position));
+    gtk_widget_set_sensitive(g_position_dropdown, notifications_position_supported());
     gtk_drop_down_set_selected(GTK_DROP_DOWN(g_priority_chat_dropdown),
                                find_option_index(g_priority_options, G_N_ELEMENTS(g_priority_options), priority_chat));
     gtk_drop_down_set_selected(GTK_DROP_DOWN(g_priority_system_dropdown),
                                find_option_index(g_priority_options, G_N_ELEMENTS(g_priority_options), priority_system));
     gtk_drop_down_set_selected(GTK_DROP_DOWN(g_priority_updates_dropdown),
                                find_option_index(g_priority_options, G_N_ELEMENTS(g_priority_options), priority_updates));
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(g_sound_mode_dropdown),
+                               find_option_index(g_sound_mode_options, G_N_ELEMENTS(g_sound_mode_options), sound_mode));
 
+    gtk_editable_set_text(GTK_EDITABLE(g_custom_sound_entry), custom_sound ? custom_sound : "");
+
+    notifications_update_sound_controls();
+
+    g_free(custom_sound);
+    g_free(sound_mode);
     g_free(priority_updates);
     g_free(priority_system);
     g_free(priority_chat);
@@ -678,11 +1056,18 @@ static char *apply_runtime_notifications(void)
     gboolean dnd = gtk_switch_get_active(GTK_SWITCH(g_dnd_switch));
     gboolean history = gtk_switch_get_active(GTK_SWITCH(g_history_switch));
     gboolean alert_sounds = gtk_switch_get_active(GTK_SWITCH(g_alert_sounds_switch));
+    const char *sound_mode = dropdown_selected_value(g_sound_mode_dropdown,
+                                                     g_sound_mode_options,
+                                                     G_N_ELEMENTS(g_sound_mode_options));
+    const char *custom_sound = gtk_editable_get_text(GTK_EDITABLE(g_custom_sound_entry));
 
-    const char *position = dropdown_selected_value(g_position_dropdown,
-                                                   g_position_options,
-                                                   G_N_ELEMENTS(g_position_options));
-    const char *normalized_position = normalize_notification_position(position);
+    const char *normalized_position = "top-right";
+    if (notifications_position_supported()) {
+        const char *position = dropdown_selected_value(g_position_dropdown,
+                                                       g_position_options,
+                                                       G_N_ELEMENTS(g_position_options));
+        normalized_position = normalize_notification_position(position);
+    }
     const char *priority_chat = dropdown_selected_value(g_priority_chat_dropdown,
                                                         g_priority_options,
                                                         G_N_ELEMENTS(g_priority_options));
@@ -703,8 +1088,16 @@ static char *apply_runtime_notifications(void)
         g_string_append(issues, _("Could not update notification history visibility. "));
     }
 
-    if (!gsettings_set_bool("org.gnome.desktop.sound", "event-sounds", alert_sounds)) {
+    gboolean use_custom_sound = g_strcmp0(sound_mode, "custom") == 0;
+    gboolean system_sound_enabled = alert_sounds && !use_custom_sound;
+    if (!gsettings_set_bool("org.gnome.desktop.sound", "event-sounds", system_sound_enabled)) {
         g_string_append(issues, _("Could not update alert sound policy. "));
+    }
+
+    if (alert_sounds && use_custom_sound) {
+        if (!custom_sound || !*custom_sound || !g_file_test(custom_sound, G_FILE_TEST_EXISTS)) {
+            g_string_append(issues, _("Custom notification sound file is missing or invalid. "));
+        }
     }
 
     if (command_is_available("makoctl")) {
@@ -714,7 +1107,7 @@ static char *apply_runtime_notifications(void)
         (void)run_command_success(cmd);
     }
 
-    if (command_is_available("mako")) {
+    if (notifications_position_supported()) {
         gboolean mako_cfg_ok = FALSE;
         char *cfg_path = mako_config_path();
         char *default_cfg_path = mako_default_config_path();
@@ -742,6 +1135,8 @@ static char *apply_runtime_notifications(void)
                            "KARTON_NOTIFICATIONS_POSITION=%s\n"
                            "KARTON_NOTIFICATIONS_HISTORY=%s\n"
                            "KARTON_NOTIFICATIONS_ALERT_SOUNDS=%s\n"
+                           "KARTON_NOTIFICATIONS_SOUND_MODE=%s\n"
+                           "KARTON_NOTIFICATIONS_CUSTOM_SOUND=%s\n"
                            "KARTON_NOTIFICATIONS_PRIORITY_CHAT=%s\n"
                            "KARTON_NOTIFICATIONS_PRIORITY_SYSTEM=%s\n"
                            "KARTON_NOTIFICATIONS_PRIORITY_UPDATES=%s",
@@ -749,6 +1144,8 @@ static char *apply_runtime_notifications(void)
                            normalized_position,
                            history ? "1" : "0",
                            alert_sounds ? "1" : "0",
+                           use_custom_sound ? "custom" : "system",
+                           custom_sound ? custom_sound : "",
                            priority_chat,
                            priority_system,
                            priority_updates);
@@ -763,17 +1160,21 @@ static char *apply_runtime_notifications(void)
     }
 
     if (command_is_available("dbus-update-activation-environment")) {
+        char *q_custom_sound = g_shell_quote(custom_sound ? custom_sound : "");
         char *cmd = g_strdup_printf(
-            "sh -lc 'dbus-update-activation-environment --systemd KARTON_NOTIFICATIONS_DND=%s KARTON_NOTIFICATIONS_POSITION=%s KARTON_NOTIFICATIONS_HISTORY=%s KARTON_NOTIFICATIONS_ALERT_SOUNDS=%s KARTON_NOTIFICATIONS_PRIORITY_CHAT=%s KARTON_NOTIFICATIONS_PRIORITY_SYSTEM=%s KARTON_NOTIFICATIONS_PRIORITY_UPDATES=%s >/dev/null 2>&1 || true'",
+            "sh -lc 'dbus-update-activation-environment --systemd KARTON_NOTIFICATIONS_DND=%s KARTON_NOTIFICATIONS_POSITION=%s KARTON_NOTIFICATIONS_HISTORY=%s KARTON_NOTIFICATIONS_ALERT_SOUNDS=%s KARTON_NOTIFICATIONS_SOUND_MODE=%s KARTON_NOTIFICATIONS_CUSTOM_SOUND=%s KARTON_NOTIFICATIONS_PRIORITY_CHAT=%s KARTON_NOTIFICATIONS_PRIORITY_SYSTEM=%s KARTON_NOTIFICATIONS_PRIORITY_UPDATES=%s >/dev/null 2>&1 || true'",
             dnd ? "1" : "0",
             normalized_position,
             history ? "1" : "0",
             alert_sounds ? "1" : "0",
+            use_custom_sound ? "custom" : "system",
+            q_custom_sound,
             priority_chat,
             priority_system,
             priority_updates);
         (void)run_command_success(cmd);
         g_free(cmd);
+        g_free(q_custom_sound);
     }
 
     g_free(env_path);
@@ -787,14 +1188,48 @@ static char *apply_runtime_notifications(void)
     return g_string_free(issues, FALSE);
 }
 
-static gboolean send_test_notification(void)
+static void refresh_notifications_in_shell(void)
+{
+    (void)run_command_success("sh -lc 'pkill -USR1 -x karton-shell >/dev/null 2>&1 || true; pkill -USR1 -x karton-top-panel >/dev/null 2>&1 || true; pkill -USR1 -x karton-side-dock >/dev/null 2>&1 || true'");
+}
+
+static const char *priority_to_notify_urgency(const char *priority)
+{
+    if (!priority || !*priority) {
+        return "normal";
+    }
+
+    if (g_strcmp0(priority, "low") == 0) {
+        return "low";
+    }
+    if (g_strcmp0(priority, "urgent") == 0 || g_strcmp0(priority, "high") == 0) {
+        return "critical";
+    }
+
+    return "normal";
+}
+
+static gboolean send_test_notification(const char *summary, const char *body, const char *urgency)
 {
     if (!command_is_available("notify-send")) {
         return FALSE;
     }
 
-    return run_command_success(
-        "sh -lc 'notify-send --app-name=KartonSettings --icon=preferences-system-notifications \"Karton\" \"Test notification from Settings\" >/dev/null 2>&1'");
+    char *q_summary = g_shell_quote(summary ? summary : "Karton");
+    char *q_body = g_shell_quote(body ? body : "Test notification from Settings");
+    const char *urg = urgency && *urgency ? urgency : "normal";
+
+    char *cmd = g_strdup_printf(
+        "sh -lc 'notify-send --urgency=%s --app-name=KartonSettings --icon=preferences-system-notifications %s %s >/dev/null 2>&1'",
+        urg,
+        q_summary,
+        q_body);
+
+    gboolean ok = run_command_success(cmd);
+    g_free(cmd);
+    g_free(q_body);
+    g_free(q_summary);
+    return ok;
 }
 
 static void on_reload_notifications_clicked(GtkButton *btn, gpointer data)
@@ -823,6 +1258,8 @@ static void on_apply_notifications_clicked(GtkButton *btn, gpointer data)
         return;
     }
 
+    refresh_notifications_in_shell();
+
     status_set(_("Notification settings applied"), FALSE);
 }
 
@@ -843,13 +1280,56 @@ static void on_test_notifications_clicked(GtkButton *btn, gpointer data)
         return;
     }
 
+    refresh_notifications_in_shell();
+
     if (!command_is_available("notify-send")) {
         notifications_set_loading(FALSE, NULL);
         status_set(_("Could not send test notification because notify-send is not installed."), TRUE);
         return;
     }
 
-    if (!send_test_notification()) {
+    gboolean alert_sounds = gtk_switch_get_active(GTK_SWITCH(g_alert_sounds_switch));
+    const char *sound_mode = dropdown_selected_value(g_sound_mode_dropdown,
+                                                     g_sound_mode_options,
+                                                     G_N_ELEMENTS(g_sound_mode_options));
+    const char *custom_sound = gtk_editable_get_text(GTK_EDITABLE(g_custom_sound_entry));
+
+    if (alert_sounds) {
+        gboolean played = FALSE;
+        if (g_strcmp0(sound_mode, "custom") == 0) {
+            played = play_custom_notification_sound(custom_sound);
+        } else {
+            played = play_system_notification_sound();
+        }
+
+        if (!played) {
+            notifications_set_loading(FALSE, NULL);
+            status_set(_("Could not play selected notification sound."), TRUE);
+            return;
+        }
+    }
+
+    const char *priority_chat = dropdown_selected_value(g_priority_chat_dropdown,
+                                                        g_priority_options,
+                                                        G_N_ELEMENTS(g_priority_options));
+    const char *priority_system = dropdown_selected_value(g_priority_system_dropdown,
+                                                          g_priority_options,
+                                                          G_N_ELEMENTS(g_priority_options));
+    const char *priority_updates = dropdown_selected_value(g_priority_updates_dropdown,
+                                                           g_priority_options,
+                                                           G_N_ELEMENTS(g_priority_options));
+
+    gboolean sent_chat = send_test_notification(_("Chat"),
+                                                _("Test notification from chat applications"),
+                                                priority_to_notify_urgency(priority_chat));
+    gboolean sent_system = send_test_notification(_("System"),
+                                                  _("Test notification from system alerts"),
+                                                  priority_to_notify_urgency(priority_system));
+    gboolean sent_updates = send_test_notification(_("Updates"),
+                                                   _("Test notification from updates"),
+                                                   priority_to_notify_urgency(priority_updates));
+
+    if (!(sent_chat && sent_system && sent_updates)) {
         notifications_set_loading(FALSE, NULL);
         status_set(_("Could not send test notification."), TRUE);
         return;
@@ -902,14 +1382,37 @@ GtkWidget *page_notifications_new(void)
     });
     g_history_switch = gtk_switch_new();
     g_alert_sounds_switch = gtk_switch_new();
+    g_sound_mode_dropdown = gtk_drop_down_new_from_strings((const char *const[]){
+        _(g_sound_mode_options[0].label),
+        _(g_sound_mode_options[1].label),
+        NULL
+    });
+
+    g_custom_sound_entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(g_custom_sound_entry), _("No custom notification sound selected"));
+    gtk_editable_set_editable(GTK_EDITABLE(g_custom_sound_entry), FALSE);
+    gtk_widget_set_size_request(g_custom_sound_entry, 320, -1);
+
+    g_choose_sound_btn = gtk_button_new_with_label(_("Choose custom sound"));
+    gtk_button_set_icon_name(GTK_BUTTON(g_choose_sound_btn), "audio-x-generic-symbolic");
+    g_signal_connect(g_choose_sound_btn, "clicked", G_CALLBACK(on_choose_sound_clicked), g_custom_sound_entry);
+
+    GtkWidget *sound_picker = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    gtk_box_append(GTK_BOX(sound_picker), g_custom_sound_entry);
+    gtk_box_append(GTK_BOX(sound_picker), g_choose_sound_btn);
 
     gtk_box_append(GTK_BOX(behavior_box), create_row(_("Do Not Disturb"), g_dnd_switch));
     gtk_box_append(GTK_BOX(behavior_box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
     gtk_box_append(GTK_BOX(behavior_box), create_row(_("Notification popup position"), g_position_dropdown));
+    gtk_widget_set_sensitive(g_position_dropdown, notifications_position_supported());
     gtk_box_append(GTK_BOX(behavior_box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
     gtk_box_append(GTK_BOX(behavior_box), create_row(_("Notification history"), g_history_switch));
     gtk_box_append(GTK_BOX(behavior_box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
     gtk_box_append(GTK_BOX(behavior_box), create_row(_("Alert sounds"), g_alert_sounds_switch));
+    gtk_box_append(GTK_BOX(behavior_box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
+    gtk_box_append(GTK_BOX(behavior_box), create_row(_("Sound source"), g_sound_mode_dropdown));
+    gtk_box_append(GTK_BOX(behavior_box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
+    gtk_box_append(GTK_BOX(behavior_box), create_row(_("Custom sound file"), sound_picker));
 
     gtk_box_append(GTK_BOX(box), behavior_frame);
 
@@ -966,6 +1469,10 @@ GtkWidget *page_notifications_new(void)
     g_signal_connect(g_test_btn, "clicked", G_CALLBACK(on_test_notifications_clicked), NULL);
     gtk_box_append(GTK_BOX(actions), g_test_btn);
 
+    g_open_list_btn = gtk_button_new_with_label(_("Open notification list"));
+    g_signal_connect(g_open_list_btn, "clicked", G_CALLBACK(on_open_notification_list_clicked), NULL);
+    gtk_box_append(GTK_BOX(actions), g_open_list_btn);
+
     g_apply_btn = gtk_button_new_with_label(_("Apply notification settings"));
     gtk_widget_add_css_class(g_apply_btn, "suggested-action");
     g_signal_connect(g_apply_btn, "clicked", G_CALLBACK(on_apply_notifications_clicked), NULL);
@@ -995,12 +1502,22 @@ GtkWidget *page_notifications_new(void)
     gtk_drop_down_set_selected(GTK_DROP_DOWN(g_position_dropdown), 0);
     gtk_switch_set_active(GTK_SWITCH(g_history_switch), TRUE);
     gtk_switch_set_active(GTK_SWITCH(g_alert_sounds_switch), TRUE);
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(g_sound_mode_dropdown), 0);
 
     gtk_drop_down_set_selected(GTK_DROP_DOWN(g_priority_chat_dropdown), 1);
     gtk_drop_down_set_selected(GTK_DROP_DOWN(g_priority_system_dropdown), 2);
     gtk_drop_down_set_selected(GTK_DROP_DOWN(g_priority_updates_dropdown), 2);
 
+    g_signal_connect(g_sound_mode_dropdown, "notify::selected", G_CALLBACK(on_sound_mode_selected_changed), NULL);
+    g_signal_connect(g_alert_sounds_switch, "notify::active", G_CALLBACK(on_alert_sounds_switch_changed), NULL);
+
+    notifications_update_sound_controls();
+
     load_notifications_config();
+
+    if (g_live_sync_source_id == 0) {
+        g_live_sync_source_id = g_timeout_add_seconds(1, notifications_live_sync_tick, NULL);
+    }
 
     return outer_scroll;
 }

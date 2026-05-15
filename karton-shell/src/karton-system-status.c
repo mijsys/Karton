@@ -289,11 +289,11 @@ notifications_dnd_enabled(void)
 {
 bool enabled = false;
 
-if (notifications_dnd_from_mako(&enabled)) {
+if (notifications_dnd_from_env(&enabled)) {
 return enabled;
 }
 
-if (notifications_dnd_from_env(&enabled)) {
+if (notifications_dnd_from_mako(&enabled)) {
 return enabled;
 }
 

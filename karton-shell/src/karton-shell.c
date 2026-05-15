@@ -371,6 +371,7 @@ size_t launcher_count;
 struct icon_cache_entry icon_cache[MAX_ICON_CACHE];
 size_t icon_cache_count;
 char icon_theme_name[128];
+bool icon_monochrome;
 
 char favorite_ids[MAX_FAVORITES][128];
 size_t favorite_count;
@@ -468,6 +469,7 @@ static void launcher_close(struct app *app);
 static void launcher_activate_filtered(struct app *app, int filtered_idx);
 static void shell_style_apply_theme(struct shell_style *style);
 static double shell_style_related_alpha_multiplier(const struct shell_style *style);
+static void icon_cache_clear(struct app *app);
 static void draw_karton_symbol(cairo_t *cairo, int type, double cx, double cy,
 double size, uint32_t color, double alpha);
 static uint32_t launcher_panel_width(const struct app *app);
@@ -844,6 +846,51 @@ return;
 }
 fprintf(f, "%s\n", theme_mode_name(mode));
 fclose(f);
+}
+
+static bool
+icon_style_text_means_monochrome(const char *value)
+{
+if (!value || !value[0]) {
+return false;
+}
+
+return !strcasecmp(value, "monochrome")
+|| !strcasecmp(value, "bw")
+|| !strcasecmp(value, "blackwhite")
+|| !strcasecmp(value, "symbolic");
+}
+
+static bool
+load_icon_style_override(struct app *app)
+{
+if (!app) {
+return false;
+}
+
+bool monochrome = false;
+const char *env_value = getenv("KARTON_ICON_STYLE");
+if (env_value && env_value[0]) {
+monochrome = icon_style_text_means_monochrome(env_value);
+} else {
+char path[PATH_MAX] = { 0 };
+karton_get_config_path(path, sizeof(path), "icon-style");
+if (path[0]) {
+FILE *f = fopen(path, "r");
+if (f) {
+char line[64] = { 0 };
+if (fgets(line, sizeof(line), f)) {
+char *trimmed = trim_in_place(line);
+monochrome = icon_style_text_means_monochrome(trimmed);
+}
+fclose(f);
+}
+}
+}
+
+bool changed = app->icon_monochrome != monochrome;
+app->icon_monochrome = monochrome;
+return changed;
 }
 
 static bool
@@ -2272,6 +2319,10 @@ return;
 load_shell_style(&app->style);
 shell_style_apply_theme(&app->style);
 
+if (load_icon_style_override(app)) {
+icon_cache_clear(app);
+}
+
 if (app->top.layer_surface) {
 zwlr_layer_surface_v1_set_margin(app->top.layer_surface,
 0, 0, 0, app->side_enabled ? app->style.side_width : 0);
@@ -2963,7 +3014,7 @@ return false;
 }
 
 static cairo_surface_t *
-cairo_surface_from_pixbuf(GdkPixbuf *pixbuf)
+cairo_surface_from_pixbuf(GdkPixbuf *pixbuf, bool monochrome)
 {
 if (!pixbuf) {
 return NULL;
@@ -2999,6 +3050,12 @@ uint8_t r = src_px[0];
 uint8_t g = src_px[1];
 uint8_t b = src_px[2];
 uint8_t a = has_alpha ? src_px[3] : 255;
+if (monochrome) {
+uint8_t y = (uint8_t)((30u * r + 59u * g + 11u * b) / 100u);
+r = y;
+g = y;
+b = y;
+}
 uint8_t pr = (uint8_t)((r * a + 127) / 255);
 uint8_t pg = (uint8_t)((g * a + 127) / 255);
 uint8_t pb = (uint8_t)((b * a + 127) / 255);
@@ -3018,6 +3075,23 @@ dst_px[3] = pb;
 
 cairo_surface_mark_dirty(surface);
 return surface;
+}
+
+static void
+icon_cache_clear(struct app *app)
+{
+if (!app) {
+return;
+}
+
+for (size_t i = 0; i < app->icon_cache_count; i++) {
+if (app->icon_cache[i].surface) {
+cairo_surface_destroy(app->icon_cache[i].surface);
+}
+app->icon_cache[i].surface = NULL;
+app->icon_cache[i].icon_name[0] = '\0';
+}
+app->icon_cache_count = 0;
 }
 
 static cairo_surface_t *
@@ -3047,7 +3121,7 @@ g_error_free(error);
 return NULL;
 }
 
-cairo_surface_t *surface = cairo_surface_from_pixbuf(pixbuf);
+cairo_surface_t *surface = cairo_surface_from_pixbuf(pixbuf, app->icon_monochrome);
 g_object_unref(pixbuf);
 if (!surface || cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS) {
 if (surface) {
@@ -6764,9 +6838,9 @@ static void
 apply_shell_dnd_runtime(bool enabled)
 {
 if (enabled) {
-spawn_command("sh -lc 'if command -v makoctl >/dev/null 2>&1; then makoctl mode -a do-not-disturb >/dev/null 2>&1 || true; fi; if command -v gsettings >/dev/null 2>&1; then gsettings set org.gnome.desktop.notifications show-banners false >/dev/null 2>&1 || true; fi; if command -v dbus-update-activation-environment >/dev/null 2>&1; then dbus-update-activation-environment --systemd KARTON_NOTIFICATIONS_DND=1 >/dev/null 2>&1 || true; fi'");
+spawn_command("sh -lc 'if command -v makoctl >/dev/null 2>&1; then makoctl mode -a do-not-disturb >/dev/null 2>&1 || true; fi; if command -v gsettings >/dev/null 2>&1; then gsettings set org.gnome.desktop.notifications show-banners false >/dev/null 2>&1 || true; fi; if command -v dbus-update-activation-environment >/dev/null 2>&1; then dbus-update-activation-environment --systemd KARTON_NOTIFICATIONS_DND=1 >/dev/null 2>&1 || true; fi; envf=\"${XDG_CONFIG_HOME:-$HOME/.config}/karton/environment\"; mkdir -p \"$(dirname \"$envf\")\"; tmp=\"$envf.tmp.$$\"; if [ -f \"$envf\" ]; then grep -v \"^KARTON_NOTIFICATIONS_DND=\" \"$envf\" >\"$tmp\" || true; fi; printf \"KARTON_NOTIFICATIONS_DND=1\\n\" >>\"$tmp\"; mv \"$tmp\" \"$envf\"'");
 } else {
-spawn_command("sh -lc 'if command -v makoctl >/dev/null 2>&1; then makoctl mode -r do-not-disturb >/dev/null 2>&1 || true; fi; if command -v gsettings >/dev/null 2>&1; then gsettings set org.gnome.desktop.notifications show-banners true >/dev/null 2>&1 || true; fi; if command -v dbus-update-activation-environment >/dev/null 2>&1; then dbus-update-activation-environment --systemd KARTON_NOTIFICATIONS_DND=0 >/dev/null 2>&1 || true; fi'");
+spawn_command("sh -lc 'if command -v makoctl >/dev/null 2>&1; then makoctl mode -r do-not-disturb >/dev/null 2>&1 || true; fi; if command -v gsettings >/dev/null 2>&1; then gsettings set org.gnome.desktop.notifications show-banners true >/dev/null 2>&1 || true; fi; if command -v dbus-update-activation-environment >/dev/null 2>&1; then dbus-update-activation-environment --systemd KARTON_NOTIFICATIONS_DND=0 >/dev/null 2>&1 || true; fi; envf=\"${XDG_CONFIG_HOME:-$HOME/.config}/karton/environment\"; mkdir -p \"$(dirname \"$envf\")\"; tmp=\"$envf.tmp.$$\"; if [ -f \"$envf\" ]; then grep -v \"^KARTON_NOTIFICATIONS_DND=\" \"$envf\" >\"$tmp\" || true; fi; printf \"KARTON_NOTIFICATIONS_DND=0\\n\" >>\"$tmp\"; mv \"$tmp\" \"$envf\"'");
 }
 }
 
@@ -11093,6 +11167,7 @@ struct app app = {
 };
 
 load_shell_style(&app.style);
+load_icon_style_override(&app);
 if (need_top) {
 sync_environment_theme(app.style.theme_mode);
 }

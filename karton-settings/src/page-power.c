@@ -127,6 +127,27 @@ static gboolean command_is_available(const char *name)
     return TRUE;
 }
 
+static gboolean gsettings_key_supported(const char *schema_name, const char *key)
+{
+    if (!schema_name || !key) {
+        return FALSE;
+    }
+
+    GSettingsSchemaSource *source = g_settings_schema_source_get_default();
+    if (!source) {
+        return FALSE;
+    }
+
+    GSettingsSchema *schema = g_settings_schema_source_lookup(source, schema_name, TRUE);
+    if (!schema) {
+        return FALSE;
+    }
+
+    gboolean has_key = g_settings_schema_has_key(schema, key);
+    g_settings_schema_unref(schema);
+    return has_key;
+}
+
 static int clamp_int(int value, int min, int max)
 {
     if (value < min) {
@@ -142,8 +163,11 @@ static GtkWidget *create_row(const char *title, GtkWidget *control)
 {
     GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
     GtkWidget *label = gtk_label_new(title);
+    gtk_label_set_wrap(GTK_LABEL(label), TRUE);
+    gtk_label_set_max_width_chars(GTK_LABEL(label), 42);
     gtk_widget_set_hexpand(label, TRUE);
     gtk_widget_set_halign(label, GTK_ALIGN_START);
+    gtk_widget_set_valign(label, GTK_ALIGN_CENTER);
     gtk_box_append(GTK_BOX(row), label);
 
     if (control) {
@@ -315,7 +339,7 @@ static gboolean trigger_lock_screen_now(void)
     gboolean local_exists = g_file_test(local_settingsd, G_FILE_TEST_IS_EXECUTABLE);
     if (local_exists) {
         char *q_local = g_shell_quote(local_settingsd);
-        char *cmd = g_strdup_printf("sh -lc '%s --lock-now >/dev/null 2>&1'", q_local);
+        char *cmd = g_strdup_printf("sh -lc \"%s --lock-now >/dev/null 2>&1\"", q_local);
         gboolean ok = run_command_success(cmd);
         g_free(cmd);
         g_free(q_local);
@@ -324,9 +348,22 @@ static gboolean trigger_lock_screen_now(void)
     }
     g_free(local_settingsd);
 
-    if (command_is_available("swaylock")) {
-        return run_command_success("sh -lc 'swaylock -f -c 000000 >/dev/null 2>&1'");
+    if (command_is_available("karton-lock")) {
+        return run_command_success("sh -lc 'karton-lock >/dev/null 2>&1 &'");
     }
+
+    char *local_lock = g_build_filename(g_get_home_dir(), ".local-karton", "bin", "karton-lock", NULL);
+    gboolean local_lock_exists = g_file_test(local_lock, G_FILE_TEST_IS_EXECUTABLE);
+    if (local_lock_exists) {
+        char *q_local = g_shell_quote(local_lock);
+        char *cmd = g_strdup_printf("sh -lc \"%s >/dev/null 2>&1 &\"", q_local);
+        gboolean ok = run_command_success(cmd);
+        g_free(cmd);
+        g_free(q_local);
+        g_free(local_lock);
+        return ok;
+    }
+    g_free(local_lock);
 
     return FALSE;
 }
@@ -657,11 +694,15 @@ static gboolean gsettings_set_bool(const char *schema, const char *key, gboolean
         return FALSE;
     }
 
+    if (!gsettings_key_supported(schema, key)) {
+        return TRUE;
+    }
+
     char *q_schema = g_shell_quote(schema);
     char *q_key = g_shell_quote(key);
 
     char *cmd = g_strdup_printf(
-        "sh -lc 'gsettings set %s %s %s >/dev/null 2>&1'",
+        "sh -lc \"gsettings set %s %s %s >/dev/null 2>&1\"",
         q_schema,
         q_key,
         value ? "true" : "false");
@@ -681,12 +722,16 @@ static gboolean gsettings_set_string(const char *schema, const char *key, const 
         return FALSE;
     }
 
+    if (!gsettings_key_supported(schema, key)) {
+        return TRUE;
+    }
+
     char *q_schema = g_shell_quote(schema);
     char *q_key = g_shell_quote(key);
     char *q_value = g_shell_quote(value ? value : "");
 
     char *cmd = g_strdup_printf(
-        "sh -lc 'gsettings set %s %s %s >/dev/null 2>&1'",
+        "sh -lc \"gsettings set %s %s %s >/dev/null 2>&1\"",
         q_schema,
         q_key,
         q_value);
@@ -707,11 +752,15 @@ static gboolean gsettings_set_uint(const char *schema, const char *key, guint va
         return FALSE;
     }
 
+    if (!gsettings_key_supported(schema, key)) {
+        return TRUE;
+    }
+
     char *q_schema = g_shell_quote(schema);
     char *q_key = g_shell_quote(key);
 
     char *cmd = g_strdup_printf(
-        "sh -lc 'gsettings set %s %s uint32 %u >/dev/null 2>&1'",
+        "sh -lc \"gsettings set %s %s uint32 %u >/dev/null 2>&1\"",
         q_schema, q_key, value);
 
     gboolean ok = run_command_success(cmd);
@@ -800,7 +849,7 @@ static char *apply_runtime_power(void)
 
     if (command_is_available("powerprofilesctl")) {
         char *q_profile = g_shell_quote(effective_profile);
-        char *cmd = g_strdup_printf("sh -lc 'powerprofilesctl set %s >/dev/null 2>&1'", q_profile);
+        char *cmd = g_strdup_printf("sh -lc \"powerprofilesctl set %s >/dev/null 2>&1\"", q_profile);
         if (!run_command_success(cmd)) {
             g_string_append(issues, _("Could not apply selected power profile. "));
         }
@@ -881,7 +930,7 @@ static char *apply_runtime_power(void)
         char *q_profile = g_shell_quote(effective_profile);
         char *q_lid = g_shell_quote(lid_action);
         char *cmd = g_strdup_printf(
-            "sh -lc 'dbus-update-activation-environment --systemd KARTON_POWER_PROFILE=%s KARTON_POWER_SAVER=%s KARTON_AUTO_BRIGHTNESS=%s KARTON_ALLOW_SUSPEND=%s KARTON_ALLOW_HIBERNATE=%s KARTON_LID_ACTION=%s KARTON_IDLE_DELAY=%u KARTON_LOCK_ENABLED=%s KARTON_LOCK_DELAY=%u KARTON_LOCK_BEFORE_SLEEP=1 KARTON_CHARGE_LIMIT_ENABLED=%s KARTON_CHARGE_LIMIT_START=%d KARTON_CHARGE_LIMIT_END=%d >/dev/null 2>&1 || true'",
+            "sh -lc \"dbus-update-activation-environment --systemd KARTON_POWER_PROFILE=%s KARTON_POWER_SAVER=%s KARTON_AUTO_BRIGHTNESS=%s KARTON_ALLOW_SUSPEND=%s KARTON_ALLOW_HIBERNATE=%s KARTON_LID_ACTION=%s KARTON_IDLE_DELAY=%u KARTON_LOCK_ENABLED=%s KARTON_LOCK_DELAY=%u KARTON_LOCK_BEFORE_SLEEP=1 KARTON_CHARGE_LIMIT_ENABLED=%s KARTON_CHARGE_LIMIT_START=%d KARTON_CHARGE_LIMIT_END=%d >/dev/null 2>&1 || true\"",
             q_profile,
             power_saver ? "1" : "0",
             auto_brightness ? "1" : "0",
@@ -942,7 +991,7 @@ static void on_lock_now_clicked(GtkButton *btn, gpointer data)
         return;
     }
 
-    status_set(_("Could not start lock screen (swaylock/karton-settingsd missing)."), TRUE);
+    status_set(_("Could not start lock screen (karton-lock/karton-settingsd missing)."), TRUE);
 }
 
 static void on_apply_power_clicked(GtkButton *btn, gpointer data)
@@ -1143,6 +1192,9 @@ GtkWidget *page_power_new(void)
 
     g_status_label = gtk_label_new("");
     gtk_widget_set_halign(g_status_label, GTK_ALIGN_START);
+    gtk_label_set_wrap(GTK_LABEL(g_status_label), TRUE);
+    gtk_label_set_max_width_chars(GTK_LABEL(g_status_label), 72);
+    gtk_widget_set_hexpand(g_status_label, TRUE);
     gtk_widget_add_css_class(g_status_label, "row-subtitle");
     gtk_box_append(GTK_BOX(box), g_status_label);
 

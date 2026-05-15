@@ -12,6 +12,24 @@ static GFileMonitor *g_theme_mode_monitor = NULL;
 static GtkWidget *g_main_window = NULL;
 static char *g_requested_page = NULL;
 
+static void apply_runtime_theme_mode(void);
+
+static void recreate_main_window(void) {
+    if (!g_main_window || !GTK_IS_WINDOW(g_main_window)) {
+        return;
+    }
+
+    GtkApplication *app = gtk_window_get_application(GTK_WINDOW(g_main_window));
+    if (!app) {
+        return;
+    }
+
+    gtk_window_destroy(GTK_WINDOW(g_main_window));
+    g_main_window = karton_settings_window_new(app, g_requested_page);
+    apply_runtime_theme_mode();
+    gtk_window_present(GTK_WINDOW(g_main_window));
+}
+
 static gboolean portal_inhibit_interface_available(void) {
     GError *error = NULL;
     GDBusConnection *bus = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &error);
@@ -166,8 +184,14 @@ static void on_theme_mode_file_changed(GFileMonitor *monitor, GFile *file, GFile
     if (file) {
         char *base = g_file_get_basename(file);
         gboolean is_theme_mode = g_strcmp0(base, "theme-mode") == 0;
+        gboolean is_icon_style = g_strcmp0(base, "icon-style") == 0;
         g_free(base);
-        if (!is_theme_mode) {
+        if (!is_theme_mode && !is_icon_style) {
+            return;
+        }
+
+        if (is_icon_style) {
+            recreate_main_window();
             return;
         }
     }

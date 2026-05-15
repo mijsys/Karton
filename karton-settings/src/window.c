@@ -51,7 +51,58 @@ static const struct page_spec g_pages[] = {
     { "advanced", N_("Advanced / developer"), "applications-engineering-symbolic" },
 };
 
+static gboolean settings_icon_style_monochrome(void) {
+    const char *env_style = g_getenv("KARTON_ICON_STYLE");
+    if (env_style && *env_style) {
+        return g_ascii_strcasecmp(env_style, "monochrome") == 0
+            || g_ascii_strcasecmp(env_style, "bw") == 0
+            || g_ascii_strcasecmp(env_style, "blackwhite") == 0
+            || g_ascii_strcasecmp(env_style, "symbolic") == 0;
+    }
+
+    char *path = g_build_filename(g_get_home_dir(), ".config", "karton", "icon-style", NULL);
+    char *content = NULL;
+    gboolean monochrome = FALSE;
+
+    if (g_file_get_contents(path, &content, NULL, NULL) && content) {
+        g_strstrip(content);
+        monochrome = g_ascii_strcasecmp(content, "monochrome") == 0
+            || g_ascii_strcasecmp(content, "bw") == 0
+            || g_ascii_strcasecmp(content, "blackwhite") == 0
+            || g_ascii_strcasecmp(content, "symbolic") == 0;
+    }
+
+    g_free(content);
+    g_free(path);
+    return monochrome;
+}
+
+static const char *settings_sidebar_symbolic_name(const char *icon_name) {
+    if (!icon_name || !*icon_name) {
+        return "applications-system-symbolic";
+    }
+
+    if (g_str_has_prefix(icon_name, "sidebar-appearance")) return "preferences-desktop-theme-symbolic";
+    if (g_str_has_prefix(icon_name, "sidebar-display")) return "video-display-symbolic";
+    if (g_str_has_prefix(icon_name, "sidebar-sound")) return "audio-speakers-symbolic";
+    if (g_str_has_prefix(icon_name, "sidebar-devices")) return "input-keyboard-symbolic";
+    if (g_str_has_prefix(icon_name, "sidebar-network")) return "network-workgroup-symbolic";
+    if (g_str_has_prefix(icon_name, "sidebar-power")) return "system-shutdown-symbolic";
+    if (g_str_has_prefix(icon_name, "sidebar-users")) return "avatar-default-symbolic";
+    if (g_str_has_prefix(icon_name, "sidebar-security")) return "changes-prevent-symbolic";
+    if (g_str_has_prefix(icon_name, "sidebar-notifications")) return "preferences-system-notifications-symbolic";
+    if (g_str_has_prefix(icon_name, "sidebar-default-apps")) return "application-x-executable-symbolic";
+    if (g_str_has_prefix(icon_name, "sidebar-updates")) return "software-update-available-symbolic";
+    return icon_name;
+}
+
 static GtkWidget *create_sidebar_icon(const char *icon_name) {
+    if (settings_icon_style_monochrome()) {
+        GtkWidget *symbolic = gtk_image_new_from_icon_name(settings_sidebar_symbolic_name(icon_name));
+        gtk_image_set_pixel_size(GTK_IMAGE(symbolic), 19);
+        return symbolic;
+    }
+
     char *resource_path = g_strdup_printf("/io/karton/Settings/icons/%s.svg", icon_name);
     gsize size = 0;
     guint32 flags = 0;

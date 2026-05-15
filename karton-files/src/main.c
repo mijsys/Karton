@@ -11,6 +11,24 @@
 static GFileMonitor *g_theme_mode_monitor = NULL;
 static GtkWidget *g_main_window = NULL;
 
+static void apply_runtime_theme_mode(void);
+
+static void recreate_main_window(void) {
+    if (!g_main_window || !GTK_IS_WINDOW(g_main_window)) {
+        return;
+    }
+
+    GtkApplication *app = gtk_window_get_application(GTK_WINDOW(g_main_window));
+    if (!app) {
+        return;
+    }
+
+    gtk_window_destroy(GTK_WINDOW(g_main_window));
+    g_main_window = karton_files_window_new(app);
+    apply_runtime_theme_mode();
+    gtk_window_present(GTK_WINDOW(g_main_window));
+}
+
 static void update_window_theme_class(gboolean prefer_dark) {
     if (!g_main_window) {
         return;
@@ -99,8 +117,14 @@ static void on_theme_mode_file_changed(GFileMonitor *monitor,
     if (file) {
         char *base = g_file_get_basename(file);
         gboolean is_theme_mode = g_strcmp0(base, "theme-mode") == 0;
+        gboolean is_icon_style = g_strcmp0(base, "icon-style") == 0;
         g_free(base);
-        if (!is_theme_mode) {
+        if (!is_theme_mode && !is_icon_style) {
+            return;
+        }
+
+        if (is_icon_style) {
+            recreate_main_window();
             return;
         }
     }

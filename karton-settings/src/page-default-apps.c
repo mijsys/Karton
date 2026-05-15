@@ -658,6 +658,96 @@ static gboolean set_xdg_settings_default_browser(const char *desktop_id)
     return ok;
 }
 
+static char *query_xdg_settings_default_browser(void)
+{
+    if (!command_is_available("xdg-settings")) {
+        return g_strdup("");
+    }
+
+    char *stdout_data = NULL;
+    gboolean ok = run_command_capture(
+        "sh -lc 'xdg-settings get default-web-browser 2>/dev/null'",
+        &stdout_data,
+        NULL,
+        NULL);
+
+    if (!ok || !stdout_data) {
+        g_free(stdout_data);
+        return g_strdup("");
+    }
+
+    g_strstrip(stdout_data);
+    if (!stdout_data[0]) {
+        g_free(stdout_data);
+        return g_strdup("");
+    }
+
+    return stdout_data;
+}
+
+static char *query_xdg_mime_default(const char *mime_type)
+{
+    if (!mime_type || !*mime_type || !command_is_available("xdg-mime")) {
+        return g_strdup("");
+    }
+
+    char *q_mime = g_shell_quote(mime_type);
+    char *cmd = g_strdup_printf("sh -lc 'xdg-mime query default %s 2>/dev/null'", q_mime);
+
+    char *stdout_data = NULL;
+    gboolean ok = run_command_capture(cmd, &stdout_data, NULL, NULL);
+
+    g_free(cmd);
+    g_free(q_mime);
+
+    if (!ok || !stdout_data) {
+        g_free(stdout_data);
+        return g_strdup("");
+    }
+
+    g_strstrip(stdout_data);
+    if (!stdout_data[0]) {
+        g_free(stdout_data);
+        return g_strdup("");
+    }
+
+    return stdout_data;
+}
+
+static void load_default_apps_from_system(void)
+{
+    char *browser = query_xdg_settings_default_browser();
+    char *file_manager = query_xdg_mime_default("inode/directory");
+    char *terminal = query_xdg_mime_default("x-scheme-handler/terminal");
+    char *mail = query_xdg_mime_default("x-scheme-handler/mailto");
+    char *music = query_xdg_mime_default("audio/mpeg");
+    char *video = query_xdg_mime_default("video/mp4");
+    char *text_editor = query_xdg_mime_default("text/plain");
+
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(g_browser_dropdown),
+                               app_choice_list_find_index(&g_browser_choices, browser));
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(g_file_manager_dropdown),
+                               app_choice_list_find_index(&g_file_manager_choices, file_manager));
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(g_terminal_dropdown),
+                               app_choice_list_find_index(&g_terminal_choices, terminal));
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(g_mail_dropdown),
+                               app_choice_list_find_index(&g_mail_choices, mail));
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(g_music_dropdown),
+                               app_choice_list_find_index(&g_music_choices, music));
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(g_video_dropdown),
+                               app_choice_list_find_index(&g_video_choices, video));
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(g_text_editor_dropdown),
+                               app_choice_list_find_index(&g_text_editor_choices, text_editor));
+
+    g_free(text_editor);
+    g_free(video);
+    g_free(music);
+    g_free(mail);
+    g_free(terminal);
+    g_free(file_manager);
+    g_free(browser);
+}
+
 static void save_default_apps_config(void)
 {
     GKeyFile *kf = g_key_file_new();
@@ -707,6 +797,8 @@ static void save_default_apps_config(void)
 
 static void load_default_apps_config(void)
 {
+    load_default_apps_from_system();
+
     char *path = default_apps_config_path();
     GKeyFile *kf = g_key_file_new();
 

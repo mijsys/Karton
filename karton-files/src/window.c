@@ -20,6 +20,8 @@
 #define PLACE_TOKEN_RECENT "@recent"
 #define PLACE_TOKEN_FAVORITES "@favorites"
 
+static gboolean g_monochrome_icons = FALSE;
+
 typedef struct {
     char *token;
     char *display_name;
@@ -141,6 +143,68 @@ static gboolean is_virtual_token(const char *token) {
     return is_recent_token(token) || is_favorites_token(token);
 }
 
+static gboolean text_means_monochrome(const char *value) {
+    if (!value || !*value) {
+        return FALSE;
+    }
+
+    return g_ascii_strcasecmp(value, "monochrome") == 0
+        || g_ascii_strcasecmp(value, "bw") == 0
+        || g_ascii_strcasecmp(value, "blackwhite") == 0
+        || g_ascii_strcasecmp(value, "symbolic") == 0;
+}
+
+static void load_icon_style_setting(void) {
+    const char *env_style = g_getenv("KARTON_ICON_STYLE");
+    if (env_style && *env_style) {
+        g_monochrome_icons = text_means_monochrome(env_style);
+        return;
+    }
+
+    char *path = g_build_filename(g_get_home_dir(), ".config", "karton", "icon-style", NULL);
+    char *raw = NULL;
+    g_monochrome_icons = FALSE;
+
+    if (g_file_get_contents(path, &raw, NULL, NULL) && raw) {
+        g_strstrip(raw);
+        g_monochrome_icons = text_means_monochrome(raw);
+    }
+
+    g_free(raw);
+    g_free(path);
+}
+
+static const char *resource_icon_to_symbolic(const char *resource) {
+    if (!resource || !*resource) {
+        return NULL;
+    }
+
+    if (g_str_has_suffix(resource, "/action-back.svg")) return "go-previous-symbolic";
+    if (g_str_has_suffix(resource, "/action-up.svg")) return "go-up-symbolic";
+    if (g_str_has_suffix(resource, "/action-refresh.svg")) return "view-refresh-symbolic";
+    if (g_str_has_suffix(resource, "/action-settings.svg")) return "emblem-system-symbolic";
+    if (g_str_has_suffix(resource, "/action-zoom.svg")) return "zoom-in-symbolic";
+    if (g_str_has_suffix(resource, "/action-grid.svg")) return "view-grid-symbolic";
+    if (g_str_has_suffix(resource, "/action-list.svg")) return "view-list-symbolic";
+    if (g_str_has_suffix(resource, "/folder.svg")) return "folder-symbolic";
+    if (g_str_has_suffix(resource, "/file.svg")) return "text-x-generic-symbolic";
+    if (g_str_has_suffix(resource, "/terminal.svg")) return "utilities-terminal-symbolic";
+    if (g_str_has_suffix(resource, "/place-recent.svg")) return "document-open-recent-symbolic";
+    if (g_str_has_suffix(resource, "/place-favorites.svg")) return "starred-symbolic";
+    if (g_str_has_suffix(resource, "/place-home.svg")) return "user-home-symbolic";
+    if (g_str_has_suffix(resource, "/place-desktop.svg")) return "user-desktop-symbolic";
+    if (g_str_has_suffix(resource, "/place-documents.svg")) return "folder-documents-symbolic";
+    if (g_str_has_suffix(resource, "/place-downloads.svg")) return "folder-download-symbolic";
+    if (g_str_has_suffix(resource, "/place-music.svg")) return "folder-music-symbolic";
+    if (g_str_has_suffix(resource, "/place-pictures.svg")) return "folder-pictures-symbolic";
+    if (g_str_has_suffix(resource, "/place-videos.svg")) return "folder-videos-symbolic";
+    if (g_str_has_suffix(resource, "/place-public.svg")) return "folder-publicshare-symbolic";
+    if (g_str_has_suffix(resource, "/place-trash.svg")) return "user-trash-symbolic";
+    if (g_str_has_suffix(resource, "/place-drive.svg")) return "drive-harddisk-symbolic";
+    if (g_str_has_suffix(resource, "/place-network.svg")) return "network-workgroup-symbolic";
+    return NULL;
+}
+
 static gboolean is_uri_token(const char *token) {
     return token && g_uri_peek_scheme(token) != NULL;
 }
@@ -199,15 +263,32 @@ static char *token_from_file(GFile *file) {
 static GtkWidget *create_icon_button(const char *icon_name, const char *tooltip) {
     GtkWidget *button = gtk_button_new();
     GtkWidget *icon = NULL;
+    const gboolean use_mono = g_monochrome_icons;
 
-    if (icon_name && g_str_has_prefix(icon_name, "/io/karton/Files/icons/")) {
+    if (use_mono && icon_name && g_str_has_prefix(icon_name, "/io/karton/Files/icons/")) {
+        const char *symbolic = resource_icon_to_symbolic(icon_name);
+        if (symbolic) {
+            icon = gtk_image_new_from_icon_name(symbolic);
+            gtk_image_set_pixel_size(GTK_IMAGE(icon), NAV_ICON_SIZE);
+        }
+    }
+
+    if (!icon && icon_name && g_str_has_prefix(icon_name, "/io/karton/Files/icons/")) {
         icon = gtk_picture_new_for_resource(icon_name);
         gtk_picture_set_content_fit(GTK_PICTURE(icon), GTK_CONTENT_FIT_CONTAIN);
         gtk_picture_set_can_shrink(GTK_PICTURE(icon), TRUE);
         gtk_widget_set_size_request(icon, NAV_ICON_SIZE, NAV_ICON_SIZE);
-    } else {
-        icon = gtk_image_new_from_icon_name(icon_name);
+    } else if (!icon) {
+        char *symbolic_name = NULL;
+        const char *effective_name = icon_name;
+        if (use_mono && icon_name && !g_str_has_suffix(icon_name, "-symbolic")) {
+            symbolic_name = g_strdup_printf("%s-symbolic", icon_name);
+            effective_name = symbolic_name;
+        }
+
+        icon = gtk_image_new_from_icon_name(effective_name);
         gtk_image_set_pixel_size(GTK_IMAGE(icon), NAV_ICON_SIZE);
+        g_free(symbolic_name);
     }
 
     gtk_widget_add_css_class(icon, "toolbar-icon");
@@ -2429,6 +2510,14 @@ static GtkWidget *create_file_tile(FilesState *state, const FileItem *item) {
         icon_resource = "/io/karton/Files/icons/terminal.svg";
     }
 
+    if (!icon && g_monochrome_icons) {
+        const char *symbolic = resource_icon_to_symbolic(icon_resource);
+        if (symbolic) {
+            icon = gtk_image_new_from_icon_name(symbolic);
+            gtk_image_set_pixel_size(GTK_IMAGE(icon), state->list_view ? 20 : state->icon_size);
+        }
+    }
+
     if (!icon) {
         icon = gtk_picture_new_for_resource(icon_resource);
     }
@@ -3206,14 +3295,29 @@ static GtkWidget *append_place(GtkWidget *sidebar,
     gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(row), box);
 
     GtkWidget *icon = NULL;
-    if (icon_name && g_str_has_prefix(icon_name, "/io/karton/Files/icons/")) {
+    if (g_monochrome_icons && icon_name && g_str_has_prefix(icon_name, "/io/karton/Files/icons/")) {
+        const char *symbolic = resource_icon_to_symbolic(icon_name);
+        if (symbolic) {
+            icon = gtk_image_new_from_icon_name(symbolic);
+            gtk_image_set_pixel_size(GTK_IMAGE(icon), PLACE_ICON_SIZE);
+        }
+    }
+    if (!icon && icon_name && g_str_has_prefix(icon_name, "/io/karton/Files/icons/")) {
         icon = gtk_picture_new_for_resource(icon_name);
         gtk_picture_set_content_fit(GTK_PICTURE(icon), GTK_CONTENT_FIT_CONTAIN);
         gtk_picture_set_can_shrink(GTK_PICTURE(icon), TRUE);
         gtk_widget_set_size_request(icon, PLACE_ICON_SIZE, PLACE_ICON_SIZE);
-    } else {
-        icon = gtk_image_new_from_icon_name(icon_name);
+    } else if (!icon) {
+        char *symbolic_name = NULL;
+        const char *effective_name = icon_name;
+        if (g_monochrome_icons && icon_name && !g_str_has_suffix(icon_name, "-symbolic")) {
+            symbolic_name = g_strdup_printf("%s-symbolic", icon_name);
+            effective_name = symbolic_name;
+        }
+
+        icon = gtk_image_new_from_icon_name(effective_name);
         gtk_image_set_pixel_size(GTK_IMAGE(icon), PLACE_ICON_SIZE);
+        g_free(symbolic_name);
     }
     gtk_widget_add_css_class(icon, "place-icon");
     gtk_box_append(GTK_BOX(box), icon);
@@ -3248,14 +3352,29 @@ static GtkWidget *append_unmounted_volume_place(GtkWidget *sidebar,
     gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(row), box);
 
     GtkWidget *icon = NULL;
-    if (icon_name && g_str_has_prefix(icon_name, "/io/karton/Files/icons/")) {
+    if (g_monochrome_icons && icon_name && g_str_has_prefix(icon_name, "/io/karton/Files/icons/")) {
+        const char *symbolic = resource_icon_to_symbolic(icon_name);
+        if (symbolic) {
+            icon = gtk_image_new_from_icon_name(symbolic);
+            gtk_image_set_pixel_size(GTK_IMAGE(icon), PLACE_ICON_SIZE);
+        }
+    }
+    if (!icon && icon_name && g_str_has_prefix(icon_name, "/io/karton/Files/icons/")) {
         icon = gtk_picture_new_for_resource(icon_name);
         gtk_picture_set_content_fit(GTK_PICTURE(icon), GTK_CONTENT_FIT_CONTAIN);
         gtk_picture_set_can_shrink(GTK_PICTURE(icon), TRUE);
         gtk_widget_set_size_request(icon, PLACE_ICON_SIZE, PLACE_ICON_SIZE);
-    } else {
-        icon = gtk_image_new_from_icon_name(icon_name);
+    } else if (!icon) {
+        char *symbolic_name = NULL;
+        const char *effective_name = icon_name;
+        if (g_monochrome_icons && icon_name && !g_str_has_suffix(icon_name, "-symbolic")) {
+            symbolic_name = g_strdup_printf("%s-symbolic", icon_name);
+            effective_name = symbolic_name;
+        }
+
+        icon = gtk_image_new_from_icon_name(effective_name);
         gtk_image_set_pixel_size(GTK_IMAGE(icon), PLACE_ICON_SIZE);
+        g_free(symbolic_name);
     }
     gtk_widget_add_css_class(icon, "place-icon");
     gtk_box_append(GTK_BOX(box), icon);
@@ -3706,6 +3825,8 @@ GtkWidget *karton_files_window_new(GtkApplication *app) {
     state->show_hidden_files = FALSE;
     state->open_files_on_single_click = FALSE;
 
+    load_icon_style_setting();
+
     GtkWidget *window = gtk_application_window_new(app);
     state->window = window;
     g_object_set_data(G_OBJECT(window), "files-state", state);
@@ -3875,10 +3996,16 @@ GtkWidget *karton_files_window_new(GtkApplication *app) {
     gtk_widget_set_hexpand(state->status_label, TRUE);
     gtk_box_append(GTK_BOX(status_bar), state->status_label);
 
-    GtkWidget *zoom_icon = gtk_picture_new_for_resource("/io/karton/Files/icons/action-zoom.svg");
-    gtk_picture_set_content_fit(GTK_PICTURE(zoom_icon), GTK_CONTENT_FIT_CONTAIN);
-    gtk_picture_set_can_shrink(GTK_PICTURE(zoom_icon), TRUE);
-    gtk_widget_set_size_request(zoom_icon, STATUS_ICON_SIZE, STATUS_ICON_SIZE);
+    GtkWidget *zoom_icon = NULL;
+    if (g_monochrome_icons) {
+        zoom_icon = gtk_image_new_from_icon_name("zoom-in-symbolic");
+        gtk_image_set_pixel_size(GTK_IMAGE(zoom_icon), STATUS_ICON_SIZE);
+    } else {
+        zoom_icon = gtk_picture_new_for_resource("/io/karton/Files/icons/action-zoom.svg");
+        gtk_picture_set_content_fit(GTK_PICTURE(zoom_icon), GTK_CONTENT_FIT_CONTAIN);
+        gtk_picture_set_can_shrink(GTK_PICTURE(zoom_icon), TRUE);
+        gtk_widget_set_size_request(zoom_icon, STATUS_ICON_SIZE, STATUS_ICON_SIZE);
+    }
     gtk_widget_add_css_class(zoom_icon, "status-icon");
     gtk_box_append(GTK_BOX(status_bar), zoom_icon);
 
@@ -3894,10 +4021,16 @@ GtkWidget *karton_files_window_new(GtkApplication *app) {
     gtk_widget_add_css_class(state->grid_mode_button, "flat-button");
     gtk_widget_add_css_class(state->grid_mode_button, "view-mode-button");
     gtk_widget_set_tooltip_text(state->grid_mode_button, _("Grid view"));
-    GtkWidget *grid_icon = gtk_picture_new_for_resource("/io/karton/Files/icons/action-grid.svg");
-    gtk_picture_set_content_fit(GTK_PICTURE(grid_icon), GTK_CONTENT_FIT_CONTAIN);
-    gtk_picture_set_can_shrink(GTK_PICTURE(grid_icon), TRUE);
-    gtk_widget_set_size_request(grid_icon, STATUS_ICON_SIZE, STATUS_ICON_SIZE);
+    GtkWidget *grid_icon = NULL;
+    if (g_monochrome_icons) {
+        grid_icon = gtk_image_new_from_icon_name("view-grid-symbolic");
+        gtk_image_set_pixel_size(GTK_IMAGE(grid_icon), STATUS_ICON_SIZE);
+    } else {
+        grid_icon = gtk_picture_new_for_resource("/io/karton/Files/icons/action-grid.svg");
+        gtk_picture_set_content_fit(GTK_PICTURE(grid_icon), GTK_CONTENT_FIT_CONTAIN);
+        gtk_picture_set_can_shrink(GTK_PICTURE(grid_icon), TRUE);
+        gtk_widget_set_size_request(grid_icon, STATUS_ICON_SIZE, STATUS_ICON_SIZE);
+    }
     gtk_widget_add_css_class(grid_icon, "status-icon");
     gtk_button_set_child(GTK_BUTTON(state->grid_mode_button), grid_icon);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(state->grid_mode_button), TRUE);
@@ -3908,10 +4041,16 @@ GtkWidget *karton_files_window_new(GtkApplication *app) {
     gtk_widget_add_css_class(state->list_mode_button, "flat-button");
     gtk_widget_add_css_class(state->list_mode_button, "view-mode-button");
     gtk_widget_set_tooltip_text(state->list_mode_button, _("List view"));
-    GtkWidget *list_icon = gtk_picture_new_for_resource("/io/karton/Files/icons/action-list.svg");
-    gtk_picture_set_content_fit(GTK_PICTURE(list_icon), GTK_CONTENT_FIT_CONTAIN);
-    gtk_picture_set_can_shrink(GTK_PICTURE(list_icon), TRUE);
-    gtk_widget_set_size_request(list_icon, STATUS_ICON_SIZE, STATUS_ICON_SIZE);
+    GtkWidget *list_icon = NULL;
+    if (g_monochrome_icons) {
+        list_icon = gtk_image_new_from_icon_name("view-list-symbolic");
+        gtk_image_set_pixel_size(GTK_IMAGE(list_icon), STATUS_ICON_SIZE);
+    } else {
+        list_icon = gtk_picture_new_for_resource("/io/karton/Files/icons/action-list.svg");
+        gtk_picture_set_content_fit(GTK_PICTURE(list_icon), GTK_CONTENT_FIT_CONTAIN);
+        gtk_picture_set_can_shrink(GTK_PICTURE(list_icon), TRUE);
+        gtk_widget_set_size_request(list_icon, STATUS_ICON_SIZE, STATUS_ICON_SIZE);
+    }
     gtk_widget_add_css_class(list_icon, "status-icon");
     gtk_button_set_child(GTK_BUTTON(state->list_mode_button), list_icon);
     gtk_toggle_button_set_group(GTK_TOGGLE_BUTTON(state->list_mode_button), GTK_TOGGLE_BUTTON(state->grid_mode_button));

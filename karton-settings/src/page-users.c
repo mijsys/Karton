@@ -5,6 +5,7 @@
 #include <glib/gstdio.h>
 #include <libintl.h>
 #include <string.h>
+#include <unistd.h>
 
 #define _(s) gettext(s)
 
@@ -82,6 +83,64 @@ static gboolean run_command_success(const char *command)
     return ok;
 }
 
+static gboolean run_command_with_stdin_capture(const char *command,
+                                               const char *stdin_data,
+                                               char **stdout_out,
+                                               char **stderr_out)
+{
+    GError *error = NULL;
+    GSubprocess *proc = g_subprocess_new(G_SUBPROCESS_FLAGS_STDIN_PIPE
+                                             | G_SUBPROCESS_FLAGS_STDOUT_PIPE
+                                             | G_SUBPROCESS_FLAGS_STDERR_PIPE,
+                                         &error,
+                                         "sh",
+                                         "-lc",
+                                         command,
+                                         NULL);
+    if (!proc) {
+        if (stderr_out) {
+            *stderr_out = g_strdup(error ? error->message : "spawn failed");
+        }
+        g_clear_error(&error);
+        return FALSE;
+    }
+
+    gchar *stdout_data = NULL;
+    gchar *stderr_data = NULL;
+    gboolean communicated = g_subprocess_communicate_utf8(proc,
+                                                           stdin_data ? stdin_data : "",
+                                                           NULL,
+                                                           stdout_out ? &stdout_data : NULL,
+                                                           stderr_out ? &stderr_data : NULL,
+                                                           &error);
+    if (!communicated) {
+        if (stderr_out) {
+            *stderr_out = g_strdup(error ? error->message : "communicate failed");
+        }
+        g_clear_error(&error);
+        g_object_unref(proc);
+        g_free(stdout_data);
+        g_free(stderr_data);
+        return FALSE;
+    }
+
+    if (stdout_out) {
+        *stdout_out = stdout_data;
+    } else {
+        g_free(stdout_data);
+    }
+
+    if (stderr_out) {
+        *stderr_out = stderr_data;
+    } else {
+        g_free(stderr_data);
+    }
+
+    gboolean ok = g_subprocess_get_successful(proc);
+    g_object_unref(proc);
+    return ok;
+}
+
 static gboolean command_is_available(const char *name)
 {
     char *tool = g_find_program_in_path(name);
@@ -91,6 +150,223 @@ static gboolean command_is_available(const char *name)
 
     g_free(tool);
     return TRUE;
+}
+
+static gboolean verify_password_with_sudo(const char *password)
+{
+    if (!password || !*password || !command_is_available("sudo")) {
+        return FALSE;
+    }
+
+    char *stdin_payload = g_strdup_printf("%s\n", password);
+    gboolean ok = run_command_with_stdin_capture("sudo -S -k -p '' true", stdin_payload, NULL, NULL);
+    g_free(stdin_payload);
+    return ok;
+}
+
+static gboolean run_privileged_script_with_password(const char *script, const char *password)
+{
+    if (!script || !*script) {
+        return FALSE;
+    }
+
+    if (geteuid() == 0) {
+        char *q_script_root = g_shell_quote(script);
+        char *cmd_root = g_strdup_printf("sh -lc %s", q_script_root);
+        gboolean ok_root = run_command_success(cmd_root);
+        g_free(cmd_root);
+        g_free(q_script_root);
+        return ok_root;
+    }
+
+    if (!password || !*password || !command_is_available("sudo")) {
+        return FALSE;
+    }
+
+    char *stdin_payload = g_strdup_printf("%s\n", password);
+    char *q_script = g_shell_quote(script);
+    char *cmd = g_strdup_printf("sudo -S -k -p '' sh -lc %s", q_script);
+
+    gboolean ok = run_command_with_stdin_capture(cmd, stdin_payload, NULL, NULL);
+    g_free(stdin_payload);
+    g_free(cmd);
+    g_free(q_script);
+    return ok;
+}
+
+typedef struct {
+    GMainLoop *loop;
+    gint response_id;
+} PasswordDialogState;
+
+static void on_modal_window_response(GtkWidget *widget, gpointer user_data)
+{
+    gint response_id = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(widget), "response-id"));
+    PasswordDialogState *state = (PasswordDialogState *)user_data;
+    state->response_id = response_id;
+    if (state->loop) {
+        g_main_loop_quit(state->loop);
+    }
+}
+
+static gboolean on_modal_window_close_request(GtkWindow *window, gpointer user_data)
+{
+    (void)window;
+    PasswordDialogState *state = (PasswordDialogState *)user_data;
+    state->response_id = GTK_RESPONSE_CANCEL;
+    if (state->loop) {
+        g_main_loop_quit(state->loop);
+    }
+    return TRUE;
+}
+
+static gboolean prompt_password_dialog(GtkWidget *parent, char **password_out, gboolean *cancelled)
+{
+    if (password_out) {
+        *password_out = NULL;
+    }
+    if (cancelled) {
+        *cancelled = FALSE;
+    }
+
+    GtkWidget *dialog = gtk_window_new();
+    gtk_window_set_title(GTK_WINDOW(dialog), _("Enter password"));
+    gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
+    gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
+
+    if (parent && GTK_IS_WINDOW(parent)) {
+        gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(parent));
+    }
+
+    GtkWidget *content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
+    gtk_widget_set_margin_start(content, 16);
+    gtk_widget_set_margin_end(content, 16);
+    gtk_widget_set_margin_top(content, 16);
+    gtk_widget_set_margin_bottom(content, 16);
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+
+    GtkWidget *help = gtk_label_new(_("Type your administrator password to apply user and account settings."));
+    gtk_widget_set_halign(help, GTK_ALIGN_START);
+    gtk_label_set_wrap(GTK_LABEL(help), TRUE);
+
+    GtkWidget *password_label = gtk_label_new(_("Password"));
+    gtk_widget_set_halign(password_label, GTK_ALIGN_START);
+
+    GtkWidget *password_entry = gtk_entry_new();
+    gtk_entry_set_visibility(GTK_ENTRY(password_entry), FALSE);
+    gtk_entry_set_invisible_char(GTK_ENTRY(password_entry), 0x2022);
+    gtk_entry_set_activates_default(GTK_ENTRY(password_entry), TRUE);
+
+    gtk_box_append(GTK_BOX(box), help);
+    gtk_box_append(GTK_BOX(box), password_label);
+    gtk_box_append(GTK_BOX(box), password_entry);
+    GtkWidget *buttons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    gtk_widget_set_halign(buttons, GTK_ALIGN_END);
+    GtkWidget *cancel_button = gtk_button_new_with_label(_("Cancel"));
+    GtkWidget *apply_button = gtk_button_new_with_label(_("Apply"));
+    g_object_set_data(G_OBJECT(cancel_button), "response-id", GINT_TO_POINTER(GTK_RESPONSE_CANCEL));
+    g_object_set_data(G_OBJECT(apply_button), "response-id", GINT_TO_POINTER(GTK_RESPONSE_OK));
+    gtk_box_append(GTK_BOX(buttons), cancel_button);
+    gtk_box_append(GTK_BOX(buttons), apply_button);
+
+    gtk_box_append(GTK_BOX(content), box);
+    gtk_box_append(GTK_BOX(content), buttons);
+    gtk_window_set_child(GTK_WINDOW(dialog), content);
+    gtk_window_set_default_widget(GTK_WINDOW(dialog), apply_button);
+
+    PasswordDialogState state = {0};
+    state.loop = g_main_loop_new(NULL, FALSE);
+    state.response_id = GTK_RESPONSE_NONE;
+
+    g_signal_connect(cancel_button, "clicked", G_CALLBACK(on_modal_window_response), &state);
+    g_signal_connect(apply_button, "clicked", G_CALLBACK(on_modal_window_response), &state);
+    g_signal_connect(dialog, "close-request", G_CALLBACK(on_modal_window_close_request), &state);
+
+    gtk_window_present(GTK_WINDOW(dialog));
+    gtk_widget_grab_focus(password_entry);
+    g_main_loop_run(state.loop);
+
+    gboolean accepted = state.response_id == GTK_RESPONSE_OK;
+
+    if (accepted) {
+        const char *entered = gtk_editable_get_text(GTK_EDITABLE(password_entry));
+        if (!entered || !*entered) {
+            accepted = FALSE;
+        } else if (password_out) {
+            *password_out = g_strdup(entered);
+        }
+    } else if (cancelled) {
+        *cancelled = TRUE;
+    }
+
+    gtk_window_destroy(GTK_WINDOW(dialog));
+    g_main_loop_unref(state.loop);
+    return accepted;
+}
+
+static gboolean prompt_confirm_delete_dialog(GtkWidget *parent,
+                                             const char *username,
+                                             gboolean *cancelled)
+{
+    if (cancelled) {
+        *cancelled = FALSE;
+    }
+
+    GtkWidget *dialog = gtk_window_new();
+    gtk_window_set_title(GTK_WINDOW(dialog), _("Delete user account"));
+    gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
+    gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
+
+    if (parent && GTK_IS_WINDOW(parent)) {
+        gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(parent));
+    }
+
+    GtkWidget *content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
+    gtk_widget_set_margin_start(content, 16);
+    gtk_widget_set_margin_end(content, 16);
+    gtk_widget_set_margin_top(content, 16);
+    gtk_widget_set_margin_bottom(content, 16);
+
+    char *msg = g_strdup_printf(_("Do you want to permanently delete user '%s' and home files?"), username ? username : "");
+    GtkWidget *help = gtk_label_new(msg);
+    gtk_widget_set_halign(help, GTK_ALIGN_START);
+    gtk_label_set_wrap(GTK_LABEL(help), TRUE);
+    g_free(msg);
+
+    GtkWidget *buttons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    gtk_widget_set_halign(buttons, GTK_ALIGN_END);
+    GtkWidget *cancel_button = gtk_button_new_with_label(_("Cancel"));
+    GtkWidget *delete_button = gtk_button_new_with_label(_("Delete user"));
+    gtk_widget_add_css_class(delete_button, "destructive-action");
+    g_object_set_data(G_OBJECT(cancel_button), "response-id", GINT_TO_POINTER(GTK_RESPONSE_CANCEL));
+    g_object_set_data(G_OBJECT(delete_button), "response-id", GINT_TO_POINTER(GTK_RESPONSE_OK));
+    gtk_box_append(GTK_BOX(buttons), cancel_button);
+    gtk_box_append(GTK_BOX(buttons), delete_button);
+
+    gtk_box_append(GTK_BOX(content), help);
+    gtk_box_append(GTK_BOX(content), buttons);
+    gtk_window_set_child(GTK_WINDOW(dialog), content);
+    gtk_window_set_default_widget(GTK_WINDOW(dialog), cancel_button);
+
+    PasswordDialogState state = {0};
+    state.loop = g_main_loop_new(NULL, FALSE);
+    state.response_id = GTK_RESPONSE_NONE;
+
+    g_signal_connect(cancel_button, "clicked", G_CALLBACK(on_modal_window_response), &state);
+    g_signal_connect(delete_button, "clicked", G_CALLBACK(on_modal_window_response), &state);
+    g_signal_connect(dialog, "close-request", G_CALLBACK(on_modal_window_close_request), &state);
+
+    gtk_window_present(GTK_WINDOW(dialog));
+    g_main_loop_run(state.loop);
+
+    gboolean confirmed = state.response_id == GTK_RESPONSE_OK;
+    if (!confirmed && cancelled) {
+        *cancelled = TRUE;
+    }
+
+    gtk_window_destroy(GTK_WINDOW(dialog));
+    g_main_loop_unref(state.loop);
+    return confirmed;
 }
 
 static int clamp_int(int value, int min, int max)
@@ -710,24 +986,6 @@ static gboolean user_exists(const char *username)
     return ok;
 }
 
-static gboolean run_privileged_script(const char *script)
-{
-    if (!script || !*script) {
-        return FALSE;
-    }
-
-    char *q_script = g_shell_quote(script);
-    char *cmd = g_strdup_printf(
-        "sh -lc 'if [ \"$(id -u)\" -eq 0 ]; then sh -lc %s; elif command -v pkexec >/dev/null 2>&1; then pkexec sh -lc %s; else exit 1; fi'",
-        q_script,
-        q_script);
-
-    gboolean ok = run_command_success(cmd);
-    g_free(cmd);
-    g_free(q_script);
-    return ok;
-}
-
 static void refresh_users_list(void)
 {
     char *selected_before = selected_user_name();
@@ -1003,7 +1261,7 @@ static gboolean apply_avatar_for_user(const char *username, const char *avatar_p
     return ok;
 }
 
-static char *apply_runtime_users(void)
+static char *apply_runtime_users(const char *password)
 {
     GString *issues = g_string_new(NULL);
 
@@ -1038,7 +1296,7 @@ static char *apply_runtime_users(void)
                 script = g_strdup_printf("useradd -m -s /bin/bash %s", q_user);
             }
 
-            if (!run_privileged_script(script)) {
+            if (!run_privileged_script_with_password(script, password)) {
                 g_string_append(issues, _("Could not create new user account (missing privileges). "));
             } else {
                 refresh_users_list();
@@ -1056,7 +1314,7 @@ static char *apply_runtime_users(void)
         char *q_pair = g_shell_quote(pair);
         char *script = g_strdup_printf("echo %s | chpasswd", q_pair);
 
-        if (!run_privileged_script(script)) {
+        if (!run_privileged_script_with_password(script, password)) {
             g_string_append(issues, _("Could not set user password (missing privileges). "));
         }
 
@@ -1072,7 +1330,7 @@ static char *apply_runtime_users(void)
             char *q_groups = g_shell_quote(normalized_groups);
             char *script = g_strdup_printf("usermod -aG %s %s", q_groups, q_user);
 
-            if (!run_privileged_script(script)) {
+            if (!run_privileged_script_with_password(script, password)) {
                 g_string_append(issues, _("Could not apply additional user groups (missing privileges). "));
             }
 
@@ -1085,7 +1343,7 @@ static char *apply_runtime_users(void)
             char *q_user = g_shell_quote(selected_user);
             char *script = g_strdup_printf("if getent group wheel >/dev/null 2>&1; then usermod -aG wheel %s; fi; if getent group sudo >/dev/null 2>&1; then usermod -aG sudo %s; fi", q_user, q_user);
 
-            if (!run_privileged_script(script)) {
+            if (!run_privileged_script_with_password(script, password)) {
                 g_string_append(issues, _("Could not grant administrator rights (missing privileges). "));
             }
 
@@ -1181,14 +1439,123 @@ static void on_reload_users_clicked(GtkButton *btn, gpointer data)
     status_set(_("Users settings reloaded"), FALSE);
 }
 
+static void on_delete_user_clicked(GtkButton *btn, gpointer data)
+{
+    (void)data;
+
+    char *selected_user = selected_user_name();
+    if (!selected_user || !*selected_user) {
+        status_set(_("Select a user to delete."), TRUE);
+        g_free(selected_user);
+        return;
+    }
+
+    if (g_strcmp0(selected_user, "root") == 0) {
+        status_set(_("Deleting the root user is not allowed."), TRUE);
+        g_free(selected_user);
+        return;
+    }
+
+    const char *current_user = g_get_user_name();
+    if (current_user && g_strcmp0(selected_user, current_user) == 0) {
+        status_set(_("Deleting the currently logged in user is not allowed."), TRUE);
+        g_free(selected_user);
+        return;
+    }
+
+    GtkRoot *root = gtk_widget_get_root(GTK_WIDGET(btn));
+    GtkWidget *parent = GTK_IS_WINDOW(root) ? GTK_WIDGET(root) : NULL;
+
+    gboolean cancelled = FALSE;
+    if (!prompt_confirm_delete_dialog(parent, selected_user, &cancelled)) {
+        if (cancelled) {
+            status_set(_("Deleting user account was canceled."), TRUE);
+        }
+        g_free(selected_user);
+        return;
+    }
+
+    char *password = NULL;
+    cancelled = FALSE;
+
+    if (geteuid() != 0) {
+        if (!prompt_password_dialog(parent, &password, &cancelled)) {
+            if (cancelled) {
+                status_set(_("Deleting user account was canceled."), TRUE);
+            } else {
+                status_set(_("Administrator password is required to delete users."), TRUE);
+            }
+            g_free(selected_user);
+            return;
+        }
+
+        if (!verify_password_with_sudo(password)) {
+            status_set(_("Authentication failed: invalid administrator password."), TRUE);
+            g_free(password);
+            g_free(selected_user);
+            return;
+        }
+    }
+
+    char *q_user = g_shell_quote(selected_user);
+    char *script = g_strdup_printf("userdel -r %s >/dev/null 2>&1 || userdel %s >/dev/null 2>&1", q_user, q_user);
+    gboolean ok = run_privileged_script_with_password(script, password);
+
+    g_free(script);
+    g_free(q_user);
+    g_free(password);
+
+    if (!ok) {
+        status_set(_("Could not delete user account (missing privileges or user is currently in use)."), TRUE);
+        g_free(selected_user);
+        return;
+    }
+
+    if (gtk_switch_get_active(GTK_SWITCH(g_autologin_switch))) {
+        gtk_switch_set_active(GTK_SWITCH(g_autologin_switch), FALSE);
+    }
+
+    refresh_users_list();
+    save_users_config();
+    refresh_shell_and_top_panel();
+
+    char *msg = g_strdup_printf(_("User '%s' was deleted."), selected_user);
+    status_set(msg, FALSE);
+    g_free(msg);
+    g_free(selected_user);
+}
+
 static void on_apply_users_clicked(GtkButton *btn, gpointer data)
 {
-    (void)btn;
     (void)data;
+
+    char *password = NULL;
+    gboolean cancelled = FALSE;
+
+    if (geteuid() != 0) {
+        GtkRoot *root = gtk_widget_get_root(GTK_WIDGET(btn));
+        GtkWidget *parent = GTK_IS_WINDOW(root) ? GTK_WIDGET(root) : NULL;
+
+        if (!prompt_password_dialog(parent, &password, &cancelled)) {
+            if (cancelled) {
+                status_set(_("Applying users and accounts settings was canceled."), TRUE);
+            } else {
+                status_set(_("Administrator password is required to apply users and accounts settings."), TRUE);
+            }
+            return;
+        }
+
+        if (!verify_password_with_sudo(password)) {
+            status_set(_("Authentication failed: invalid administrator password."), TRUE);
+            g_free(password);
+            return;
+        }
+    }
 
     save_users_config();
 
-    char *issues = apply_runtime_users();
+    char *issues = apply_runtime_users(password);
+    g_free(password);
     refresh_shell_and_top_panel();
 
     if (issues) {
@@ -1230,16 +1597,21 @@ GtkWidget *page_users_new(void)
     gtk_box_append(GTK_BOX(box), hero);
 
     GtkWidget *accounts_frame = create_section(_("Accounts"),
-                                               _("Select existing users and create new user accounts."));
+                                               _("Select existing users, create new user accounts and remove accounts you no longer need."));
     GtkWidget *accounts_box = gtk_frame_get_child(GTK_FRAME(accounts_frame));
 
     g_users_dropdown = gtk_drop_down_new(NULL, NULL);
     GtkWidget *refresh_btn = gtk_button_new_with_label(_("Refresh"));
     g_signal_connect(refresh_btn, "clicked", G_CALLBACK(on_refresh_users_clicked), NULL);
 
+    GtkWidget *delete_btn = gtk_button_new_with_label(_("Delete selected user"));
+    gtk_widget_add_css_class(delete_btn, "destructive-action");
+    g_signal_connect(delete_btn, "clicked", G_CALLBACK(on_delete_user_clicked), NULL);
+
     GtkWidget *users_control = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     gtk_box_append(GTK_BOX(users_control), g_users_dropdown);
     gtk_box_append(GTK_BOX(users_control), refresh_btn);
+    gtk_box_append(GTK_BOX(users_control), delete_btn);
 
     gtk_box_append(GTK_BOX(accounts_box), create_row(_("Existing users"), users_control));
     gtk_box_append(GTK_BOX(accounts_box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
