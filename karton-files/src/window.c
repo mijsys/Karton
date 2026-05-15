@@ -10,6 +10,7 @@
 #define N_(s) s
 #define MOUSE_BUTTON_BACK 8
 #define MOUSE_BUTTON_FORWARD 9
+#define MOUSE_BUTTON_FORWARD_ALT 10
 #define UI_ICON_SIZE 16
 #define NAV_ICON_SIZE 14
 #define STATUS_ICON_SIZE 14
@@ -113,6 +114,7 @@ static gboolean undo_last_action(FilesState *state);
 static gboolean redo_last_action(FilesState *state);
 static void on_back_clicked(GtkButton *button, gpointer user_data);
 static void on_up_clicked(GtkButton *button, gpointer user_data);
+static void set_show_hidden_files(FilesState *state, gboolean show_hidden_files);
 static void apply_window_theme_class(GtkWidget *window);
 static gboolean token_points_to_directory(const char *token);
 static gboolean search_in_current_location(FilesState *state, const char *query);
@@ -2026,11 +2028,19 @@ static void on_settings_authors_clicked(GtkButton *button, gpointer user_data) {
     show_authors_dialog(state);
 }
 
+static void set_show_hidden_files(FilesState *state, gboolean show_hidden_files) {
+    if (!state || state->show_hidden_files == show_hidden_files) {
+        return;
+    }
+
+    state->show_hidden_files = show_hidden_files;
+    refresh_current_view(state);
+}
+
 static void on_show_hidden_notify(GObject *obj, GParamSpec *pspec, gpointer user_data) {
     (void)pspec;
     FilesState *state = user_data;
-    state->show_hidden_files = gtk_switch_get_active(GTK_SWITCH(obj));
-    refresh_current_view(state);
+    set_show_hidden_files(state, gtk_switch_get_active(GTK_SWITCH(obj)));
 }
 
 static void on_single_click_notify(GObject *obj, GParamSpec *pspec, gpointer user_data) {
@@ -2083,7 +2093,7 @@ static void on_settings_clicked(GtkButton *button, gpointer user_data) {
     gtk_box_append(GTK_BOX(single_row), single_switch);
     gtk_box_append(GTK_BOX(content), single_row);
 
-    GtkWidget *shortcut_label = gtk_label_new(_("Shortcuts: Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V, Ctrl+N, Ctrl+Shift+N, Ctrl+Z, Ctrl+Y, Ctrl+Click, Shift+Click"));
+    GtkWidget *shortcut_label = gtk_label_new(_("Shortcuts: Alt+Left, Alt+Up, Ctrl+H, Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V, Ctrl+N, Ctrl+Shift+N, Ctrl+Z, Ctrl+Y, Ctrl+Click, Shift+Click"));
     gtk_widget_add_css_class(shortcut_label, "files-settings-hint");
     gtk_widget_set_margin_start(shortcut_label, 12);
     gtk_widget_set_margin_end(shortcut_label, 12);
@@ -2310,7 +2320,7 @@ static void on_window_mouse_pressed(GtkGestureClick *gesture, int n_press, doubl
 
     if (button == MOUSE_BUTTON_BACK) {
         on_back_clicked(NULL, state);
-    } else if (button == MOUSE_BUTTON_FORWARD) {
+    } else if (button == MOUSE_BUTTON_FORWARD || button == MOUSE_BUTTON_FORWARD_ALT) {
         on_up_clicked(NULL, state);
     }
 }
@@ -3528,6 +3538,16 @@ static gboolean on_window_key_pressed(GtkEventControllerKey *controller,
 
     GdkModifierType mods = state & gtk_accelerator_get_default_mod_mask();
 
+    if (keyval == GDK_KEY_Back) {
+        on_back_clicked(NULL, files_state);
+        return TRUE;
+    }
+
+    if (keyval == GDK_KEY_Forward) {
+        on_up_clicked(NULL, files_state);
+        return TRUE;
+    }
+
     if ((mods & GDK_ALT_MASK) && keyval == GDK_KEY_Left) {
         on_back_clicked(NULL, files_state);
         return TRUE;
@@ -3565,6 +3585,11 @@ static gboolean on_window_key_pressed(GtkEventControllerKey *controller,
 
     if ((mods & GDK_CONTROL_MASK) && (mods & GDK_SHIFT_MASK) && (keyval == GDK_KEY_z || keyval == GDK_KEY_Z)) {
         redo_last_action(files_state);
+        return TRUE;
+    }
+
+    if ((mods & GDK_CONTROL_MASK) && !(mods & GDK_SHIFT_MASK) && (keyval == GDK_KEY_h || keyval == GDK_KEY_H)) {
+        set_show_hidden_files(files_state, !files_state->show_hidden_files);
         return TRUE;
     }
 
