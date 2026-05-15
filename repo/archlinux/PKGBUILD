@@ -1,7 +1,7 @@
 pkgbase=kartonde
 pkgname=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock' 'kartonde')
 pkgver=0.7.7
-pkgrel=2
+pkgrel=3
 arch=('x86_64')
 url='https://github.com/mijsys/Tektura-i-Karton'
 license=('GPL-2.0-only')

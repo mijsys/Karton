@@ -1,6 +1,6 @@
 pkgbase = kartonde
 	pkgver = 0.7.7
-	pkgrel = 2
+	pkgrel = 3
 	url = https://github.com/mijsys/Tektura-i-Karton
 	arch = x86_64
 	license = GPL-2.0-only
