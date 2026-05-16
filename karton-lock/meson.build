@@ -2,7 +2,7 @@
 project(
   'karton-lock',
   'c',
-  version: '0.7.6',
+  version: '0.8.0',
   meson_version: '>=0.59.0',
 )
 

@@ -79,6 +79,14 @@ typedef struct {
     int icon_size;
     gboolean suppress_sidebar_signal;
     GVolumeMonitor *volume_monitor;
+    gboolean feature_mount_disks;
+    gboolean feature_partitions;
+    gboolean feature_automount;
+    gboolean feature_network_folders;
+    gboolean feature_trash;
+    gboolean feature_thumbnails;
+    gboolean feature_permissions;
+    gboolean feature_disk_encryption;
 } FilesState;
 
 typedef struct {
@@ -104,6 +112,10 @@ typedef struct {
     GtkWidget *entry;
 } NewFileDialogContext;
 
+typedef struct {
+    FilesState *state;
+} EmptyTrashDialogContext;
+
 static void on_volume_mount_done(GObject *source_object, GAsyncResult *result, gpointer user_data);
 
 static gboolean navigate_to_token(FilesState *state, const char *raw_token, gboolean add_history);
@@ -121,6 +133,7 @@ static void apply_window_theme_class(GtkWidget *window);
 static gboolean token_points_to_directory(const char *token);
 static gboolean search_in_current_location(FilesState *state, const char *query);
 static void apply_view_mode(FilesState *state);
+static gboolean delete_recursive_file(GFile *file, GError **error);
 
 static gboolean copy_token_to_directory(const char *src_token, const char *dest_dir_token, char **out_dst_token, gboolean *out_is_dir, GError **error);
 static gboolean copy_drop_value_to_destination(FilesState *state, const GValue *value, const char *dest_dir_token);
@@ -130,6 +143,95 @@ static gboolean on_flowbox_drop(GtkDropTarget *target, const GValue *value, doub
 static void refresh_tile_selection_visuals(FilesState *state);
 static void clear_selected_items(FilesState *state);
 static void select_all_visible_items(FilesState *state);
+
+static gboolean empty_trash_directory(const char *path, guint *out_deleted, GError **error) {
+    if (!path || !*path) {
+        return TRUE;
+    }
+
+    GFile *dir = g_file_new_for_path(path);
+    if (!g_file_query_exists(dir, NULL)) {
+        g_object_unref(dir);
+        return TRUE;
+    }
+
+    GError *local_error = NULL;
+    GFileEnumerator *enumerator = g_file_enumerate_children(
+        dir,
+        "standard::name",
+        G_FILE_QUERY_INFO_NONE,
+        NULL,
+        &local_error
+    );
+
+    if (!enumerator) {
+        g_propagate_error(error, local_error);
+        g_object_unref(dir);
+        return FALSE;
+    }
+
+    GFileInfo *info = NULL;
+    while ((info = g_file_enumerator_next_file(enumerator, NULL, &local_error)) != NULL) {
+        const char *name = g_file_info_get_name(info);
+        if (!name || !*name) {
+            g_object_unref(info);
+            continue;
+        }
+
+        GFile *child = g_file_get_child(dir, name);
+        if (!delete_recursive_file(child, &local_error)) {
+            g_object_unref(child);
+            g_object_unref(info);
+            g_object_unref(enumerator);
+            g_object_unref(dir);
+            g_propagate_error(error, local_error);
+            return FALSE;
+        }
+
+        if (out_deleted) {
+            (*out_deleted)++;
+        }
+
+        g_object_unref(child);
+        g_object_unref(info);
+    }
+
+    if (local_error) {
+        g_object_unref(enumerator);
+        g_object_unref(dir);
+        g_propagate_error(error, local_error);
+        return FALSE;
+    }
+
+    g_object_unref(enumerator);
+    g_object_unref(dir);
+    return TRUE;
+}
+
+static gboolean empty_trash(FilesState *state, guint *out_deleted_items, GError **error) {
+    if (!state) {
+        return FALSE;
+    }
+
+    guint deleted_items = 0;
+    char *trash_files = g_build_filename(g_get_home_dir(), ".local", "share", "Trash", "files", NULL);
+    char *trash_info = g_build_filename(g_get_home_dir(), ".local", "share", "Trash", "info", NULL);
+
+    gboolean ok_files = empty_trash_directory(trash_files, &deleted_items, error);
+    gboolean ok_info = ok_files && empty_trash_directory(trash_info, NULL, error);
+
+    g_free(trash_files);
+    g_free(trash_info);
+
+    if (!ok_files || !ok_info) {
+        return FALSE;
+    }
+
+    if (out_deleted_items) {
+        *out_deleted_items = deleted_items;
+    }
+    return TRUE;
+}
 
 static gboolean is_recent_token(const char *token) {
     return g_strcmp0(token, PLACE_TOKEN_RECENT) == 0;
@@ -152,6 +254,108 @@ static gboolean text_means_monochrome(const char *value) {
         || g_ascii_strcasecmp(value, "bw") == 0
         || g_ascii_strcasecmp(value, "blackwhite") == 0
         || g_ascii_strcasecmp(value, "symbolic") == 0;
+}
+
+static gboolean parse_runtime_boolean(const char *value, gboolean fallback) {
+    if (!value || !*value) {
+        return fallback;
+    }
+
+    if (g_ascii_strcasecmp(value, "1") == 0
+        || g_ascii_strcasecmp(value, "true") == 0
+        || g_ascii_strcasecmp(value, "yes") == 0
+        || g_ascii_strcasecmp(value, "on") == 0) {
+        return TRUE;
+    }
+
+    if (g_ascii_strcasecmp(value, "0") == 0
+        || g_ascii_strcasecmp(value, "false") == 0
+        || g_ascii_strcasecmp(value, "no") == 0
+        || g_ascii_strcasecmp(value, "off") == 0) {
+        return FALSE;
+    }
+
+    return fallback;
+}
+
+static gboolean key_file_get_boolean_with_default(GKeyFile *key_file,
+                                                  const char *group,
+                                                  const char *key,
+                                                  gboolean fallback,
+                                                  gboolean *loaded) {
+    GError *error = NULL;
+    gboolean value = g_key_file_get_boolean(key_file, group, key, &error);
+    if (error) {
+        g_clear_error(&error);
+        if (loaded) {
+            *loaded = FALSE;
+        }
+        return fallback;
+    }
+
+    if (loaded) {
+        *loaded = TRUE;
+    }
+    return value;
+}
+
+static void apply_env_boolean_if_unset(gboolean *value, gboolean loaded_from_config, const char *env_name) {
+    if (!value || loaded_from_config) {
+        return;
+    }
+
+    const char *raw = g_getenv(env_name);
+    *value = parse_runtime_boolean(raw, *value);
+}
+
+static void load_files_disks_runtime_settings(FilesState *state) {
+    if (!state) {
+        return;
+    }
+
+    state->feature_mount_disks = TRUE;
+    state->feature_partitions = TRUE;
+    state->feature_automount = TRUE;
+    state->feature_network_folders = TRUE;
+    state->feature_trash = TRUE;
+    state->feature_thumbnails = TRUE;
+    state->feature_permissions = TRUE;
+    state->feature_disk_encryption = FALSE;
+
+    gboolean mount_loaded = FALSE;
+    gboolean partitions_loaded = FALSE;
+    gboolean automount_loaded = FALSE;
+    gboolean network_loaded = FALSE;
+    gboolean trash_loaded = FALSE;
+    gboolean thumbnails_loaded = FALSE;
+    gboolean permissions_loaded = FALSE;
+    gboolean encryption_loaded = FALSE;
+
+    char *path = g_build_filename(g_get_home_dir(), ".config", "karton", "files-disks.conf", NULL);
+    GKeyFile *key_file = g_key_file_new();
+
+    if (g_key_file_load_from_file(key_file, path, G_KEY_FILE_NONE, NULL)) {
+        state->feature_mount_disks = key_file_get_boolean_with_default(key_file, "files_disks", "mount_disks", state->feature_mount_disks, &mount_loaded);
+        state->feature_partitions = key_file_get_boolean_with_default(key_file, "files_disks", "partitions", state->feature_partitions, &partitions_loaded);
+        state->feature_automount = key_file_get_boolean_with_default(key_file, "files_disks", "automount", state->feature_automount, &automount_loaded);
+        state->feature_network_folders = key_file_get_boolean_with_default(key_file, "files_disks", "network_folders", state->feature_network_folders, &network_loaded);
+        state->feature_trash = key_file_get_boolean_with_default(key_file, "files_disks", "trash", state->feature_trash, &trash_loaded);
+        state->feature_thumbnails = key_file_get_boolean_with_default(key_file, "files_disks", "thumbnails", state->feature_thumbnails, &thumbnails_loaded);
+        state->feature_permissions = key_file_get_boolean_with_default(key_file, "files_disks", "file_permissions", state->feature_permissions, &permissions_loaded);
+        state->feature_disk_encryption = key_file_get_boolean_with_default(key_file, "files_disks", "disk_encryption", state->feature_disk_encryption, &encryption_loaded);
+    }
+
+    g_key_file_unref(key_file);
+    g_free(path);
+
+    apply_env_boolean_if_unset(&state->feature_mount_disks, mount_loaded, "KARTON_FILES_MOUNT_DISKS");
+    apply_env_boolean_if_unset(&state->feature_partitions, partitions_loaded, "KARTON_FILES_PARTITIONS");
+    apply_env_boolean_if_unset(&state->feature_automount, automount_loaded, "KARTON_FILES_AUTOMOUNT");
+    apply_env_boolean_if_unset(&state->feature_network_folders, network_loaded, "KARTON_FILES_NETWORK_FOLDERS");
+    apply_env_boolean_if_unset(&state->feature_trash, trash_loaded, "KARTON_FILES_TRASH");
+    apply_env_boolean_if_unset(&state->feature_thumbnails, thumbnails_loaded, "KARTON_FILES_THUMBNAILS");
+    apply_env_boolean_if_unset(&state->feature_permissions, permissions_loaded, "KARTON_FILES_PERMISSIONS");
+    apply_env_boolean_if_unset(&state->feature_disk_encryption, encryption_loaded, "KARTON_FILES_DISK_ENCRYPTION");
 }
 
 static void load_icon_style_setting(void) {
@@ -1462,6 +1666,8 @@ static gboolean move_active_to_trash(FilesState *state) {
 
     if (is_trash_token(state->current_token)) {
         ok = delete_recursive_file(file, &error);
+    } else if (!state->feature_trash) {
+        ok = delete_recursive_file(file, &error);
     } else {
         ok = g_file_trash(file, NULL, &error);
         if (!ok) {
@@ -1479,7 +1685,9 @@ static gboolean move_active_to_trash(FilesState *state) {
 
     gtk_label_set_text(
         GTK_LABEL(state->status_label),
-        is_trash_token(state->current_token) ? _("Deleted from trash.") : _("Moved to trash.")
+        is_trash_token(state->current_token)
+            ? _("Deleted from trash.")
+            : (!state->feature_trash ? _("Deleted permanently.") : _("Moved to trash."))
     );
     set_active_item(state, NULL, FALSE);
     g_object_unref(file);
@@ -2074,6 +2282,72 @@ static void on_menu_paste_clicked(GtkButton *button, gpointer user_data) {
     paste_clipboard_to_current(ctx->state);
 }
 
+static void on_empty_trash_dialog_response(GtkDialog *dialog, int response, gpointer user_data) {
+    EmptyTrashDialogContext *ctx = user_data;
+
+    if (response == GTK_RESPONSE_ACCEPT && ctx && ctx->state) {
+        guint deleted = 0;
+        GError *error = NULL;
+        if (!empty_trash(ctx->state, &deleted, &error)) {
+            gtk_label_set_text(
+                GTK_LABEL(ctx->state->status_label),
+                error ? error->message : _("Failed to empty trash.")
+            );
+            g_clear_error(&error);
+        } else if (deleted == 0) {
+            gtk_label_set_text(GTK_LABEL(ctx->state->status_label), _("Trash is already empty."));
+        } else {
+            char *status = g_strdup_printf(
+                ngettext("%u item removed from trash.", "%u items removed from trash.", deleted),
+                deleted
+            );
+            gtk_label_set_text(GTK_LABEL(ctx->state->status_label), status);
+            g_free(status);
+        }
+
+        set_active_item(ctx->state, NULL, FALSE);
+        refresh_current_view(ctx->state);
+    }
+
+    gtk_window_destroy(GTK_WINDOW(dialog));
+    g_free(ctx);
+}
+
+static void on_menu_empty_trash_clicked(GtkButton *button, gpointer user_data) {
+    (void)button;
+    GtkWidget *popover = GTK_WIDGET(user_data);
+    TileMenuContext *ctx = popover_menu_context(popover);
+    if (!ctx || !ctx->state || !is_trash_token(ctx->state->current_token)) {
+        return;
+    }
+
+    gtk_popover_popdown(GTK_POPOVER(popover));
+
+    GtkWidget *dialog = gtk_dialog_new_with_buttons(
+        _("Empty Trash"),
+        GTK_WINDOW(ctx->state->window),
+        GTK_DIALOG_MODAL,
+        _("Cancel"), GTK_RESPONSE_CANCEL,
+        _("Delete"), GTK_RESPONSE_ACCEPT,
+        NULL
+    );
+
+    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *label = gtk_label_new(_("Permanently delete all items from Trash?"));
+    gtk_widget_set_halign(label, GTK_ALIGN_START);
+    gtk_widget_set_margin_start(label, 12);
+    gtk_widget_set_margin_end(label, 12);
+    gtk_widget_set_margin_top(label, 12);
+    gtk_widget_set_margin_bottom(label, 12);
+    gtk_label_set_wrap(GTK_LABEL(label), TRUE);
+    gtk_box_append(GTK_BOX(content), label);
+
+    EmptyTrashDialogContext *dialog_ctx = g_new0(EmptyTrashDialogContext, 1);
+    dialog_ctx->state = ctx->state;
+    g_signal_connect(dialog, "response", G_CALLBACK(on_empty_trash_dialog_response), dialog_ctx);
+    gtk_window_present(GTK_WINDOW(dialog));
+}
+
 static void show_authors_dialog(FilesState *state) {
     GtkWidget *dialog = gtk_dialog_new_with_buttons(
         _("About authors"),
@@ -2245,6 +2519,7 @@ static void setup_tile_context_menu(GtkWidget *tile_button, FilesState *state, c
     GtkWidget *paste_btn = gtk_button_new_with_label(_("Paste"));
     GtkWidget *rename_btn = gtk_button_new_with_label(_("Rename"));
     GtkWidget *trash_btn = gtk_button_new_with_label(_("Move to Trash"));
+    GtkWidget *empty_trash_btn = gtk_button_new_with_label(_("Empty Trash"));
     GtkWidget *new_file_btn = gtk_button_new_with_label(_("New file"));
     GtkWidget *new_folder_btn = gtk_button_new_with_label(_("New Folder"));
 
@@ -2262,6 +2537,7 @@ static void setup_tile_context_menu(GtkWidget *tile_button, FilesState *state, c
     gtk_widget_add_css_class(paste_btn, "flat-button");
     gtk_widget_add_css_class(rename_btn, "flat-button");
     gtk_widget_add_css_class(trash_btn, "flat-button");
+    gtk_widget_add_css_class(empty_trash_btn, "flat-button");
     gtk_widget_add_css_class(new_file_btn, "flat-button");
     gtk_widget_add_css_class(new_folder_btn, "flat-button");
 
@@ -2272,6 +2548,7 @@ static void setup_tile_context_menu(GtkWidget *tile_button, FilesState *state, c
     gtk_widget_add_css_class(paste_btn, "context-menu-item");
     gtk_widget_add_css_class(rename_btn, "context-menu-item");
     gtk_widget_add_css_class(trash_btn, "context-menu-item");
+    gtk_widget_add_css_class(empty_trash_btn, "context-menu-item");
     gtk_widget_add_css_class(new_file_btn, "context-menu-item");
     gtk_widget_add_css_class(new_folder_btn, "context-menu-item");
 
@@ -2288,6 +2565,8 @@ static void setup_tile_context_menu(GtkWidget *tile_button, FilesState *state, c
         gtk_widget_set_sensitive(paste_btn, FALSE);
     }
 
+    gtk_widget_set_visible(empty_trash_btn, is_trash_token(state->current_token));
+
     gtk_widget_set_sensitive(last_location_btn, gtk_widget_is_sensitive(state->back_button));
 
     g_signal_connect(open_btn, "clicked", G_CALLBACK(on_menu_open_clicked), popover);
@@ -2297,6 +2576,7 @@ static void setup_tile_context_menu(GtkWidget *tile_button, FilesState *state, c
     g_signal_connect(paste_btn, "clicked", G_CALLBACK(on_menu_paste_clicked), popover);
     g_signal_connect(rename_btn, "clicked", G_CALLBACK(on_menu_rename_clicked), popover);
     g_signal_connect(trash_btn, "clicked", G_CALLBACK(on_menu_trash_clicked), popover);
+    g_signal_connect(empty_trash_btn, "clicked", G_CALLBACK(on_menu_empty_trash_clicked), popover);
     g_signal_connect(new_file_btn, "clicked", G_CALLBACK(on_menu_new_file_clicked), popover);
     g_signal_connect(new_folder_btn, "clicked", G_CALLBACK(on_menu_new_folder_clicked), popover);
 
@@ -2308,6 +2588,7 @@ static void setup_tile_context_menu(GtkWidget *tile_button, FilesState *state, c
     gtk_box_append(GTK_BOX(box), paste_btn);
     gtk_box_append(GTK_BOX(box), rename_btn);
     gtk_box_append(GTK_BOX(box), trash_btn);
+    gtk_box_append(GTK_BOX(box), empty_trash_btn);
     gtk_box_append(GTK_BOX(box), sep_actions);
     gtk_box_append(GTK_BOX(box), new_file_btn);
     gtk_box_append(GTK_BOX(box), new_folder_btn);
@@ -2483,7 +2764,7 @@ static GtkWidget *create_file_tile(FilesState *state, const FileItem *item) {
             GFileType file_type = g_file_info_get_file_type(info);
             item_is_executable = (file_type == G_FILE_TYPE_REGULAR)
                 && g_file_info_get_attribute_boolean(info, G_FILE_ATTRIBUTE_ACCESS_CAN_EXECUTE);
-            if (content_type && g_str_has_prefix(content_type, "image/")) {
+            if (state->feature_thumbnails && content_type && g_str_has_prefix(content_type, "image/")) {
                 GdkTexture *texture = gdk_texture_new_from_file(file, &error);
                 if (texture) {
                     icon = gtk_picture_new_for_paintable(GDK_PAINTABLE(texture));
@@ -3251,6 +3532,10 @@ static void on_sidebar_row_selected(GtkListBox *box, GtkListBoxRow *row, gpointe
 
     GVolume *volume = g_object_get_data(G_OBJECT(row), "place-volume");
     if (volume) {
+        if (!state->feature_mount_disks || !state->feature_partitions) {
+            gtk_label_set_text(GTK_LABEL(state->status_label), _("Disk mounting is disabled in settings."));
+            return;
+        }
         gtk_label_set_text(GTK_LABEL(state->status_label), _("Loading files..."));
         g_volume_mount(volume, G_MOUNT_MOUNT_NONE, NULL, NULL, on_volume_mount_done, state);
         return;
@@ -3495,7 +3780,9 @@ static void rebuild_sidebar(FilesState *state) {
     append_place(state->sidebar, pictures_name, "/io/karton/Files/icons/place-pictures.svg", pictures);
     append_place(state->sidebar, videos_name, "/io/karton/Files/icons/place-videos.svg", videos);
     append_place(state->sidebar, public_name, "/io/karton/Files/icons/place-public.svg", public_share);
-    append_place(state->sidebar, _(N_("Trash")), "/io/karton/Files/icons/place-trash.svg", trash);
+    if (state->feature_trash) {
+        append_place(state->sidebar, _(N_("Trash")), "/io/karton/Files/icons/place-trash.svg", trash);
+    }
 
     if (g_file_test(karton_drive, G_FILE_TEST_IS_DIR)) {
         append_place(state->sidebar, _(N_("Karton Drive")), "/io/karton/Files/icons/place-drive.svg", karton_drive);
@@ -3548,11 +3835,15 @@ static void rebuild_sidebar(FilesState *state) {
     }
 
     g_ptr_array_sort(mount_rows, file_item_compare);
-    append_mount_section_rows(state->sidebar, mount_rows, _("Mounted devices"), "/io/karton/Files/icons/place-drive.svg", TRUE);
-    append_mount_section_rows(state->sidebar, mount_rows, _("Network locations"), "/io/karton/Files/icons/place-network.svg", FALSE);
+    if (state->feature_mount_disks && state->feature_partitions) {
+        append_mount_section_rows(state->sidebar, mount_rows, _("Mounted devices"), "/io/karton/Files/icons/place-drive.svg", TRUE);
+    }
+    if (state->feature_network_folders) {
+        append_mount_section_rows(state->sidebar, mount_rows, _("Network locations"), "/io/karton/Files/icons/place-network.svg", FALSE);
+    }
     g_ptr_array_free(mount_rows, TRUE);
 
-    if (state->volume_monitor) {
+    if (state->volume_monitor && state->feature_mount_disks && state->feature_partitions) {
         gboolean has_unmounted = FALSE;
         GList *volumes = g_volume_monitor_get_volumes(state->volume_monitor);
         for (GList *iter = volumes; iter; iter = iter->next) {
@@ -3826,6 +4117,7 @@ GtkWidget *karton_files_window_new(GtkApplication *app) {
     state->open_files_on_single_click = FALSE;
 
     load_icon_style_setting();
+    load_files_disks_runtime_settings(state);
 
     GtkWidget *window = gtk_application_window_new(app);
     state->window = window;

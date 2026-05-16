@@ -1,0 +1,10 @@
+[Icon Theme]
+Name=KartONCursorLight
+Comment=Karton cursor theme (light)
+Inherits=DMZ-White,Vanilla-DMZ,default
+Directories=cursors
+
+[cursors]
+Size=24
+Context=Cursors
+Type=Scalable

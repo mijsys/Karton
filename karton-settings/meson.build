@@ -1,5 +1,5 @@
 project('karton-settings', 'c',
-  version: '0.7.6',
+  version: '0.8.0',
   default_options: ['warning_level=2', 'c_std=c11']
 )
 

@@ -74,15 +74,16 @@ static char *advanced_config_path(void)
     return g_build_filename(g_get_home_dir(), ".config", "karton", "advanced.conf", NULL);
 }
 
-static gboolean updates_experimental_enabled(void)
+static gboolean read_experimental_from_environment_file(gboolean *out_enabled)
 {
-    const char *env_direct = g_getenv("KARTON_ADV_EXPERIMENTAL");
-    if (env_direct && *env_direct) {
-        return parse_truthy(env_direct);
+    if (!out_enabled) {
+        return FALSE;
     }
 
     char *env_path = session_environment_path();
     char *contents = NULL;
+    gboolean found = FALSE;
+
     if (g_file_get_contents(env_path, &contents, NULL, NULL) && contents) {
         gchar **lines = g_strsplit(contents, "\n", -1);
         for (guint i = 0; lines[i] != NULL; i++) {
@@ -90,32 +91,53 @@ static gboolean updates_experimental_enabled(void)
                 continue;
             }
 
-            const char *value = lines[i] + strlen("KARTON_ADV_EXPERIMENTAL=");
-            gboolean enabled = parse_truthy(value);
-            g_strfreev(lines);
-            g_free(contents);
-            g_free(env_path);
-            return enabled;
+            const char *value = lines[i] + sizeof("KARTON_ADV_EXPERIMENTAL=") - 1;
+            *out_enabled = parse_truthy(value);
+            found = TRUE;
+            break;
         }
         g_strfreev(lines);
     }
+
     g_free(contents);
     g_free(env_path);
+    return found;
+}
 
+static gboolean updates_experimental_enabled(void)
+{
     char *adv_path = advanced_config_path();
     GKeyFile *kf = g_key_file_new();
     gboolean enabled = FALSE;
+    gboolean has_config_value = FALSE;
+
     if (g_key_file_load_from_file(kf, adv_path, G_KEY_FILE_NONE, NULL)) {
         GError *error = NULL;
         enabled = g_key_file_get_boolean(kf, "advanced", "experimental", &error);
         if (error) {
             g_clear_error(&error);
             enabled = FALSE;
+        } else {
+            has_config_value = TRUE;
         }
     }
 
     g_key_file_unref(kf);
     g_free(adv_path);
+
+    if (has_config_value) {
+        return enabled;
+    }
+
+    if (read_experimental_from_environment_file(&enabled)) {
+        return enabled;
+    }
+
+    const char *env_direct = g_getenv("KARTON_ADV_EXPERIMENTAL");
+    if (env_direct && *env_direct) {
+        return parse_truthy(env_direct);
+    }
+
     return enabled;
 }
 

@@ -8,6 +8,7 @@
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <libintl.h>
+#include <string.h>
 #include <unistd.h>
 
 #define _(s) gettext(s)
@@ -33,6 +34,10 @@ static GtkWidget *g_login_manager_dropdown = NULL;
 static GtkWidget *g_session_selection_switch = NULL;
 static GtkWidget *g_restore_session_switch = NULL;
 static GtkWidget *g_status_label = NULL;
+static gboolean g_loading_session_startup = FALSE;
+static guint g_live_apply_source_id = 0;
+static gboolean g_admin_password_verified = FALSE;
+static char *g_admin_password_cache = NULL;
 static GtkWidget *g_login_hint_label = NULL;
 
 static gboolean command_is_available(const char *name)
@@ -174,6 +179,23 @@ static gboolean run_privileged_script_with_password(const char *script, const ch
     return ok;
 }
 
+static void clear_admin_password_cache(void)
+{
+    if (!g_admin_password_cache) {
+        g_admin_password_verified = FALSE;
+        return;
+    }
+
+    size_t len = strlen(g_admin_password_cache);
+    if (len > 0) {
+        memset(g_admin_password_cache, 0, len);
+    }
+
+    g_free(g_admin_password_cache);
+    g_admin_password_cache = NULL;
+    g_admin_password_verified = FALSE;
+}
+
 typedef struct {
     GMainLoop *loop;
     gint response_id;
@@ -295,6 +317,46 @@ static gboolean prompt_password_dialog(GtkWidget *parent, char **password_out, g
     gtk_window_destroy(GTK_WINDOW(dialog));
     g_main_loop_unref(state.loop);
     return accepted;
+}
+
+static gboolean ensure_admin_password_for_session_changes(GtkWidget *parent, gboolean *cancelled)
+{
+    if (cancelled) {
+        *cancelled = FALSE;
+    }
+
+    if (geteuid() == 0) {
+        return TRUE;
+    }
+
+    if (g_admin_password_verified
+        && g_admin_password_cache
+        && *g_admin_password_cache
+        && verify_password_with_sudo(g_admin_password_cache)) {
+        return TRUE;
+    }
+
+    clear_admin_password_cache();
+
+    char *password = NULL;
+    if (!prompt_password_dialog(parent, &password, cancelled)) {
+        return FALSE;
+    }
+
+    if (!verify_password_with_sudo(password)) {
+        if (password) {
+            size_t len = strlen(password);
+            if (len > 0) {
+                memset(password, 0, len);
+            }
+        }
+        g_free(password);
+        return FALSE;
+    }
+
+    g_admin_password_cache = password;
+    g_admin_password_verified = TRUE;
+    return TRUE;
 }
 
 
@@ -594,6 +656,8 @@ static void load_session_startup_config(void)
         restore_session = TRUE;
     }
 
+    g_loading_session_startup = TRUE;
+
     gtk_switch_set_active(GTK_SWITCH(g_autostart_switch), autostart_apps);
     gtk_switch_set_active(GTK_SWITCH(g_services_switch), session_services);
     gtk_drop_down_set_selected(GTK_DROP_DOWN(g_login_manager_dropdown),
@@ -602,6 +666,8 @@ static void load_session_startup_config(void)
                                                  login_manager));
     gtk_switch_set_active(GTK_SWITCH(g_session_selection_switch), session_selection);
     gtk_switch_set_active(GTK_SWITCH(g_restore_session_switch), restore_session);
+
+    g_loading_session_startup = FALSE;
 
     g_free(login_manager);
     g_key_file_unref(kf);
@@ -736,10 +802,80 @@ static char *apply_runtime_session_startup(const char *password)
     return g_string_free(issues, FALSE);
 }
 
+static gboolean apply_session_startup_changes(GtkWidget *origin_widget, gboolean dynamic)
+{
+    GtkRoot *root = origin_widget ? gtk_widget_get_root(origin_widget) : NULL;
+    GtkWidget *parent = GTK_IS_WINDOW(root) ? GTK_WIDGET(root) : NULL;
+
+    gboolean cancelled = FALSE;
+    if (!ensure_admin_password_for_session_changes(parent, &cancelled)) {
+        if (cancelled) {
+            status_set(_("Applying session and startup settings was canceled."), TRUE);
+        } else {
+            status_set(_("Administrator authentication failed. Session changes were not applied."), TRUE);
+        }
+        return FALSE;
+    }
+
+    save_session_startup_config();
+    char *issues = apply_runtime_session_startup(g_admin_password_cache);
+    if (issues) {
+        status_set(issues, TRUE);
+        g_free(issues);
+        return FALSE;
+    }
+
+    refresh_login_manager_label();
+    status_set(dynamic ? _("Session and startup settings applied dynamically")
+                       : _("Session and startup settings applied"),
+               FALSE);
+    return TRUE;
+}
+
+static gboolean on_live_apply_timeout(gpointer user_data)
+{
+    (void)user_data;
+    g_live_apply_source_id = 0;
+
+    if (g_loading_session_startup) {
+        return G_SOURCE_REMOVE;
+    }
+
+    (void)apply_session_startup_changes(g_status_label, TRUE);
+    return G_SOURCE_REMOVE;
+}
+
+static void schedule_live_apply(void)
+{
+    if (g_loading_session_startup) {
+        return;
+    }
+
+    if (g_live_apply_source_id != 0) {
+        g_source_remove(g_live_apply_source_id);
+        g_live_apply_source_id = 0;
+    }
+
+    g_live_apply_source_id = g_timeout_add(250, on_live_apply_timeout, NULL);
+}
+
+static void on_live_setting_notify(GObject *object, GParamSpec *pspec, gpointer user_data)
+{
+    (void)object;
+    (void)pspec;
+    (void)user_data;
+    schedule_live_apply();
+}
+
 static void on_reload_session_startup_clicked(GtkButton *btn, gpointer data)
 {
     (void)btn;
     (void)data;
+
+    if (g_live_apply_source_id != 0) {
+        g_source_remove(g_live_apply_source_id);
+        g_live_apply_source_id = 0;
+    }
 
     load_session_startup_config();
     refresh_login_manager_label();
@@ -749,38 +885,7 @@ static void on_reload_session_startup_clicked(GtkButton *btn, gpointer data)
 static void on_apply_session_startup_clicked(GtkButton *btn, gpointer data)
 {
     (void)data;
-
-    const char *login_manager = dropdown_selected_value(g_login_manager_dropdown,
-                                                        g_login_manager_options,
-                                                        G_N_ELEMENTS(g_login_manager_options));
-    char *password = NULL;
-    gboolean cancelled = FALSE;
-
-    if (login_manager && g_strcmp0(login_manager, "auto") != 0 && geteuid() != 0) {
-        GtkRoot *root = gtk_widget_get_root(GTK_WIDGET(btn));
-        GtkWidget *parent = GTK_IS_WINDOW(root) ? GTK_WIDGET(root) : NULL;
-
-        if (!prompt_password_dialog(parent, &password, &cancelled)) {
-            if (cancelled) {
-                status_set(_("Applying session and startup settings was canceled."), TRUE);
-            } else {
-                status_set(_("Administrator password is required to switch login manager."), TRUE);
-            }
-            return;
-        }
-    }
-
-    save_session_startup_config();
-    char *issues = apply_runtime_session_startup(password);
-    g_free(password);
-    if (issues) {
-        status_set(issues, TRUE);
-        g_free(issues);
-        return;
-    }
-
-    refresh_login_manager_label();
-    status_set(_("Session and startup settings applied"), FALSE);
+    (void)apply_session_startup_changes(GTK_WIDGET(btn), FALSE);
 }
 
 GtkWidget *page_session_startup_new(void)
@@ -907,6 +1012,12 @@ GtkWidget *page_session_startup_new(void)
                                                  "auto"));
     gtk_switch_set_active(GTK_SWITCH(g_session_selection_switch), TRUE);
     gtk_switch_set_active(GTK_SWITCH(g_restore_session_switch), TRUE);
+
+    g_signal_connect(g_autostart_switch, "notify::active", G_CALLBACK(on_live_setting_notify), NULL);
+    g_signal_connect(g_services_switch, "notify::active", G_CALLBACK(on_live_setting_notify), NULL);
+    g_signal_connect(g_login_manager_dropdown, "notify::selected", G_CALLBACK(on_live_setting_notify), NULL);
+    g_signal_connect(g_session_selection_switch, "notify::active", G_CALLBACK(on_live_setting_notify), NULL);
+    g_signal_connect(g_restore_session_switch, "notify::active", G_CALLBACK(on_live_setting_notify), NULL);
 
     load_session_startup_config();
     refresh_login_manager_label();

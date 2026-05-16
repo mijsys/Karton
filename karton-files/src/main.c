@@ -118,12 +118,13 @@ static void on_theme_mode_file_changed(GFileMonitor *monitor,
         char *base = g_file_get_basename(file);
         gboolean is_theme_mode = g_strcmp0(base, "theme-mode") == 0;
         gboolean is_icon_style = g_strcmp0(base, "icon-style") == 0;
+        gboolean is_files_disks = g_strcmp0(base, "files-disks.conf") == 0;
         g_free(base);
-        if (!is_theme_mode && !is_icon_style) {
+        if (!is_theme_mode && !is_icon_style && !is_files_disks) {
             return;
         }
 
-        if (is_icon_style) {
+        if (is_icon_style || is_files_disks) {
             recreate_main_window();
             return;
         }

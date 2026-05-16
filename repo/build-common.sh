@@ -282,6 +282,88 @@ build_all_karton() {
     build_project karton-terminal
 }
 
+run_phase_a_smoke_tests() {
+    local strict="${KARTON_SMOKE_STRICT:-1}"
+    local skip_lock_test="${KARTON_SMOKE_NO_LOCK_TEST:-1}"
+    local rc=0
+
+    echo "==> Faza A: uruchamiam testy integralnosci i smoke"
+
+    if ! bash "$project_root/repo/check-session-integrity.sh"; then
+        echo "[WARN] check-session-integrity.sh wykryl problemy"
+        rc=1
+    fi
+
+    if ! KARTON_SMOKE_NO_LOCK_TEST="$skip_lock_test" bash "$project_root/repo/smoke-stage1.sh"; then
+        echo "[WARN] smoke-stage1.sh wykryl problemy"
+        rc=1
+    fi
+
+    if [[ "$rc" -ne 0 ]]; then
+        if [[ "$strict" == "1" ]]; then
+            echo "[FAIL] Faza A smoke tests nie przeszly (KARTON_SMOKE_STRICT=1)"
+            return 1
+        fi
+
+        echo "[WARN] Faza A smoke tests nie przeszly, ale kontynuuje (KARTON_SMOKE_STRICT=$strict)"
+    else
+        echo "[OK] Faza A smoke tests przeszly"
+    fi
+
+    return 0
+}
+
+run_phase_b_smoke_tests() {
+    local strict="${KARTON_SMOKE_STAGE2_STRICT:-0}"
+    local skip_lock_test="${KARTON_SMOKE_STAGE2_NO_LOCK_TEST:-1}"
+    local rc=0
+
+    echo "==> Faza B: uruchamiam smoke testy integracji systemowej"
+
+    if ! KARTON_SMOKE_STAGE2_NO_LOCK_TEST="$skip_lock_test" bash "$project_root/repo/smoke-stage2.sh"; then
+        echo "[WARN] smoke-stage2.sh wykryl problemy"
+        rc=1
+    fi
+
+    if [[ "$rc" -ne 0 ]]; then
+        if [[ "$strict" == "1" ]]; then
+            echo "[FAIL] Faza B smoke tests nie przeszly (KARTON_SMOKE_STAGE2_STRICT=1)"
+            return 1
+        fi
+
+        echo "[WARN] Faza B smoke tests nie przeszly, ale kontynuuje (KARTON_SMOKE_STAGE2_STRICT=$strict)"
+    else
+        echo "[OK] Faza B smoke tests przeszly"
+    fi
+
+    return 0
+}
+
+run_phase_c_smoke_tests() {
+    local strict="${KARTON_SMOKE_STAGE3_STRICT:-0}"
+    local rc=0
+
+    echo "==> Faza C: uruchamiam smoke testy aplikacji bazowych"
+
+    if ! bash "$project_root/repo/smoke-stage3.sh"; then
+        echo "[WARN] smoke-stage3.sh wykryl problemy"
+        rc=1
+    fi
+
+    if [[ "$rc" -ne 0 ]]; then
+        if [[ "$strict" == "1" ]]; then
+            echo "[FAIL] Faza C smoke tests nie przeszly (KARTON_SMOKE_STAGE3_STRICT=1)"
+            return 1
+        fi
+
+        echo "[WARN] Faza C smoke tests nie przeszly, ale kontynuuje (KARTON_SMOKE_STAGE3_STRICT=$strict)"
+    else
+        echo "[OK] Faza C smoke tests przeszly"
+    fi
+
+    return 0
+}
+
 setup_greetd_gtkgreet_karton_theme() {
     local greetd_dir="/etc/greetd"
     local greetd_cfg="$greetd_dir/config.toml"

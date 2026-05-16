@@ -148,6 +148,90 @@ pick_portal_backend_package() {
     return 1
 }
 
+pick_polkit_agent_package() {
+    local candidates=(lxqt-policykit mate-polkit polkit-gnome)
+    local pkg
+
+    for pkg in "${candidates[@]}"; do
+        if pacman -Si "$pkg" >/dev/null 2>&1; then
+            printf '%s\n' "$pkg"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+pick_cliphist_package() {
+    local candidates=(cliphist)
+    local pkg
+
+    for pkg in "${candidates[@]}"; do
+        if pacman -Si "$pkg" >/dev/null 2>&1; then
+            printf '%s\n' "$pkg"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+pick_image_viewer_package() {
+    local candidates=(loupe imv eog ristretto)
+    local pkg
+
+    for pkg in "${candidates[@]}"; do
+        if pacman -Si "$pkg" >/dev/null 2>&1; then
+            printf '%s\n' "$pkg"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+pick_media_player_package() {
+    local candidates=(mpv vlc totem)
+    local pkg
+
+    for pkg in "${candidates[@]}"; do
+        if pacman -Si "$pkg" >/dev/null 2>&1; then
+            printf '%s\n' "$pkg"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+pick_text_editor_package() {
+    local candidates=(kate mousepad gedit pluma)
+    local pkg
+
+    for pkg in "${candidates[@]}"; do
+        if pacman -Si "$pkg" >/dev/null 2>&1; then
+            printf '%s\n' "$pkg"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+pick_pdf_viewer_package() {
+    local candidates=(zathura evince okular atril)
+    local pkg
+
+    for pkg in "${candidates[@]}"; do
+        if pacman -Si "$pkg" >/dev/null 2>&1; then
+            printf '%s\n' "$pkg"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 wlroots_pkg="$(pick_wlroots_package)"
 gtk_greeter_pkg="$(pick_gtk_greeter_package || true)"
 lightdm_greeter_pkg="$(pick_lightdm_greeter_package || true)"
@@ -159,6 +243,12 @@ terminal_vte_pkg="$(pick_vte_package || true)"
 xcursorgen_pkg="$(pick_pacman_pkg xorg-xcursorgen xcursorgen || true)"
 portal_pkg="$(pick_portal_package || true)"
 portal_backend_pkg="$(pick_portal_backend_package || true)"
+polkit_agent_pkg="$(pick_polkit_agent_package || true)"
+cliphist_pkg="$(pick_cliphist_package || true)"
+image_viewer_pkg="$(pick_image_viewer_package || true)"
+media_player_pkg="$(pick_media_player_package || true)"
+text_editor_pkg="$(pick_text_editor_package || true)"
+pdf_viewer_pkg="$(pick_pdf_viewer_package || true)"
 
 packages=(
     base-devel meson ninja pkgconf wayland wayland-protocols "$wlroots_pkg"
@@ -240,7 +330,46 @@ else
     echo "Uwaga: nie znaleziono backendu portalu xdg-desktop-portal-gtk/gnome (interfejs Inhibit)"
 fi
 
+if [[ -n "$polkit_agent_pkg" ]]; then
+    packages+=("$polkit_agent_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu polkit agenta (polkit-gnome/lxqt-policykit/mate-polkit)"
+fi
+
+if [[ -n "$cliphist_pkg" ]]; then
+    packages+=("$cliphist_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu cliphist (menedzer schowka)"
+fi
+
+if [[ -n "$image_viewer_pkg" ]]; then
+    packages+=("$image_viewer_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu image viewer (loupe/imv/eog/ristretto)"
+fi
+
+if [[ -n "$media_player_pkg" ]]; then
+    packages+=("$media_player_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu media player (mpv/vlc/totem)"
+fi
+
+if [[ -n "$text_editor_pkg" ]]; then
+    packages+=("$text_editor_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu text editor (kate/mousepad/gedit/pluma)"
+fi
+
+if [[ -n "$pdf_viewer_pkg" ]]; then
+    packages+=("$pdf_viewer_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu PDF viewer (zathura/evince/okular/atril)"
+fi
+
 sudo pacman -S --needed --noconfirm "${packages[@]}"
 
 build_all_karton
 setup_selected_login_manager
+run_phase_a_smoke_tests
+run_phase_b_smoke_tests
+run_phase_c_smoke_tests

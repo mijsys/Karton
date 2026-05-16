@@ -19,6 +19,8 @@ static GtkWidget *g_device_entry = NULL;
 static GtkWidget *g_mountpoint_entry = NULL;
 static GtkWidget *g_devices_text = NULL;
 static GtkWidget *g_status_label = NULL;
+static gboolean g_loading_files_disks = FALSE;
+static guint g_files_disks_live_apply_source_id = 0;
 
 static gboolean command_is_available(const char *name)
 {
@@ -121,6 +123,43 @@ static void status_set(const char *text, gboolean is_error)
     gtk_widget_remove_css_class(g_status_label, "error");
     gtk_widget_remove_css_class(g_status_label, "success");
     gtk_widget_add_css_class(g_status_label, is_error ? "error" : "success");
+}
+
+static gboolean apply_files_disks_changes(gboolean dynamic);
+
+static gboolean on_files_disks_live_apply_timeout(gpointer user_data)
+{
+    (void)user_data;
+    g_files_disks_live_apply_source_id = 0;
+
+    if (g_loading_files_disks) {
+        return G_SOURCE_REMOVE;
+    }
+
+    (void)apply_files_disks_changes(TRUE);
+    return G_SOURCE_REMOVE;
+}
+
+static void schedule_files_disks_live_apply(void)
+{
+    if (g_loading_files_disks) {
+        return;
+    }
+
+    if (g_files_disks_live_apply_source_id != 0) {
+        g_source_remove(g_files_disks_live_apply_source_id);
+        g_files_disks_live_apply_source_id = 0;
+    }
+
+    g_files_disks_live_apply_source_id = g_timeout_add(250, on_files_disks_live_apply_timeout, NULL);
+}
+
+static void on_files_disks_live_setting_notify(GObject *object, GParamSpec *pspec, gpointer user_data)
+{
+    (void)object;
+    (void)pspec;
+    (void)user_data;
+    schedule_files_disks_live_apply();
 }
 
 static char *files_disks_config_path(void)
@@ -287,6 +326,8 @@ static void load_files_disks_config(void)
         disk_encryption = FALSE;
     }
 
+    g_loading_files_disks = TRUE;
+
     gtk_switch_set_active(GTK_SWITCH(g_mount_switch), mount_disks);
     gtk_switch_set_active(GTK_SWITCH(g_partitions_switch), partitions);
     gtk_switch_set_active(GTK_SWITCH(g_automount_switch), automount);
@@ -295,6 +336,8 @@ static void load_files_disks_config(void)
     gtk_switch_set_active(GTK_SWITCH(g_thumbnails_switch), thumbnails);
     gtk_switch_set_active(GTK_SWITCH(g_permissions_switch), file_permissions);
     gtk_switch_set_active(GTK_SWITCH(g_encryption_switch), disk_encryption);
+
+    g_loading_files_disks = FALSE;
 
     g_key_file_unref(kf);
     g_free(path);
@@ -491,13 +534,6 @@ static char *apply_runtime_files_disks(void)
         g_free(cmd);
     }
 
-    if (command_is_available("gsettings")) {
-        char *cmd = g_strdup_printf("sh -lc 'gsettings set org.gnome.desktop.media-handling automount %s >/dev/null 2>&1 || true'",
-                                    automount ? "true" : "false");
-        (void)run_command_success(cmd);
-        g_free(cmd);
-    }
-
     (void)run_command_success("sh -lc 'pkill -USR1 -x karton-settingsd >/dev/null 2>&1 || true'");
 
     g_free(env_path);
@@ -511,10 +547,32 @@ static char *apply_runtime_files_disks(void)
     return g_string_free(issues, FALSE);
 }
 
+static gboolean apply_files_disks_changes(gboolean dynamic)
+{
+    save_files_disks_config();
+    char *issues = apply_runtime_files_disks();
+
+    if (issues) {
+        status_set(issues, TRUE);
+        g_free(issues);
+        return FALSE;
+    }
+
+    status_set(dynamic ? _("File manager and disks settings applied dynamically")
+                       : _("File manager and disks settings applied"),
+               FALSE);
+    return TRUE;
+}
+
 static void on_reload_files_disks_clicked(GtkButton *btn, gpointer data)
 {
     (void)btn;
     (void)data;
+
+    if (g_files_disks_live_apply_source_id != 0) {
+        g_source_remove(g_files_disks_live_apply_source_id);
+        g_files_disks_live_apply_source_id = 0;
+    }
 
     load_files_disks_config();
     refresh_devices_list();
@@ -526,15 +584,7 @@ static void on_apply_files_disks_clicked(GtkButton *btn, gpointer data)
     (void)btn;
     (void)data;
 
-    save_files_disks_config();
-    char *issues = apply_runtime_files_disks();
-    if (issues) {
-        status_set(issues, TRUE);
-        g_free(issues);
-        return;
-    }
-
-    status_set(_("File manager and disks settings applied"), FALSE);
+    (void)apply_files_disks_changes(FALSE);
 }
 
 GtkWidget *page_files_disks_new(void)
@@ -658,6 +708,7 @@ GtkWidget *page_files_disks_new(void)
     gtk_widget_add_css_class(g_status_label, "row-subtitle");
     gtk_box_append(GTK_BOX(box), g_status_label);
 
+    g_loading_files_disks = TRUE;
     gtk_switch_set_active(GTK_SWITCH(g_mount_switch), TRUE);
     gtk_switch_set_active(GTK_SWITCH(g_partitions_switch), TRUE);
     gtk_switch_set_active(GTK_SWITCH(g_automount_switch), TRUE);
@@ -666,9 +717,19 @@ GtkWidget *page_files_disks_new(void)
     gtk_switch_set_active(GTK_SWITCH(g_thumbnails_switch), TRUE);
     gtk_switch_set_active(GTK_SWITCH(g_permissions_switch), TRUE);
     gtk_switch_set_active(GTK_SWITCH(g_encryption_switch), FALSE);
+    g_loading_files_disks = FALSE;
 
     load_files_disks_config();
     refresh_devices_list();
+
+    g_signal_connect(g_mount_switch, "notify::active", G_CALLBACK(on_files_disks_live_setting_notify), NULL);
+    g_signal_connect(g_partitions_switch, "notify::active", G_CALLBACK(on_files_disks_live_setting_notify), NULL);
+    g_signal_connect(g_automount_switch, "notify::active", G_CALLBACK(on_files_disks_live_setting_notify), NULL);
+    g_signal_connect(g_network_folders_switch, "notify::active", G_CALLBACK(on_files_disks_live_setting_notify), NULL);
+    g_signal_connect(g_trash_switch, "notify::active", G_CALLBACK(on_files_disks_live_setting_notify), NULL);
+    g_signal_connect(g_thumbnails_switch, "notify::active", G_CALLBACK(on_files_disks_live_setting_notify), NULL);
+    g_signal_connect(g_permissions_switch, "notify::active", G_CALLBACK(on_files_disks_live_setting_notify), NULL);
+    g_signal_connect(g_encryption_switch, "notify::active", G_CALLBACK(on_files_disks_live_setting_notify), NULL);
 
     return outer_scroll;
 }

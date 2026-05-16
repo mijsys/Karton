@@ -33,6 +33,10 @@ static GtkWidget *g_hot_corner_top_right_dropdown = NULL;
 static GtkWidget *g_hot_corner_bottom_left_dropdown = NULL;
 static GtkWidget *g_hot_corner_bottom_right_dropdown = NULL;
 static GtkWidget *g_status_label = NULL;
+static gboolean g_loading_desktop = FALSE;
+static guint g_desktop_live_apply_source_id = 0;
+
+static void schedule_desktop_live_apply(void);
 
 static gboolean command_is_available(const char *name)
 {
@@ -180,6 +184,7 @@ static void on_hot_corners_switch_changed(GObject *object, GParamSpec *pspec, gp
     (void)pspec;
     (void)user_data;
     update_hot_corner_controls_state();
+    schedule_desktop_live_apply();
 }
 
 static char *desktop_config_path(void)
@@ -365,6 +370,8 @@ static void load_desktop_config(void)
         corner_bottom_right = g_strdup("workspace-right");
     }
 
+    g_loading_desktop = TRUE;
+
     gtk_switch_set_active(GTK_SWITCH(g_desktop_icons_switch), desktop_icons);
     gtk_switch_set_active(GTK_SWITCH(g_hot_corners_switch), hot_corners);
     gtk_switch_set_active(GTK_SWITCH(g_remember_layout_switch), remember_layout);
@@ -387,6 +394,8 @@ static void load_desktop_config(void)
                                                  G_N_ELEMENTS(g_hot_corner_action_options),
                                                  corner_bottom_right));
     update_hot_corner_controls_state();
+
+    g_loading_desktop = FALSE;
 
     g_free(corner_bottom_right);
     g_free(corner_bottom_left);
@@ -487,10 +496,71 @@ static char *apply_runtime_desktop(void)
     return g_string_free(issues, FALSE);
 }
 
+static gboolean apply_desktop_changes(gboolean dynamic)
+{
+    save_desktop_config();
+    char *issues = apply_runtime_desktop();
+    if (issues) {
+        status_set(issues, TRUE);
+        g_free(issues);
+        return FALSE;
+    }
+
+    status_set(dynamic ? _("Desktop settings applied dynamically") : _("Desktop settings applied"), FALSE);
+    return TRUE;
+}
+
+static gboolean on_desktop_live_apply_timeout(gpointer user_data)
+{
+    (void)user_data;
+    g_desktop_live_apply_source_id = 0;
+
+    if (g_loading_desktop) {
+        return G_SOURCE_REMOVE;
+    }
+
+    (void)apply_desktop_changes(TRUE);
+    return G_SOURCE_REMOVE;
+}
+
+static void schedule_desktop_live_apply(void)
+{
+    if (g_loading_desktop) {
+        return;
+    }
+
+    if (g_desktop_live_apply_source_id != 0) {
+        g_source_remove(g_desktop_live_apply_source_id);
+        g_desktop_live_apply_source_id = 0;
+    }
+
+    g_desktop_live_apply_source_id = g_timeout_add(250, on_desktop_live_apply_timeout, NULL);
+}
+
+static void on_desktop_live_setting_notify(GObject *object, GParamSpec *pspec, gpointer user_data)
+{
+    (void)object;
+    (void)pspec;
+    (void)user_data;
+    schedule_desktop_live_apply();
+}
+
+static void on_desktop_spin_changed(GtkSpinButton *spin, gpointer user_data)
+{
+    (void)spin;
+    (void)user_data;
+    schedule_desktop_live_apply();
+}
+
 static void on_reload_desktop_clicked(GtkButton *btn, gpointer data)
 {
     (void)btn;
     (void)data;
+
+    if (g_desktop_live_apply_source_id != 0) {
+        g_source_remove(g_desktop_live_apply_source_id);
+        g_desktop_live_apply_source_id = 0;
+    }
 
     load_desktop_config();
     status_set(_("Desktop settings reloaded"), FALSE);
@@ -501,15 +571,7 @@ static void on_apply_desktop_clicked(GtkButton *btn, gpointer data)
     (void)btn;
     (void)data;
 
-    save_desktop_config();
-    char *issues = apply_runtime_desktop();
-    if (issues) {
-        status_set(issues, TRUE);
-        g_free(issues);
-        return;
-    }
-
-    status_set(_("Desktop settings applied"), FALSE);
+    (void)apply_desktop_changes(FALSE);
 }
 
 GtkWidget *page_desktop_new(void)
@@ -638,6 +700,15 @@ GtkWidget *page_desktop_new(void)
     update_hot_corner_controls_state();
 
     load_desktop_config();
+
+    g_signal_connect(g_desktop_icons_switch, "notify::active", G_CALLBACK(on_desktop_live_setting_notify), NULL);
+    g_signal_connect(g_remember_layout_switch, "notify::active", G_CALLBACK(on_desktop_live_setting_notify), NULL);
+    g_signal_connect(g_workspace_wrap_switch, "notify::active", G_CALLBACK(on_desktop_live_setting_notify), NULL);
+    g_signal_connect(g_workspace_count_spin, "value-changed", G_CALLBACK(on_desktop_spin_changed), NULL);
+    g_signal_connect(g_hot_corner_top_left_dropdown, "notify::selected", G_CALLBACK(on_desktop_live_setting_notify), NULL);
+    g_signal_connect(g_hot_corner_top_right_dropdown, "notify::selected", G_CALLBACK(on_desktop_live_setting_notify), NULL);
+    g_signal_connect(g_hot_corner_bottom_left_dropdown, "notify::selected", G_CALLBACK(on_desktop_live_setting_notify), NULL);
+    g_signal_connect(g_hot_corner_bottom_right_dropdown, "notify::selected", G_CALLBACK(on_desktop_live_setting_notify), NULL);
 
     return outer_scroll;
 }

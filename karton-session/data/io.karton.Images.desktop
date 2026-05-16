@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Karton Images
+Comment=Open images with KartON default viewer
+Exec=karton-images %U
+Icon=image-x-generic
+Terminal=false
+Categories=Graphics;Viewer;
+MimeType=image/png;image/jpeg;image/webp;image/svg+xml;image/gif;image/bmp;
+StartupNotify=true
+StartupWMClass=io.karton.Images

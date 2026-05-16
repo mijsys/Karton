@@ -28,3 +28,159 @@ msgstr "karton-notifyd: mako nicht gefunden, starte Leerlauf-Fallback"
 
 msgid "karton-settingsd: no backends found (kanshi/karton-idle), running idle fallback"
 msgstr "karton-settingsd: keine Backends gefunden (kanshi/karton-idle), starte Leerlauf-Fallback"
+
+msgid "Theme: %s"
+msgstr "Thema: %s"
+
+msgid "Dark"
+msgstr "Dunkel"
+
+msgid "Light"
+msgstr "Hell"
+
+msgid "No image loaded"
+msgstr "Kein Bild geladen"
+
+msgid "Fit to window"
+msgstr "An Fenster anpassen"
+
+msgid "(unknown)"
+msgstr "(unbekannt)"
+
+msgid "Could not open image: %s"
+msgstr "Bild konnte nicht geöffnet werden: %s"
+
+msgid "unknown error"
+msgstr "unbekannter Fehler"
+
+msgid "Loaded"
+msgstr "Geladen"
+
+msgid "Open image"
+msgstr "Bild öffnen"
+
+msgid "Open"
+msgstr "Öffnen"
+
+msgid "Cancel"
+msgstr "Abbrechen"
+
+msgid "Karton Images"
+msgstr "Karton Bilder"
+
+msgid "Fit"
+msgstr "Anpassen"
+
+msgid "Theme"
+msgstr "Thema"
+
+msgid "Loaded: %s"
+msgstr "Geladen: %s"
+
+msgid "Paused"
+msgstr "Pausiert"
+
+msgid "Playing"
+msgstr "Wiedergabe"
+
+msgid "Stopped"
+msgstr "Gestoppt"
+
+msgid "Karton Media"
+msgstr "Karton Medien"
+
+msgid "Play/Pause"
+msgstr "Wiedergabe/Pause"
+
+msgid "Stop"
+msgstr "Stoppen"
+
+msgid "No media loaded"
+msgstr "Keine Medien geladen"
+
+msgid "Open media"
+msgstr "Medien öffnen"
+
+msgid "Karton Text - %s"
+msgstr "Karton Text - %s"
+
+msgid "Karton Text"
+msgstr "Karton Text"
+
+msgid "New document"
+msgstr "Neues Dokument"
+
+msgid "Open failed: %s"
+msgstr "Öffnen fehlgeschlagen: %s"
+
+msgid "Opened: %s"
+msgstr "Geöffnet: %s"
+
+msgid "Save failed: %s"
+msgstr "Speichern fehlgeschlagen: %s"
+
+msgid "Saved: %s"
+msgstr "Gespeichert: %s"
+
+msgid "Open text file"
+msgstr "Textdatei öffnen"
+
+msgid "Save text file"
+msgstr "Textdatei speichern"
+
+msgid "Save"
+msgstr "Speichern"
+
+msgid "New"
+msgstr "Neu"
+
+msgid "Save As"
+msgstr "Speichern unter"
+
+msgid "Ready"
+msgstr "Bereit"
+
+msgid "No PDF backend installed (evince/zathura/okular/atril)"
+msgstr "Kein PDF-Backend installiert (evince/zathura/okular/atril)"
+
+msgid "Only local files are supported"
+msgstr "Nur lokale Dateien werden unterstützt"
+
+msgid "Could not launch %s: %s"
+msgstr "%s konnte nicht gestartet werden: %s"
+
+msgid "Opened with %s: %s"
+msgstr "Geöffnet mit %s: %s"
+
+msgid "Open PDF"
+msgstr "PDF öffnen"
+
+msgid "Karton PDF"
+msgstr "Karton PDF"
+
+msgid "Karton PDF launches your preferred PDF backend.\nInstall one of: evince, zathura, okular, atril."
+msgstr "Karton PDF startet Ihr bevorzugtes PDF-Backend.\nInstallieren Sie eines von: evince, zathura, okular, atril."
+
+msgid "Karton PDF - %s"
+msgstr "Karton PDF - %s"
+
+msgid "Could not open PDF: %s"
+msgstr "PDF konnte nicht geöffnet werden: %s"
+
+msgid "No PDF loaded"
+msgstr "Kein PDF geladen"
+
+msgid "Page %d of %d"
+msgstr "Seite %d von %d"
+
+msgid "Open PDF file"
+msgstr "PDF-Datei öffnen"
+
+msgid "Previous"
+msgstr "Zurück"
+
+msgid "Next"
+msgstr "Weiter"
+
+msgid "Open PDF file to start reading."
+msgstr "Öffnen Sie eine PDF-Datei, um mit dem Lesen zu beginnen."

@@ -60,8 +60,12 @@ static GtkWidget *g_lid_action_dropdown = NULL;
 static GtkWidget *g_charge_limit_switch = NULL;
 static GtkWidget *g_charge_start_spin = NULL;
 static GtkWidget *g_charge_end_spin = NULL;
+static GtkWidget *g_charge_start_row = NULL;
+static GtkWidget *g_charge_end_row = NULL;
 static GtkWidget *g_battery_stats_label = NULL;
 static GtkWidget *g_status_label = NULL;
+static gboolean g_loading_power = FALSE;
+static guint g_power_live_apply_source_id = 0;
 
 static gboolean run_command_capture(const char *command, char **stdout_out, char **stderr_out, int *wait_status_out)
 {
@@ -125,27 +129,6 @@ static gboolean command_is_available(const char *name)
 
     g_free(tool);
     return TRUE;
-}
-
-static gboolean gsettings_key_supported(const char *schema_name, const char *key)
-{
-    if (!schema_name || !key) {
-        return FALSE;
-    }
-
-    GSettingsSchemaSource *source = g_settings_schema_source_get_default();
-    if (!source) {
-        return FALSE;
-    }
-
-    GSettingsSchema *schema = g_settings_schema_source_lookup(source, schema_name, TRUE);
-    if (!schema) {
-        return FALSE;
-    }
-
-    gboolean has_key = g_settings_schema_has_key(schema, key);
-    g_settings_schema_unref(schema);
-    return has_key;
 }
 
 static int clamp_int(int value, int min, int max)
@@ -246,6 +229,16 @@ static const char *dropdown_selected_value(GtkWidget *dropdown, const struct opt
     }
 
     return options[idx].value;
+}
+
+static void update_charge_limit_widgets(gboolean enabled)
+{
+    if (g_charge_start_row) {
+        gtk_widget_set_sensitive(g_charge_start_row, enabled);
+    }
+    if (g_charge_end_row) {
+        gtk_widget_set_sensitive(g_charge_end_row, enabled);
+    }
 }
 
 static char *power_config_path(void)
@@ -627,13 +620,21 @@ static void load_power_config(void)
     int power_profile_idx = g_key_file_get_integer(kf, "power", "power_profile_idx", &error);
     if (error) {
         g_clear_error(&error);
-        power_profile_idx = 1;
+        char *power_profile = g_key_file_get_string(kf, "power", "power_profile", NULL);
+        power_profile_idx = (int)find_option_index(g_power_profile_options,
+                                                   G_N_ELEMENTS(g_power_profile_options),
+                                                   power_profile ? power_profile : "balanced");
+        g_free(power_profile);
     }
 
     int lid_action_idx = g_key_file_get_integer(kf, "power", "lid_action_idx", &error);
     if (error) {
         g_clear_error(&error);
-        lid_action_idx = 0;
+        char *lid_action = g_key_file_get_string(kf, "power", "lid_action", NULL);
+        lid_action_idx = (int)find_option_index(g_lid_action_options,
+                                                G_N_ELEMENTS(g_lid_action_options),
+                                                lid_action ? lid_action : "suspend");
+        g_free(lid_action);
     }
 
     int blank_delay_idx = g_key_file_get_integer(kf, "power", "blank_delay_idx", &error);
@@ -667,6 +668,8 @@ static void load_power_config(void)
     charge_start = clamp_int(charge_start, 0, 99);
     charge_end = clamp_int(charge_end, 1, 100);
 
+    g_loading_power = TRUE;
+
     gtk_switch_set_active(GTK_SWITCH(g_power_saver_switch), power_saver);
     gtk_switch_set_active(GTK_SWITCH(g_auto_brightness_switch), auto_brightness);
     gtk_switch_set_active(GTK_SWITCH(g_allow_suspend_switch), allow_suspend);
@@ -680,96 +683,15 @@ static void load_power_config(void)
     gtk_drop_down_set_selected(GTK_DROP_DOWN(g_lock_delay_dropdown), (guint)lock_delay_idx);
 
     gtk_widget_set_sensitive(g_lock_delay_row, auto_lock);
+    update_charge_limit_widgets(charge_limit_enabled);
 
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(g_charge_start_spin), (double)charge_start);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(g_charge_end_spin), (double)charge_end);
 
+    g_loading_power = FALSE;
+
     g_key_file_unref(kf);
     g_free(path);
-}
-
-static gboolean gsettings_set_bool(const char *schema, const char *key, gboolean value)
-{
-    if (!command_is_available("gsettings")) {
-        return FALSE;
-    }
-
-    if (!gsettings_key_supported(schema, key)) {
-        return TRUE;
-    }
-
-    char *q_schema = g_shell_quote(schema);
-    char *q_key = g_shell_quote(key);
-
-    char *cmd = g_strdup_printf(
-        "sh -lc \"gsettings set %s %s %s >/dev/null 2>&1\"",
-        q_schema,
-        q_key,
-        value ? "true" : "false");
-
-    gboolean ok = run_command_success(cmd);
-
-    g_free(cmd);
-    g_free(q_key);
-    g_free(q_schema);
-
-    return ok;
-}
-
-static gboolean gsettings_set_string(const char *schema, const char *key, const char *value)
-{
-    if (!command_is_available("gsettings")) {
-        return FALSE;
-    }
-
-    if (!gsettings_key_supported(schema, key)) {
-        return TRUE;
-    }
-
-    char *q_schema = g_shell_quote(schema);
-    char *q_key = g_shell_quote(key);
-    char *q_value = g_shell_quote(value ? value : "");
-
-    char *cmd = g_strdup_printf(
-        "sh -lc \"gsettings set %s %s %s >/dev/null 2>&1\"",
-        q_schema,
-        q_key,
-        q_value);
-
-    gboolean ok = run_command_success(cmd);
-
-    g_free(cmd);
-    g_free(q_value);
-    g_free(q_key);
-    g_free(q_schema);
-
-    return ok;
-}
-
-static gboolean gsettings_set_uint(const char *schema, const char *key, guint value)
-{
-    if (!command_is_available("gsettings")) {
-        return FALSE;
-    }
-
-    if (!gsettings_key_supported(schema, key)) {
-        return TRUE;
-    }
-
-    char *q_schema = g_shell_quote(schema);
-    char *q_key = g_shell_quote(key);
-
-    char *cmd = g_strdup_printf(
-        "sh -lc \"gsettings set %s %s uint32 %u >/dev/null 2>&1\"",
-        q_schema, q_key, value);
-
-    gboolean ok = run_command_success(cmd);
-
-    g_free(cmd);
-    g_free(q_key);
-    g_free(q_schema);
-
-    return ok;
 }
 
 static gboolean apply_charge_limits_runtime(gboolean enabled, int start, int end, GString *issues)
@@ -817,7 +739,7 @@ static gboolean apply_charge_limits_runtime(gboolean enabled, int start, int end
 
 static char *apply_runtime_power(void)
 {
-    GString *issues = g_string_new(NULL);
+    GString *warnings = g_string_new(NULL);
 
     gboolean power_saver = gtk_switch_get_active(GTK_SWITCH(g_power_saver_switch));
     gboolean auto_brightness = gtk_switch_get_active(GTK_SWITCH(g_auto_brightness_switch));
@@ -851,42 +773,18 @@ static char *apply_runtime_power(void)
         char *q_profile = g_shell_quote(effective_profile);
         char *cmd = g_strdup_printf("sh -lc \"powerprofilesctl set %s >/dev/null 2>&1\"", q_profile);
         if (!run_command_success(cmd)) {
-            g_string_append(issues, _("Could not apply selected power profile. "));
+            g_string_append(warnings, _("Could not apply selected power profile. "));
         }
         g_free(cmd);
         g_free(q_profile);
     } else {
-        g_string_append(issues, _("powerprofilesctl not found. Runtime power profile apply is limited. "));
-    }
-
-    if (command_is_available("gsettings")) {
-        const char *inactive_action = "nothing";
-        if (allow_hibernate && !allow_suspend) {
-            inactive_action = "hibernate";
-        } else if (allow_suspend) {
-            inactive_action = "suspend";
-        }
-
-        gboolean ok_gsettings = TRUE;
-        ok_gsettings &= gsettings_set_bool("org.gnome.settings-daemon.plugins.power", "ambient-enabled", auto_brightness);
-        ok_gsettings &= gsettings_set_string("org.gnome.settings-daemon.plugins.power", "sleep-inactive-ac-type", inactive_action);
-        ok_gsettings &= gsettings_set_string("org.gnome.settings-daemon.plugins.power", "sleep-inactive-battery-type", inactive_action);
-        ok_gsettings &= gsettings_set_string("org.gnome.settings-daemon.plugins.power", "lid-close-ac-action", lid_action);
-        ok_gsettings &= gsettings_set_string("org.gnome.settings-daemon.plugins.power", "lid-close-battery-action", lid_action);
-
-        ok_gsettings &= gsettings_set_uint("org.gnome.desktop.session", "idle-delay", blank_delay);
-        ok_gsettings &= gsettings_set_bool("org.gnome.desktop.screensaver", "lock-enabled", auto_lock);
-        ok_gsettings &= gsettings_set_uint("org.gnome.desktop.screensaver", "lock-delay", lock_delay);
-
-        if (!ok_gsettings) {
-            g_string_append(issues, _("Could not apply some desktop power settings via gsettings. "));
-        }
+        g_string_append(warnings, _("powerprofilesctl not found. Runtime power profile apply is limited. "));
     }
 
     if (charge_limit_enabled && charge_start >= charge_end) {
-        g_string_append(issues, _("Charge start limit must be lower than charge end limit. "));
+        g_string_append(warnings, _("Charge start limit must be lower than charge end limit. "));
     } else {
-        (void)apply_charge_limits_runtime(charge_limit_enabled, charge_start, charge_end, issues);
+        (void)apply_charge_limits_runtime(charge_limit_enabled, charge_start, charge_end, warnings);
     }
 
     GString *env_block = g_string_new(NULL);
@@ -923,7 +821,7 @@ static char *apply_runtime_power(void)
                                               "# END KartON managed power env",
                                               env_block->str);
     if (!env_ok) {
-        g_string_append(issues, _("Could not persist power environment settings. "));
+        g_string_append(warnings, _("Could not persist power environment settings. "));
     }
 
     if (command_is_available("dbus-update-activation-environment")) {
@@ -954,12 +852,87 @@ static char *apply_runtime_power(void)
     g_free(env_path);
     g_string_free(env_block, TRUE);
 
-    if (issues->len == 0) {
-        g_string_free(issues, TRUE);
+    if (warnings->len == 0) {
+        g_string_free(warnings, TRUE);
         return NULL;
     }
 
-    return g_string_free(issues, FALSE);
+    return g_string_free(warnings, FALSE);
+}
+
+static gboolean apply_power_changes(gboolean dynamic)
+{
+    gboolean charge_limit_enabled = gtk_switch_get_active(GTK_SWITCH(g_charge_limit_switch));
+    int charge_start = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(g_charge_start_spin));
+    int charge_end = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(g_charge_end_spin));
+
+    if (charge_limit_enabled && charge_start >= charge_end) {
+        status_set(_("Charge start limit must be lower than charge end limit."), TRUE);
+        return FALSE;
+    }
+
+    save_power_config();
+
+    char *warnings = apply_runtime_power();
+    (void)run_command_success("sh -lc 'pkill -USR1 -x karton-settingsd >/dev/null 2>&1 || true'");
+    refresh_shell_and_top_panel();
+    refresh_battery_stats();
+
+    if (warnings) {
+        char *msg = g_strdup_printf(dynamic
+                                    ? _("Power settings applied dynamically with warnings: %s")
+                                    : _("Power settings applied with warnings: %s"),
+                                    warnings);
+        status_set(msg, FALSE);
+        g_free(msg);
+        g_free(warnings);
+        return TRUE;
+    }
+
+    status_set(dynamic ? _("Power settings applied dynamically") : _("Power settings applied"), FALSE);
+    return TRUE;
+}
+
+static gboolean on_power_live_apply_timeout(gpointer user_data)
+{
+    (void)user_data;
+    g_power_live_apply_source_id = 0;
+
+    if (g_loading_power) {
+        return G_SOURCE_REMOVE;
+    }
+
+    (void)apply_power_changes(TRUE);
+    return G_SOURCE_REMOVE;
+}
+
+static void schedule_power_live_apply(void)
+{
+    if (g_loading_power) {
+        return;
+    }
+
+    if (g_power_live_apply_source_id != 0) {
+        g_source_remove(g_power_live_apply_source_id);
+        g_power_live_apply_source_id = 0;
+    }
+
+    g_power_live_apply_source_id = g_timeout_add(250, on_power_live_apply_timeout, NULL);
+}
+
+static void on_power_live_setting_notify(GObject *object, GParamSpec *pspec, gpointer user_data)
+{
+    (void)object;
+    (void)pspec;
+    (void)user_data;
+    schedule_power_live_apply();
+}
+
+static void on_power_spin_changed(GtkSpinButton *spin, gpointer user_data)
+{
+    (void)spin;
+    (void)user_data;
+    schedule_power_live_apply();
 }
 
 static void on_refresh_battery_clicked(GtkButton *btn, gpointer data)
@@ -975,6 +948,11 @@ static void on_reload_power_clicked(GtkButton *btn, gpointer data)
 {
     (void)btn;
     (void)data;
+
+    if (g_power_live_apply_source_id != 0) {
+        g_source_remove(g_power_live_apply_source_id);
+        g_power_live_apply_source_id = 0;
+    }
 
     load_power_config();
     refresh_battery_stats();
@@ -999,36 +977,7 @@ static void on_apply_power_clicked(GtkButton *btn, gpointer data)
     (void)btn;
     (void)data;
 
-    gboolean has_gsettings = command_is_available("gsettings");
-
-    gboolean charge_limit_enabled = gtk_switch_get_active(GTK_SWITCH(g_charge_limit_switch));
-    int charge_start = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(g_charge_start_spin));
-    int charge_end = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(g_charge_end_spin));
-
-    if (charge_limit_enabled && charge_start >= charge_end) {
-        status_set(_("Charge start limit must be lower than charge end limit."), TRUE);
-        return;
-    }
-
-    save_power_config();
-
-    char *issues = apply_runtime_power();
-    (void)run_command_success("sh -lc 'pkill -USR1 -x karton-settingsd >/dev/null 2>&1 || true'");
-    refresh_shell_and_top_panel();
-    refresh_battery_stats();
-
-    if (issues) {
-        status_set(issues, TRUE);
-        g_free(issues);
-        return;
-    }
-
-    if (!has_gsettings) {
-        status_set(_("Power settings applied (KartON backend mode, gsettings not installed)"), FALSE);
-        return;
-    }
-
-    status_set(_("Power settings applied"), FALSE);
+    (void)apply_power_changes(FALSE);
 }
 
 static void on_auto_lock_switch_notify(GObject *gobject, GParamSpec *pspec, gpointer user_data)
@@ -1036,7 +985,17 @@ static void on_auto_lock_switch_notify(GObject *gobject, GParamSpec *pspec, gpoi
     (void)pspec;
     (void)user_data;
     gboolean active = gtk_switch_get_active(GTK_SWITCH(gobject));
-    gtk_widget_set_sensitive(g_lock_delay_row, active);
+    if (g_lock_delay_row) {
+        gtk_widget_set_sensitive(g_lock_delay_row, active);
+    }
+}
+
+static void on_charge_limit_switch_notify(GObject *gobject, GParamSpec *pspec, gpointer user_data)
+{
+    (void)pspec;
+    (void)user_data;
+    gboolean active = gtk_switch_get_active(GTK_SWITCH(gobject));
+    update_charge_limit_widgets(active);
 }
 
 GtkWidget *page_power_new(void)
@@ -1149,12 +1108,15 @@ GtkWidget *page_power_new(void)
     g_charge_limit_switch = gtk_switch_new();
     g_charge_start_spin = gtk_spin_button_new_with_range(0, 99, 1);
     g_charge_end_spin = gtk_spin_button_new_with_range(1, 100, 1);
+    g_signal_connect(g_charge_limit_switch, "notify::active", G_CALLBACK(on_charge_limit_switch_notify), NULL);
 
     gtk_box_append(GTK_BOX(charge_box), create_row(_("Enable charge limits"), g_charge_limit_switch));
     gtk_box_append(GTK_BOX(charge_box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
-    gtk_box_append(GTK_BOX(charge_box), create_row(_("Charge start (%)"), g_charge_start_spin));
+    g_charge_start_row = create_row(_("Charge start (%)"), g_charge_start_spin);
+    gtk_box_append(GTK_BOX(charge_box), g_charge_start_row);
     gtk_box_append(GTK_BOX(charge_box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
-    gtk_box_append(GTK_BOX(charge_box), create_row(_("Charge end (%)"), g_charge_end_spin));
+    g_charge_end_row = create_row(_("Charge end (%)"), g_charge_end_spin);
+    gtk_box_append(GTK_BOX(charge_box), g_charge_end_row);
 
     gtk_box_append(GTK_BOX(box), charge_frame);
 
@@ -1203,12 +1165,30 @@ GtkWidget *page_power_new(void)
 
     gtk_switch_set_active(GTK_SWITCH(g_power_saver_switch), FALSE);
     gtk_switch_set_active(GTK_SWITCH(g_auto_brightness_switch), FALSE);
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(g_blank_delay_dropdown), 3);
+    gtk_switch_set_active(GTK_SWITCH(g_auto_lock_switch), TRUE);
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(g_lock_delay_dropdown), 0);
     gtk_switch_set_active(GTK_SWITCH(g_allow_suspend_switch), TRUE);
     gtk_switch_set_active(GTK_SWITCH(g_allow_hibernate_switch), FALSE);
     gtk_switch_set_active(GTK_SWITCH(g_charge_limit_switch), FALSE);
 
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(g_charge_start_spin), 40);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(g_charge_end_spin), 80);
+    gtk_widget_set_sensitive(g_lock_delay_row, TRUE);
+    update_charge_limit_widgets(FALSE);
+
+    g_signal_connect(g_power_profile_dropdown, "notify::selected", G_CALLBACK(on_power_live_setting_notify), NULL);
+    g_signal_connect(g_power_saver_switch, "notify::active", G_CALLBACK(on_power_live_setting_notify), NULL);
+    g_signal_connect(g_auto_brightness_switch, "notify::active", G_CALLBACK(on_power_live_setting_notify), NULL);
+    g_signal_connect(g_blank_delay_dropdown, "notify::selected", G_CALLBACK(on_power_live_setting_notify), NULL);
+    g_signal_connect(g_auto_lock_switch, "notify::active", G_CALLBACK(on_power_live_setting_notify), NULL);
+    g_signal_connect(g_lock_delay_dropdown, "notify::selected", G_CALLBACK(on_power_live_setting_notify), NULL);
+    g_signal_connect(g_allow_suspend_switch, "notify::active", G_CALLBACK(on_power_live_setting_notify), NULL);
+    g_signal_connect(g_allow_hibernate_switch, "notify::active", G_CALLBACK(on_power_live_setting_notify), NULL);
+    g_signal_connect(g_lid_action_dropdown, "notify::selected", G_CALLBACK(on_power_live_setting_notify), NULL);
+    g_signal_connect(g_charge_limit_switch, "notify::active", G_CALLBACK(on_power_live_setting_notify), NULL);
+    g_signal_connect(g_charge_start_spin, "value-changed", G_CALLBACK(on_power_spin_changed), NULL);
+    g_signal_connect(g_charge_end_spin, "value-changed", G_CALLBACK(on_power_spin_changed), NULL);
 
     load_power_config();
     refresh_battery_stats();

@@ -92,6 +92,7 @@ copy_user_desktop_file() {
   local src="$1"
   local dest="$2"
   local icon_path="$3"
+  local exec_path="${4:-}"
   local dest_dir
   local tmp_file
 
@@ -105,6 +106,9 @@ copy_user_desktop_file() {
 
   tmp_file="$(mktemp)"
   sed "s|^Icon=.*$|Icon=$icon_path|" "$src" > "$tmp_file"
+  if [[ -n "$exec_path" ]]; then
+    sed -i "s|^Exec=.*$|Exec=$exec_path|" "$tmp_file"
+  fi
   if cp "$tmp_file" "$dest" 2>/dev/null; then
     rm -f "$tmp_file"
     return 0
@@ -113,6 +117,20 @@ copy_user_desktop_file() {
   rm -f "$tmp_file"
   log "Skipping optional user data copy (destination not writable): $dest"
   return 0
+}
+
+set_mime_default_if_possible() {
+  local desktop_id="$1"
+  shift
+  local mime
+
+  if ! command -v xdg-mime >/dev/null 2>&1; then
+    return 0
+  fi
+
+  for mime in "$@"; do
+    xdg-mime default "$desktop_id" "$mime" >/dev/null 2>&1 || true
+  done
 }
 
 need_cmd() {
@@ -1138,6 +1156,9 @@ build_project() {
 
 ensure_user_config() {
   local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/${CONFIG_NAME}"
+  local wallpaper_override_file="$config_dir/wallpaper-path"
+  local wallpaper_source_dir="$SCRIPT_DIR/Wallpaper"
+  local default_wallpaper=""
   local autostart_file="$config_dir/autostart"
   local preferred_sessiond="$PREFIX/bin/karton-sessiond"
   local style_file="$config_dir/shell.css"
@@ -1147,11 +1168,18 @@ ensure_user_config() {
   local desktop_src_appid="$PREFIX/share/applications/io.karton.Settings.desktop"
   local files_desktop_src_appid="$PREFIX/share/applications/io.karton.Files.desktop"
   local terminal_desktop_src_appid="$PREFIX/share/applications/io.karton.Terminal.desktop"
+  local images_desktop_src_appid="$PREFIX/share/applications/io.karton.Images.desktop"
+  local media_desktop_src_appid="$PREFIX/share/applications/io.karton.Media.desktop"
+  local text_desktop_src_appid="$PREFIX/share/applications/io.karton.Text.desktop"
+  local pdf_desktop_src_appid="$PREFIX/share/applications/io.karton.PDF.desktop"
   local desktop_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
   local icon_src="$PREFIX/share/icons/hicolor/scalable/apps/karton-settings.svg"
   local icon_src_appid="$PREFIX/share/icons/hicolor/scalable/apps/io.karton.Settings.svg"
   local files_icon_src_appid="$PREFIX/share/icons/hicolor/scalable/apps/io.karton.Files.svg"
   local terminal_icon_src_appid="$PREFIX/share/icons/hicolor/scalable/apps/io.karton.Terminal.svg"
+  local settings_exec="$PREFIX/bin/karton-settings"
+  local files_exec="$PREFIX/bin/karton-files"
+  local terminal_exec="$PREFIX/bin/karton-terminal"
   local icon_dir="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor/scalable/apps"
   local managed_ssd_block
   local xkb_layout=""
@@ -1311,6 +1339,34 @@ EOF
 
   mkdir -p "$config_dir"
 
+  if [[ -d "$wallpaper_source_dir" ]]; then
+    for candidate in \
+      "$wallpaper_source_dir/karton.png" \
+      "$wallpaper_source_dir/karton2.png"; do
+      if [[ -f "$candidate" ]]; then
+        default_wallpaper="$candidate"
+        break
+      fi
+    done
+
+    if [[ -z "$default_wallpaper" ]]; then
+      while IFS= read -r -d '' candidate; do
+        default_wallpaper="$candidate"
+        break
+      done < <(find "$wallpaper_source_dir" -maxdepth 1 -type f \
+        \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \) \
+        -print0 | sort -z)
+    fi
+  fi
+
+  if [[ -n "$default_wallpaper" ]]; then
+    if printf '%s\n' "$default_wallpaper" > "$wallpaper_override_file" 2>/dev/null; then
+      log "Setting default wallpaper from Wallpaper: $default_wallpaper"
+    else
+      log "Warning: failed to write default wallpaper path to $wallpaper_override_file"
+    fi
+  fi
+
   xkb_layout="$(read_localectl_field 'X11 Layout' || true)"
   xkb_model="$(read_localectl_field 'X11 Model' || true)"
   xkb_variant="$(read_localectl_field 'X11 Variant' || true)"
@@ -1405,14 +1461,27 @@ EOF
     cp -R "$PREFIX/share/themes/KartONFlat" "$HOME/.local/share/themes/"
   fi
 
-  copy_user_desktop_file "$desktop_src" "$desktop_dir/karton-settings.desktop" "$icon_src_appid"
-  copy_user_desktop_file "$desktop_src_appid" "$desktop_dir/io.karton.Settings.desktop" "$icon_src_appid"
-  copy_user_desktop_file "$files_desktop_src_appid" "$desktop_dir/io.karton.Files.desktop" "$files_icon_src_appid"
-  copy_user_desktop_file "$terminal_desktop_src_appid" "$desktop_dir/io.karton.Terminal.desktop" "$terminal_icon_src_appid"
+  copy_user_desktop_file "$desktop_src" "$desktop_dir/karton-settings.desktop" "$icon_src_appid" "$settings_exec"
+  copy_user_desktop_file "$desktop_src_appid" "$desktop_dir/io.karton.Settings.desktop" "$icon_src_appid" "$settings_exec"
+  copy_user_desktop_file "$files_desktop_src_appid" "$desktop_dir/io.karton.Files.desktop" "$files_icon_src_appid" "$files_exec"
+  copy_user_desktop_file "$terminal_desktop_src_appid" "$desktop_dir/io.karton.Terminal.desktop" "$terminal_icon_src_appid" "$terminal_exec"
+  copy_user_desktop_file "$images_desktop_src_appid" "$desktop_dir/io.karton.Images.desktop" "image-x-generic" "$PREFIX/bin/karton-images"
+  copy_user_desktop_file "$media_desktop_src_appid" "$desktop_dir/io.karton.Media.desktop" "multimedia-player" "$PREFIX/bin/karton-media"
+  copy_user_desktop_file "$text_desktop_src_appid" "$desktop_dir/io.karton.Text.desktop" "accessories-text-editor" "$PREFIX/bin/karton-text"
+  copy_user_desktop_file "$pdf_desktop_src_appid" "$desktop_dir/io.karton.PDF.desktop" "application-pdf" "$PREFIX/bin/karton-pdf"
   copy_optional_user_data "$icon_src" "$icon_dir/karton-settings.svg"
   copy_optional_user_data "$icon_src_appid" "$icon_dir/io.karton.Settings.svg"
   copy_optional_user_data "$files_icon_src_appid" "$icon_dir/io.karton.Files.svg"
   copy_optional_user_data "$terminal_icon_src_appid" "$icon_dir/io.karton.Terminal.svg"
+
+  # Phase C: ensure defaults are owned by KartON apps instead of browser fallbacks.
+  set_mime_default_if_possible "io.karton.Images.desktop" \
+    "image/png" "image/jpeg" "image/webp" "image/svg+xml" "image/gif" "image/bmp"
+  set_mime_default_if_possible "io.karton.Media.desktop" \
+    "video/mp4" "video/x-matroska" "video/webm" "video/x-msvideo" "audio/mpeg" "audio/flac" "audio/x-wav" "audio/ogg"
+  set_mime_default_if_possible "io.karton.Text.desktop" \
+    "text/plain" "text/markdown" "text/x-log" "application/json" "application/x-yaml" "text/x-ini"
+  set_mime_default_if_possible "io.karton.PDF.desktop" "application/pdf"
 }
 
 migrate_legacy_config() {

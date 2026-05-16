@@ -937,8 +937,6 @@ init_rootmenu(void)
 
 		separator_create(menu, NULL);
 
-		item = item_create(menu, _("Reconfigure"), NULL, false);
-		item_add_action(item, "Reconfigure");
 		item = item_create(menu, _("Exit"), NULL, false);
 		item_add_action(item, "Exit");
 	}

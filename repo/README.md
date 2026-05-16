@@ -83,6 +83,17 @@ Pakiety docelowe:
 - `karton-session`
 - `kartonde` (metapakiet instalujący całe środowisko)
 
+Uwagi dot. zaleznosci runtime (Faza B):
+
+- Arch (`kartonde`): metapakiet wymaga `lxqt-policykit` (lekki, niezalezny od GNOME), wiec po `pacman -S kartonde` agent polkit jest instalowany razem ze srodowiskiem.
+- openSUSE (`kartonde`): metapakiet wymaga jednego z agentow polkit (`polkit-gnome` lub `lxqt-policykit` lub `mate-polkit`).
+- Debian/Ubuntu: w tym repo nie ma jeszcze natywnego pakietu `.deb` metapakietu `kartonde`; skrypty `build-debian.sh` i `build-ubuntu.sh` instaluja wymagany pakiet agenta (`policykit-1-gnome`/alternatywy) podczas instalacji zaleznosci.
+
+Preferencja agenta polkit w automatyce KartON jest neutralna desktopowo:
+- `lxqt-policykit` (preferowany)
+- `mate-polkit` (fallback)
+- `polkit-gnome` (fallback)
+
 Budowanie binarnych paczek i bazy repozytorium:
 
 ```sh

@@ -51,6 +51,86 @@ static const struct page_spec g_pages[] = {
     { "advanced", N_("Advanced / developer"), "applications-engineering-symbolic" },
 };
 
+static gboolean parse_truthy(const char *value) {
+    if (!value) {
+        return FALSE;
+    }
+
+    while (*value && g_ascii_isspace(*value)) {
+        value++;
+    }
+
+    return g_ascii_strcasecmp(value, "1") == 0
+        || g_ascii_strcasecmp(value, "yes") == 0
+        || g_ascii_strcasecmp(value, "true") == 0
+        || g_ascii_strcasecmp(value, "on") == 0;
+}
+
+static gboolean read_experimental_from_environment_file(gboolean *out_enabled) {
+    if (!out_enabled) {
+        return FALSE;
+    }
+
+    char *env_path = g_build_filename(g_get_home_dir(), ".config", "karton", "environment", NULL);
+    char *contents = NULL;
+    gboolean found = FALSE;
+
+    if (g_file_get_contents(env_path, &contents, NULL, NULL) && contents) {
+        gchar **lines = g_strsplit(contents, "\n", -1);
+        for (guint i = 0; lines[i] != NULL; i++) {
+            if (!g_str_has_prefix(lines[i], "KARTON_ADV_EXPERIMENTAL=")) {
+                continue;
+            }
+
+            const char *value = lines[i] + sizeof("KARTON_ADV_EXPERIMENTAL=") - 1;
+            *out_enabled = parse_truthy(value);
+            found = TRUE;
+            break;
+        }
+        g_strfreev(lines);
+    }
+
+    g_free(contents);
+    g_free(env_path);
+    return found;
+}
+
+static gboolean updates_tab_visible(void) {
+    char *adv_path = g_build_filename(g_get_home_dir(), ".config", "karton", "advanced.conf", NULL);
+    GKeyFile *kf = g_key_file_new();
+    gboolean enabled = FALSE;
+    gboolean has_config_value = FALSE;
+
+    if (g_key_file_load_from_file(kf, adv_path, G_KEY_FILE_NONE, NULL)) {
+        GError *error = NULL;
+        enabled = g_key_file_get_boolean(kf, "advanced", "experimental", &error);
+        if (error) {
+            g_clear_error(&error);
+            enabled = FALSE;
+        } else {
+            has_config_value = TRUE;
+        }
+    }
+
+    g_key_file_unref(kf);
+    g_free(adv_path);
+
+    if (has_config_value) {
+        return enabled;
+    }
+
+    if (read_experimental_from_environment_file(&enabled)) {
+        return enabled;
+    }
+
+    const char *env_direct = g_getenv("KARTON_ADV_EXPERIMENTAL");
+    if (env_direct && *env_direct) {
+        return parse_truthy(env_direct);
+    }
+
+    return enabled;
+}
+
 static gboolean settings_icon_style_monochrome(void) {
     const char *env_style = g_getenv("KARTON_ICON_STYLE");
     if (env_style && *env_style) {
@@ -383,15 +463,21 @@ static void ensure_page_loaded(GtkStack *stack, guint index)
 }
 
 static void on_row_selected(GtkListBox *box, GtkListBoxRow *row, gpointer user_data) {
-    (void)box;
     GtkStack *stack = GTK_STACK(user_data);
     if (!row) return;
-    int index = gtk_list_box_row_get_index(row);
 
-    ensure_page_loaded(stack, (guint)index);
+    GArray *visible_pages = g_object_get_data(G_OBJECT(box), "karton-visible-pages");
+    int row_index = gtk_list_box_row_get_index(row);
+    if (!visible_pages || row_index < 0 || (guint)row_index >= visible_pages->len) {
+        return;
+    }
+
+    guint page_index = g_array_index(visible_pages, guint, (guint)row_index);
+
+    ensure_page_loaded(stack, page_index);
 
     char page_name[32];
-    snprintf(page_name, sizeof(page_name), "page_%d", index);
+    snprintf(page_name, sizeof(page_name), "page_%u", page_index);
     gtk_stack_set_visible_child_name(stack, page_name);
 }
 
@@ -405,8 +491,35 @@ void karton_settings_window_select_page(GtkWidget *window, const char *page_id) 
         return;
     }
 
-    int index = page_index_from_id(page_id);
-    GtkListBoxRow *target_row = gtk_list_box_get_row_at_index(GTK_LIST_BOX(sidebar_list), index);
+    GArray *visible_pages = g_object_get_data(G_OBJECT(sidebar_list), "karton-visible-pages");
+    if (!visible_pages || visible_pages->len == 0) {
+        return;
+    }
+
+    int requested_page = page_index_from_id(page_id);
+    int row_index = -1;
+
+    for (guint i = 0; i < visible_pages->len; i++) {
+        if ((int)g_array_index(visible_pages, guint, i) == requested_page) {
+            row_index = (int)i;
+            break;
+        }
+    }
+
+    if (row_index < 0 && requested_page == 11) {
+        for (guint i = 0; i < visible_pages->len; i++) {
+            if ((int)g_array_index(visible_pages, guint, i) == 17) {
+                row_index = (int)i;
+                break;
+            }
+        }
+    }
+
+    if (row_index < 0) {
+        row_index = 0;
+    }
+
+    GtkListBoxRow *target_row = gtk_list_box_get_row_at_index(GTK_LIST_BOX(sidebar_list), row_index);
     if (target_row) {
         gtk_list_box_select_row(GTK_LIST_BOX(sidebar_list), target_row);
     }
@@ -452,11 +565,19 @@ GtkWidget *karton_settings_window_new(GtkApplication *app, const char *initial_p
     g_ptr_array_set_size(pages_cache, G_N_ELEMENTS(g_pages));
     g_object_set_data_full(G_OBJECT(stack), "karton-pages-cache", pages_cache, (GDestroyNotify)g_ptr_array_unref);
 
+    GArray *visible_pages = g_array_new(FALSE, FALSE, sizeof(guint));
+    g_object_set_data_full(G_OBJECT(sidebar_list), "karton-visible-pages", visible_pages, (GDestroyNotify)g_array_unref);
+
     g_signal_connect(sidebar_list, "row-selected", G_CALLBACK(on_row_selected), stack);
 
     for (guint i = 0; i < G_N_ELEMENTS(g_pages); i++) {
+        if (i == 11 && !updates_tab_visible()) {
+            continue;
+        }
+
         GtkWidget *row = create_sidebar_row(_(g_pages[i].title), g_pages[i].icon);
         gtk_list_box_append(GTK_LIST_BOX(sidebar_list), row);
+        g_array_append_val(visible_pages, i);
 
         GtkWidget *page_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 

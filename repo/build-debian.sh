@@ -35,6 +35,12 @@ terminal_vte_pkg="$(pick_apt_package libvte-2.91-dev || true)"
 xcursorgen_pkg="$(pick_apt_package xcursorgen || true)"
 portal_pkg="$(pick_apt_package xdg-desktop-portal || true)"
 portal_backend_pkg="$(pick_apt_package xdg-desktop-portal-gtk xdg-desktop-portal-gnome || true)"
+polkit_agent_pkg="$(pick_apt_package lxqt-policykit mate-polkit policykit-1-gnome || true)"
+cliphist_pkg="$(pick_apt_package cliphist || true)"
+image_viewer_pkg="$(pick_apt_package loupe eog ristretto || true)"
+media_player_pkg="$(pick_apt_package mpv vlc totem || true)"
+text_editor_pkg="$(pick_apt_package mousepad gedit pluma kate || true)"
+pdf_viewer_pkg="$(pick_apt_package zathura evince atril okular || true)"
 
 apt_packages=(
     build-essential meson ninja-build pkg-config wayland-protocols
@@ -145,8 +151,47 @@ else
     echo "Uwaga: nie znaleziono backendu portalu xdg-desktop-portal-gtk/gnome (interfejs Inhibit)"
 fi
 
+if [[ -n "$polkit_agent_pkg" ]]; then
+    apt_packages+=("$polkit_agent_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu polkit agenta (policykit-1-gnome/lxqt-policykit/mate-polkit)"
+fi
+
+if [[ -n "$cliphist_pkg" ]]; then
+    apt_packages+=("$cliphist_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu cliphist (menedzer schowka)"
+fi
+
+if [[ -n "$image_viewer_pkg" ]]; then
+    apt_packages+=("$image_viewer_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu image viewer (loupe/eog/ristretto)"
+fi
+
+if [[ -n "$media_player_pkg" ]]; then
+    apt_packages+=("$media_player_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu media player (mpv/vlc/totem)"
+fi
+
+if [[ -n "$text_editor_pkg" ]]; then
+    apt_packages+=("$text_editor_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu text editor (mousepad/gedit/pluma/kate)"
+fi
+
+if [[ -n "$pdf_viewer_pkg" ]]; then
+    apt_packages+=("$pdf_viewer_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu PDF viewer (zathura/evince/atril/okular)"
+fi
+
 sudo apt update
 sudo apt install -y "${apt_packages[@]}"
 
 build_all_karton
 setup_selected_login_manager
+run_phase_a_smoke_tests
+run_phase_b_smoke_tests
+run_phase_c_smoke_tests

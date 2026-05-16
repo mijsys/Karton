@@ -35,6 +35,12 @@ terminal_vte_pkg="$(pick_zypper_package vte-devel libvte-2_91-devel || true)"
 xcursorgen_pkg="$(pick_zypper_package xcursorgen || true)"
 portal_pkg="$(pick_zypper_package xdg-desktop-portal || true)"
 portal_backend_pkg="$(pick_zypper_package xdg-desktop-portal-gtk xdg-desktop-portal-gnome || true)"
+polkit_agent_pkg="$(pick_zypper_package lxqt-policykit mate-polkit polkit-gnome || true)"
+cliphist_pkg="$(pick_zypper_package cliphist || true)"
+image_viewer_pkg="$(pick_zypper_package loupe eog ristretto || true)"
+media_player_pkg="$(pick_zypper_package mpv vlc totem parole || true)"
+text_editor_pkg="$(pick_zypper_package mousepad gedit pluma kate || true)"
+pdf_viewer_pkg="$(pick_zypper_package zathura evince atril okular || true)"
 
 zypper_packages=(
     gcc gcc-c++ make meson ninja pkgconf-pkg-config wayland-devel
@@ -145,7 +151,46 @@ else
     echo "Uwaga: nie znaleziono backendu portalu xdg-desktop-portal-gtk/gnome (interfejs Inhibit)"
 fi
 
+if [[ -n "$polkit_agent_pkg" ]]; then
+    zypper_packages+=("$polkit_agent_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu polkit agenta (polkit-gnome/lxqt-policykit/mate-polkit)"
+fi
+
+if [[ -n "$cliphist_pkg" ]]; then
+    zypper_packages+=("$cliphist_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu cliphist (menedzer schowka)"
+fi
+
+if [[ -n "$image_viewer_pkg" ]]; then
+    zypper_packages+=("$image_viewer_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu image viewer (loupe/eog/ristretto)"
+fi
+
+if [[ -n "$media_player_pkg" ]]; then
+    zypper_packages+=("$media_player_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu media player (mpv/vlc/totem/parole)"
+fi
+
+if [[ -n "$text_editor_pkg" ]]; then
+    zypper_packages+=("$text_editor_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu text editor (mousepad/gedit/pluma/kate)"
+fi
+
+if [[ -n "$pdf_viewer_pkg" ]]; then
+    zypper_packages+=("$pdf_viewer_pkg")
+else
+    echo "Uwaga: nie znaleziono pakietu PDF viewer (zathura/evince/atril/okular)"
+fi
+
 sudo zypper install -y "${zypper_packages[@]}"
 
 build_all_karton
 setup_selected_login_manager
+run_phase_a_smoke_tests
+run_phase_b_smoke_tests
+run_phase_c_smoke_tests

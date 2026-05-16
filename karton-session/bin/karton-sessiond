@@ -262,15 +262,23 @@ pids="$pids $!"
 start_polkit_agent_auto() {
 agent=""
 for candidate in \
-/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 \
-/usr/libexec/polkit-gnome-authentication-agent-1 \
-/usr/lib/polkit-kde-authentication-agent-1 \
-/usr/libexec/polkit-kde-authentication-agent-1 \
 /usr/lib/lxqt-policykit-agent/lxqt-policykit-agent \
 /usr/libexec/lxqt-policykit-agent \
-mate-polkit \
+/usr/bin/lxqt-policykit-agent \
+lxqt-policykit-agent \
 /usr/lib/mate-polkit/polkit-mate-authentication-agent-1 \
-/usr/libexec/polkit-mate-authentication-agent-1; do
+/usr/libexec/polkit-mate-authentication-agent-1 \
+/usr/bin/polkit-mate-authentication-agent-1 \
+polkit-mate-authentication-agent-1 \
+/usr/lib/polkit-kde-authentication-agent-1 \
+/usr/libexec/polkit-kde-authentication-agent-1 \
+/usr/bin/polkit-kde-authentication-agent-1 \
+polkit-kde-authentication-agent-1 \
+/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 \
+/usr/libexec/polkit-gnome-authentication-agent-1 \
+/usr/bin/polkit-gnome-authentication-agent-1 \
+polkit-gnome-authentication-agent-1 \
+mate-polkit; do
 if [ -x "$candidate" ] || command -v "$candidate" >/dev/null 2>&1; then
 agent="$candidate"
 break

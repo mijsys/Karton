@@ -1,5 +1,5 @@
 Name:           kartonde
-Version:        0.7.7
+Version:        0.8.0
 Release:        3
 Summary:        Complete KartONDE desktop environment metapackage
 License:        GPL-2.0-only
@@ -42,6 +42,15 @@ Requires:       karton-terminal
 Requires:       karton-session
 Requires:       karton-idle
 Requires:       karton-lock
+Requires:       (polkit-gnome or lxqt-policykit or mate-polkit)
+Requires:       swayidle
+Requires:       swaylock
+Requires:       wlopm
+Requires:       xdg-desktop-portal
+Requires:       xdg-desktop-portal-gtk
+Requires:       wl-clipboard
+Requires:       evince
+Recommends:     cliphist
 
 %description
 Complete KartONDE desktop environment metapackage.
@@ -151,13 +160,21 @@ install -Dm644 repo/archlinux/config/theme.toml %{buildroot}/etc/xdg/karton/them
 %files -n karton-session -f karton-session.lang
 %{_bindir}/karton-screenshot
 %{_bindir}/karton-password-dialog
+%{_bindir}/karton-images
 %{_bindir}/karton-launcher
 %{_bindir}/karton-login-manager
+%{_bindir}/karton-media
 %{_bindir}/karton-notifyd
 %{_bindir}/karton-notify-log
+%{_bindir}/karton-pdf
 %{_bindir}/karton-apply-theme
 %{_bindir}/karton-settingsd
 %{_bindir}/karton-sessiond
+%{_bindir}/karton-text
+%{_datadir}/applications/io.karton.Images.desktop
+%{_datadir}/applications/io.karton.Media.desktop
+%{_datadir}/applications/io.karton.Text.desktop
+%{_datadir}/applications/io.karton.PDF.desktop
 %{_datadir}/karton/theme.toml.example
 
 %files -n karton-idle

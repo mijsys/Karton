@@ -1,6 +1,6 @@
 pkgbase=kartonde
 pkgname=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock' 'kartonde')
-pkgver=0.7.7
+pkgver=0.8.0
 pkgrel=3
 arch=('x86_64')
 url='https://github.com/mijsys/Tektura-i-Karton'
@@ -147,16 +147,20 @@ package_karton-session() {
 
 package_kartonde() {
   pkgdesc='Complete KartONDE desktop environment metapackage'
-  depends=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock')
+  depends=(
+    'tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock'
+    'lxqt-policykit'
+    'swayidle' 'swaylock' 'wlopm'
+    'xdg-desktop-portal' 'xdg-desktop-portal-gtk'
+    'wl-clipboard' 'cliphist'
+    'evince'
+  )
   optdepends=(
     'networkmanager: nmcli backend for Wi-Fi, hotspot and VPN settings'
     'bluez-utils: bluetoothctl backend for Bluetooth settings'
     'upower: battery status backend for power settings'
     'power-profiles-daemon: power profile backend (powerprofilesctl)'
     'xdg-utils: open folders/files from settings (xdg-open)'
-    'swayidle: idle detection backend for automatic lock and DPMS'
-    'swaylock: lockscreen backend'
-    'wlopm: output power management backend for idle DPMS'
     'kanshi: output profile backend'
     'wlr-randr: monitor layout backend for display settings'
     'brightnessctl: brightness backend for internal displays'

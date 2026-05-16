@@ -54,6 +54,8 @@ static GtkWidget *g_loading_box = NULL;
 static GtkWidget *g_loading_spinner = NULL;
 static GtkWidget *g_loading_label = NULL;
 static guint g_live_sync_source_id = 0;
+static gboolean g_notifications_dirty = FALSE;
+static gboolean g_notifications_block_change_tracking = FALSE;
 
 static gboolean notifications_position_supported(void)
 {
@@ -313,6 +315,23 @@ static void notifications_update_sound_controls(void)
     if (g_choose_sound_btn) {
         gtk_widget_set_sensitive(g_choose_sound_btn, allow_custom);
     }
+}
+
+static void notifications_mark_dirty_if_user_change(void)
+{
+    if (g_notifications_block_change_tracking) {
+        return;
+    }
+
+    g_notifications_dirty = TRUE;
+}
+
+static void on_notifications_control_changed(GObject *obj, GParamSpec *pspec, gpointer data)
+{
+    (void)obj;
+    (void)pspec;
+    (void)data;
+    notifications_mark_dirty_if_user_change();
 }
 
 static void on_sound_mode_selected_changed(GObject *obj, GParamSpec *pspec, gpointer data)
@@ -582,6 +601,10 @@ static gboolean notifications_live_sync_tick(gpointer user_data)
     }
 
     if (gtk_widget_get_visible(g_loading_box)) {
+        return G_SOURCE_CONTINUE;
+    }
+
+    if (g_notifications_dirty) {
         return G_SOURCE_CONTINUE;
     }
 
@@ -956,6 +979,9 @@ static void load_notifications_config(void)
 {
     notifications_set_loading(TRUE, _("Loading notification settings..."));
 
+    g_notifications_block_change_tracking = TRUE;
+    g_notifications_dirty = FALSE;
+
     char *path = notifications_config_path();
     GKeyFile *kf = g_key_file_new();
 
@@ -966,6 +992,7 @@ static void load_notifications_config(void)
         }
         g_key_file_unref(kf);
         g_free(path);
+        g_notifications_block_change_tracking = FALSE;
         notifications_set_loading(FALSE, NULL);
         return;
     }
@@ -1048,6 +1075,8 @@ static void load_notifications_config(void)
     g_free(position);
     g_key_file_unref(kf);
     g_free(path);
+    g_notifications_dirty = FALSE;
+    g_notifications_block_change_tracking = FALSE;
     notifications_set_loading(FALSE, NULL);
 }
 
@@ -1258,6 +1287,8 @@ static void on_apply_notifications_clicked(GtkButton *btn, gpointer data)
         return;
     }
 
+    g_notifications_dirty = FALSE;
+
     refresh_notifications_in_shell();
 
     status_set(_("Notification settings applied"), FALSE);
@@ -1281,6 +1312,12 @@ static void on_test_notifications_clicked(GtkButton *btn, gpointer data)
     }
 
     refresh_notifications_in_shell();
+
+    if (gtk_switch_get_active(GTK_SWITCH(g_dnd_switch))) {
+        notifications_set_loading(FALSE, NULL);
+        status_set(_("Do Not Disturb is enabled, so test notifications were not sent."), FALSE);
+        return;
+    }
 
     if (!command_is_available("notify-send")) {
         notifications_set_loading(FALSE, NULL);
@@ -1510,6 +1547,15 @@ GtkWidget *page_notifications_new(void)
 
     g_signal_connect(g_sound_mode_dropdown, "notify::selected", G_CALLBACK(on_sound_mode_selected_changed), NULL);
     g_signal_connect(g_alert_sounds_switch, "notify::active", G_CALLBACK(on_alert_sounds_switch_changed), NULL);
+
+    g_signal_connect(g_dnd_switch, "notify::active", G_CALLBACK(on_notifications_control_changed), NULL);
+    g_signal_connect(g_position_dropdown, "notify::selected", G_CALLBACK(on_notifications_control_changed), NULL);
+    g_signal_connect(g_history_switch, "notify::active", G_CALLBACK(on_notifications_control_changed), NULL);
+    g_signal_connect(g_alert_sounds_switch, "notify::active", G_CALLBACK(on_notifications_control_changed), NULL);
+    g_signal_connect(g_sound_mode_dropdown, "notify::selected", G_CALLBACK(on_notifications_control_changed), NULL);
+    g_signal_connect(g_priority_chat_dropdown, "notify::selected", G_CALLBACK(on_notifications_control_changed), NULL);
+    g_signal_connect(g_priority_system_dropdown, "notify::selected", G_CALLBACK(on_notifications_control_changed), NULL);
+    g_signal_connect(g_priority_updates_dropdown, "notify::selected", G_CALLBACK(on_notifications_control_changed), NULL);
 
     notifications_update_sound_controls();
 

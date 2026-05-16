@@ -11,6 +11,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __linux__
+#include <fcntl.h>
+#include <linux/vt.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#endif
+
 #ifndef LOCALEDIR
 #define LOCALEDIR "/usr/local/share/locale"
 #endif
@@ -40,8 +47,77 @@ struct lock_ui {
 	guint failed_attempts;
 	gint64 cooldown_until_us;
 	guint clock_timer_id;
-        gboolean syncing_entries;
+	gboolean syncing_entries;
+	gboolean tty_switch_locked;
+	gboolean require_tty_lock;
+	int tty_fd;
 };
+
+static gboolean
+env_truthy(const char *name)
+{
+	const char *value = g_getenv(name);
+	if (value == NULL || *value == '\0') {
+		return FALSE;
+	}
+
+	return g_ascii_strcasecmp(value, "1") == 0
+		|| g_ascii_strcasecmp(value, "yes") == 0
+		|| g_ascii_strcasecmp(value, "true") == 0
+		|| g_ascii_strcasecmp(value, "on") == 0;
+}
+
+#ifdef __linux__
+static void
+lock_tty_switch(struct lock_ui *ui)
+{
+	ui->tty_fd = -1;
+	ui->tty_switch_locked = FALSE;
+
+	int fd = open("/dev/tty", O_RDONLY | O_CLOEXEC);
+	if (fd < 0) {
+		fd = open("/dev/tty0", O_RDONLY | O_CLOEXEC);
+	}
+
+	if (fd < 0) {
+		return;
+	}
+
+	if (ioctl(fd, VT_LOCKSWITCH) == 0) {
+		ui->tty_fd = fd;
+		ui->tty_switch_locked = TRUE;
+		return;
+	}
+
+	close(fd);
+}
+
+static void
+unlock_tty_switch(struct lock_ui *ui)
+{
+	if (!ui->tty_switch_locked || ui->tty_fd < 0) {
+		return;
+	}
+
+	(void)ioctl(ui->tty_fd, VT_UNLOCKSWITCH);
+	close(ui->tty_fd);
+	ui->tty_fd = -1;
+	ui->tty_switch_locked = FALSE;
+}
+#else
+static void
+lock_tty_switch(struct lock_ui *ui)
+{
+	ui->tty_fd = -1;
+	ui->tty_switch_locked = FALSE;
+}
+
+static void
+unlock_tty_switch(struct lock_ui *ui)
+{
+	(void)ui;
+}
+#endif
 
 static gboolean
 constant_time_equals(const gchar *a, const gchar *b)
@@ -267,6 +343,7 @@ show_message_all(struct lock_ui *ui, const char *text, const char *css_class)
 		struct lock_window *win = g_ptr_array_index(ui->windows, i);
 		gtk_widget_remove_css_class(win->message, "ok");
 		gtk_widget_remove_css_class(win->message, "error");
+		gtk_widget_remove_css_class(win->message, "warn");
 		gtk_widget_add_css_class(win->message, css_class);
 		gtk_label_set_text(GTK_LABEL(win->message), text);
 	}
@@ -326,23 +403,63 @@ try_unlock(struct lock_window *win)
 static void
 on_entry_changed(GtkEditable *editable, gpointer data)
 {
-        struct lock_window *win = data;
-        struct lock_ui *ui = win->ui;
+	struct lock_window *win = data;
+	struct lock_ui *ui = win->ui;
 
-        if (ui->syncing_entries) {
-                return;
-        }
+	if (ui->syncing_entries) {
+		return;
+	}
 
-        ui->syncing_entries = TRUE;
-        const char *text = gtk_editable_get_text(editable);
+	ui->syncing_entries = TRUE;
+	const char *text = gtk_editable_get_text(editable);
 
-        for (guint i = 0; i < ui->windows->len; i++) {
-                struct lock_window *w = g_ptr_array_index(ui->windows, i);
-                if (w->entry != GTK_WIDGET(editable)) {
-                        gtk_editable_set_text(GTK_EDITABLE(w->entry), text);
-                }
-        }
-        ui->syncing_entries = FALSE;
+	for (guint i = 0; i < ui->windows->len; i++) {
+		struct lock_window *w = g_ptr_array_index(ui->windows, i);
+		if (w->entry != GTK_WIDGET(editable)) {
+			gtk_editable_set_text(GTK_EDITABLE(w->entry), text);
+		}
+	}
+	ui->syncing_entries = FALSE;
+}
+
+static gboolean
+is_vt_function_key(guint keyval)
+{
+	return keyval >= GDK_KEY_F1 && keyval <= GDK_KEY_F12;
+}
+
+static gboolean
+on_key_pressed(GtkEventControllerKey *controller,
+	      guint keyval,
+	      guint keycode,
+	      GdkModifierType state,
+	      gpointer data)
+{
+	(void)controller;
+	(void)keycode;
+	(void)data;
+
+	gboolean alt = (state & GDK_ALT_MASK) != 0;
+	gboolean ctrl = (state & GDK_CONTROL_MASK) != 0;
+	gboolean super = (state & GDK_SUPER_MASK) != 0;
+
+	if (alt && (keyval == GDK_KEY_Tab || keyval == GDK_KEY_ISO_Left_Tab || keyval == GDK_KEY_Escape)) {
+		return TRUE;
+	}
+
+	if (super && (keyval == GDK_KEY_Tab || keyval == GDK_KEY_ISO_Left_Tab)) {
+		return TRUE;
+	}
+
+	if (ctrl && alt && is_vt_function_key(keyval)) {
+		return TRUE;
+	}
+
+	if (ctrl && alt && (keyval == GDK_KEY_Left || keyval == GDK_KEY_Right)) {
+		return TRUE;
+	}
+
+	return FALSE;
 }
 
 static void
@@ -411,16 +528,33 @@ static void
 apply_css(void)
 {
 	const char *css =
-		"window { background: #0f1620; }"
-		".fallback-bg { background: radial-gradient(circle at 20% 20%, #27435f, #0f1620 60%); }"
-		".overlay { background: rgba(6, 10, 16, 0.55); }"
-		".panel { background: rgba(15, 22, 32, 0.78); border-radius: 18px; padding: 18px; min-width: 340px; }"
-		".clock { font-size: 54px; font-weight: 700; color: #e8f0ff; }"
-		".date { font-size: 14px; color: #b7cae6; }"
-		"entry { min-height: 42px; font-size: 18px; border-radius: 10px; padding: 0 10px; }"
-		"button { min-height: 42px; border-radius: 10px; font-weight: 600; }"
+		"window { background: #0b1017; }"
+		".fallback-bg { background: radial-gradient(circle at 25% 20%, #2a4d73, #0b1017 62%); }"
+		".overlay { background: rgba(4, 8, 14, 0.60); }"
+		".panel {"
+		"  background: linear-gradient(to bottom, rgba(26, 38, 54, 0.93), rgba(14, 22, 34, 0.93));"
+		"  border: 1px solid rgba(175, 210, 255, 0.16);"
+		"  border-radius: 22px;"
+		"  padding: 24px;"
+		"  min-width: 440px;"
+		"}"
+		".clock { font-size: 56px; font-weight: 800; color: #f3f8ff; letter-spacing: 1px; }"
+		".date { font-size: 14px; color: #b8cde8; margin-bottom: 10px; }"
+		".title { font-size: 20px; font-weight: 700; color: #eef5ff; }"
+		".subtitle { font-size: 13px; color: #b9cde4; margin-bottom: 8px; }"
+		".form-card {"
+		"  background: rgba(10, 16, 25, 0.55);"
+		"  border: 1px solid rgba(169, 201, 244, 0.18);"
+		"  border-radius: 14px;"
+		"  padding: 14px;"
+		"}"
+		".field-label { font-size: 12px; font-weight: 700; color: #c4d8f2; margin-bottom: 6px; }"
+		"entry { min-height: 44px; font-size: 18px; border-radius: 10px; padding: 0 10px; }"
+		"button { min-height: 44px; border-radius: 10px; font-weight: 700; }"
+		".message { margin-top: 4px; }"
 		"label.error { color: #ff8f9b; }"
-		"label.ok { color: #90e6ae; }";
+		"label.ok { color: #90e6ae; }"
+		"label.warn { color: #f5d57b; }";
 
 	GtkCssProvider *provider = gtk_css_provider_new();
 	gtk_css_provider_load_from_string(provider, css);
@@ -434,6 +568,8 @@ apply_css(void)
 static struct lock_window *
 create_lock_window(struct lock_ui *ui, GtkApplication *app, GdkMonitor *monitor, gboolean focus_entry)
 {
+	(void)focus_entry;
+
 	struct lock_window *win = g_new0(struct lock_window, 1);
 	win->ui = ui;
 
@@ -447,7 +583,7 @@ create_lock_window(struct lock_ui *ui, GtkApplication *app, GdkMonitor *monitor,
 	gtk_layer_init_for_window(GTK_WINDOW(window));
 	gtk_layer_set_layer(GTK_WINDOW(window), GTK_LAYER_SHELL_LAYER_OVERLAY);
 	gtk_layer_set_exclusive_zone(GTK_WINDOW(window), -1);
-	if (focus_entry) { gtk_layer_set_keyboard_mode(GTK_WINDOW(window), GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE); } else { gtk_layer_set_keyboard_mode(GTK_WINDOW(window), GTK_LAYER_SHELL_KEYBOARD_MODE_ON_DEMAND); }
+	gtk_layer_set_keyboard_mode(GTK_WINDOW(window), GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE);
 	gtk_layer_set_anchor(GTK_WINDOW(window), GTK_LAYER_SHELL_EDGE_LEFT, TRUE);
 	gtk_layer_set_anchor(GTK_WINDOW(window), GTK_LAYER_SHELL_EDGE_RIGHT, TRUE);
 	gtk_layer_set_anchor(GTK_WINDOW(window), GTK_LAYER_SHELL_EDGE_TOP, TRUE);
@@ -458,6 +594,10 @@ create_lock_window(struct lock_ui *ui, GtkApplication *app, GdkMonitor *monitor,
 
 	GtkWidget *overlay = gtk_overlay_new();
 	gtk_window_set_child(GTK_WINDOW(window), overlay);
+	GtkEventController *key_controller = gtk_event_controller_key_new();
+	g_signal_connect(key_controller, "key-pressed", G_CALLBACK(on_key_pressed), win);
+	gtk_widget_add_controller(window, key_controller);
+
 	GtkGesture *click = gtk_gesture_click_new();
 	gtk_event_controller_set_propagation_phase(GTK_EVENT_CONTROLLER(click), GTK_PHASE_CAPTURE);
 	g_signal_connect(click, "pressed", G_CALLBACK(on_any_click_pressed), win);
@@ -486,19 +626,46 @@ create_lock_window(struct lock_ui *ui, GtkApplication *app, GdkMonitor *monitor,
 	gtk_widget_add_css_class(date, "date");
 	gtk_box_append(GTK_BOX(center), date);
 
+	GtkWidget *title = gtk_label_new(_("Screen is locked"));
+	gtk_widget_add_css_class(title, "title");
+	gtk_widget_set_halign(title, GTK_ALIGN_START);
+	gtk_box_append(GTK_BOX(center), title);
+
+	GtkWidget *subtitle = gtk_label_new(_("Enter your password to unlock this session"));
+	gtk_widget_add_css_class(subtitle, "subtitle");
+	gtk_widget_set_halign(subtitle, GTK_ALIGN_START);
+	gtk_box_append(GTK_BOX(center), subtitle);
+
+	GtkWidget *form = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+	gtk_widget_add_css_class(form, "form-card");
+	gtk_box_append(GTK_BOX(center), form);
+
+	GtkWidget *field_label = gtk_label_new(_("Password"));
+	gtk_widget_add_css_class(field_label, "field-label");
+	gtk_widget_set_halign(field_label, GTK_ALIGN_START);
+	gtk_box_append(GTK_BOX(form), field_label);
+
 	GtkWidget *entry = gtk_password_entry_new();
 	win->entry = entry;
 	gtk_password_entry_set_show_peek_icon(GTK_PASSWORD_ENTRY(entry), TRUE);
 	gtk_widget_set_hexpand(entry, TRUE);
 	gtk_editable_set_text(GTK_EDITABLE(entry), "");
 	g_signal_connect(entry, "activate", G_CALLBACK(on_entry_activate), win);
-        g_signal_connect(entry, "changed", G_CALLBACK(on_entry_changed), win);
+	g_signal_connect(entry, "changed", G_CALLBACK(on_entry_changed), win);
+	gtk_box_append(GTK_BOX(form), entry);
+
+	GtkWidget *actions = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+	gtk_box_append(GTK_BOX(form), actions);
+	gtk_widget_set_halign(actions, GTK_ALIGN_FILL);
 	GtkWidget *button = gtk_button_new_with_label(_("Unlock"));
 	g_signal_connect(button, "clicked", G_CALLBACK(on_unlock_clicked), win);
-	gtk_box_append(GTK_BOX(center), button);
+	gtk_widget_set_hexpand(button, TRUE);
+	gtk_box_append(GTK_BOX(actions), button);
 
 	GtkWidget *message = gtk_label_new("");
 	win->message = message;
+	gtk_widget_add_css_class(message, "message");
+	gtk_widget_set_halign(message, GTK_ALIGN_START);
 	gtk_box_append(GTK_BOX(center), message);
 
 	update_clock_labels(win);
@@ -515,6 +682,7 @@ activate(GtkApplication *app, gpointer user_data)
 {
 	struct lock_ui *ui = user_data;
 	ui->app = app;
+	lock_tty_switch(ui);
 
 	apply_css();
 
@@ -535,6 +703,14 @@ activate(GtkApplication *app, gpointer user_data)
 	}
 
 	ui->clock_timer_id = g_timeout_add_seconds(1, on_clock_tick, ui);
+
+	if (!ui->tty_switch_locked) {
+		if (ui->require_tty_lock) {
+			show_message_all(ui, _("TTY switch lock failed. Enable CAP_SYS_TTY_CONFIG/root privileges for strict lock."), "error");
+		} else {
+			show_message_all(ui, _("Warning: TTY switch could not be kernel-locked in this session."), "warn");
+		}
+	}
 }
 
 int
@@ -552,6 +728,8 @@ main(int argc, char **argv)
 	struct lock_ui ui = { 0 };
 	ui.windows = g_ptr_array_new_with_free_func(g_free);
 	ui.expected_password = load_expected_password();
+	ui.require_tty_lock = env_truthy("KARTON_LOCK_REQUIRE_TTY_LOCK");
+	ui.tty_fd = -1;
 	normalize_expected_password(&ui);
 
 	GtkApplication *app = gtk_application_new("io.karton.Lock", G_APPLICATION_DEFAULT_FLAGS);
@@ -561,6 +739,7 @@ main(int argc, char **argv)
 	if (ui.clock_timer_id != 0) {
 		g_source_remove(ui.clock_timer_id);
 	}
+	unlock_tty_switch(&ui);
 	g_ptr_array_free(ui.windows, TRUE);
 	g_clear_pointer(&ui.expected_password, g_free);
 	g_object_unref(app);

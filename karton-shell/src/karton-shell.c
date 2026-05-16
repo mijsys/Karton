@@ -64,10 +64,12 @@
 #define MAX_STATUS_NETWORKS 8
 #define MAX_STATUS_AUDIO_DEVICES 8
 #define MAX_STATUS_REMOVABLE_DEVICES 8
+#define MAX_DESKTOP_ITEMS 256
 
 enum panel_type {
 PANEL_TOP,
 PANEL_SIDE,
+PANEL_DESKTOP,
 };
 
 enum run_mode {
@@ -171,6 +173,21 @@ int category_override;
 struct launcher_category_override {
 char desktop_id[128];
 int category;
+};
+
+struct desktop_item {
+char name[NAME_MAX + 1];
+char path[PATH_MAX];
+bool is_dir;
+bool has_custom_pos;
+double custom_x;
+double custom_y;
+};
+
+struct desktop_position {
+char path[PATH_MAX];
+double x;
+double y;
 };
 
 struct global_menu_item {
@@ -360,6 +377,24 @@ double launcher_menu_y;
 
 struct panel top;
 struct panel side;
+struct panel desktop;
+
+char desktop_dir[PATH_MAX];
+struct desktop_item desktop_items[MAX_DESKTOP_ITEMS];
+size_t desktop_item_count;
+int desktop_hover_item;
+struct desktop_position desktop_positions[MAX_DESKTOP_ITEMS];
+size_t desktop_position_count;
+bool desktop_drag_active;
+bool desktop_drag_moved;
+int desktop_drag_item;
+double desktop_drag_offset_x;
+double desktop_drag_offset_y;
+bool desktop_menu_open;
+int desktop_menu_item;
+int desktop_menu_hover_action;
+double desktop_menu_x;
+double desktop_menu_y;
 
 struct toplevel_entry toplevels[MAX_TOPLEVELS];
 struct app_group groups[MAX_GROUPS];
@@ -494,6 +529,16 @@ static void popup_clamp_selection(struct app *app);
 static void request_top_panel_size(struct app *app);
 static void request_side_panel_size(struct app *app);
 static void trigger_redraw(struct app *app);
+static void desktop_items_load(struct app *app);
+static void desktop_positions_load(struct app *app);
+static void desktop_positions_save(const struct app *app);
+static bool desktop_item_rect(const struct panel *panel, const struct app *app, int idx,
+double *x, double *y, double *w, double *h);
+static int desktop_item_hit(const struct panel *panel, const struct app *app, double px, double py);
+static void desktop_open_item(const struct app *app, int idx);
+static int desktop_menu_action_hit(const struct app *app, double px, double py);
+static void desktop_menu_perform_action(struct app *app, int action);
+static void render_desktop_panel(cairo_t *cairo, struct panel *panel);
 static void rebuild_groups(struct app *app);
 static void karton_get_config_path(char *out, size_t out_size, const char *name);
 static void apply_runtime_region_environment(void);
@@ -2425,6 +2470,165 @@ snprintf(target, sizeof(target), ".");
 pid_t pid = fork();
 if (pid == 0) {
 execlp("xdg-open", "xdg-open", target, (char *)NULL);
+_exit(127);
+}
+}
+
+static bool
+desktop_resolve_dir(char *out, size_t out_size)
+{
+if (!out || out_size == 0) {
+return false;
+}
+
+out[0] = '\0';
+if (read_command_first_line("sh -lc 'xdg-user-dir DESKTOP 2>/dev/null'", out, out_size)
+&& out[0] && access(out, F_OK) == 0) {
+return true;
+}
+
+const char *home = getenv("HOME");
+if (!home || !home[0]) {
+return false;
+}
+
+char pulpit[PATH_MAX] = { 0 };
+snprintf(pulpit, sizeof(pulpit), "%s/Pulpit", home);
+if (access(pulpit, F_OK) == 0) {
+snprintf(out, out_size, "%s", pulpit);
+return true;
+}
+
+snprintf(out, out_size, "%s/Desktop", home);
+return true;
+}
+
+static int
+desktop_item_cmp(const void *a, const void *b)
+{
+const struct desktop_item *ia = a;
+const struct desktop_item *ib = b;
+
+if (ia->is_dir != ib->is_dir) {
+return ia->is_dir ? -1 : 1;
+}
+
+return g_ascii_strcasecmp(ia->name, ib->name);
+}
+
+static void
+desktop_items_load(struct app *app)
+{
+if (!app) {
+return;
+}
+
+if (!desktop_resolve_dir(app->desktop_dir, sizeof(app->desktop_dir))) {
+app->desktop_item_count = 0;
+return;
+}
+
+DIR *dir = opendir(app->desktop_dir);
+if (!dir) {
+app->desktop_item_count = 0;
+return;
+}
+
+app->desktop_item_count = 0;
+struct dirent *entry = NULL;
+while ((entry = readdir(dir)) != NULL) {
+if (entry->d_name[0] == '.') {
+continue;
+}
+if (app->desktop_item_count >= MAX_DESKTOP_ITEMS) {
+break;
+}
+
+struct desktop_item *item = &app->desktop_items[app->desktop_item_count];
+snprintf(item->name, sizeof(item->name), "%s", entry->d_name);
+size_t dir_len = strlen(app->desktop_dir);
+size_t name_len = strlen(entry->d_name);
+if (dir_len + 1 + name_len >= sizeof(item->path)) {
+continue;
+}
+memcpy(item->path, app->desktop_dir, dir_len);
+item->path[dir_len] = '/';
+memcpy(item->path + dir_len + 1, entry->d_name, name_len);
+item->path[dir_len + 1 + name_len] = '\0';
+
+struct stat st = { 0 };
+item->is_dir = (stat(item->path, &st) == 0 && S_ISDIR(st.st_mode));
+app->desktop_item_count++;
+}
+
+closedir(dir);
+
+if (app->desktop_item_count > 1) {
+qsort(app->desktop_items, app->desktop_item_count,
+sizeof(app->desktop_items[0]), desktop_item_cmp);
+}
+
+if (app->desktop_hover_item >= (int)app->desktop_item_count) {
+app->desktop_hover_item = -1;
+}
+}
+
+static bool
+desktop_item_rect(const struct panel *panel, const struct app *app, int idx,
+double *x, double *y, double *w, double *h)
+{
+if (!panel || !app || idx < 0 || idx >= (int)app->desktop_item_count) {
+return false;
+}
+
+const double cell_w = 110.0;
+const double cell_h = 112.0;
+const double start_x = app->style.side_width + 16.0;
+const double start_y = app->style.top_height + 16.0;
+int columns = (int)((panel->width - start_x - 16.0) / cell_w);
+if (columns < 1) {
+columns = 1;
+}
+
+int row = idx / columns;
+int col = idx % columns;
+*x = start_x + col * cell_w;
+*y = start_y + row * cell_h;
+*w = cell_w - 10.0;
+*h = cell_h - 8.0;
+return true;
+}
+
+static int
+desktop_item_hit(const struct panel *panel, const struct app *app, double px, double py)
+{
+for (int i = 0; i < (int)app->desktop_item_count; i++) {
+double x, y, w, h;
+if (!desktop_item_rect(panel, app, i, &x, &y, &w, &h)) {
+continue;
+}
+if (point_in_rect(px, py, x, y, w, h)) {
+return i;
+}
+}
+return -1;
+}
+
+static void
+desktop_open_item(const struct app *app, int idx)
+{
+if (!app || idx < 0 || idx >= (int)app->desktop_item_count) {
+return;
+}
+
+const char *path = app->desktop_items[idx].path;
+if (!path || !path[0]) {
+return;
+}
+
+pid_t pid = fork();
+if (pid == 0) {
+execlp("xdg-open", "xdg-open", path, (char *)NULL);
 _exit(127);
 }
 }
@@ -5507,6 +5711,7 @@ trigger_redraw(struct app *app)
 {
 panel_draw(&app->top);
 panel_draw(&app->side);
+panel_draw(&app->desktop);
 }
 
 static bool
@@ -8828,6 +9033,42 @@ draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_SEMIBOLD,
 }
 
 static void
+render_desktop_panel(cairo_t *cairo, struct panel *panel)
+{
+struct app *app = panel->app;
+if (!app) {
+return;
+}
+
+for (int i = 0; i < (int)app->desktop_item_count; i++) {
+double x, y, w, h;
+if (!desktop_item_rect(panel, app, i, &x, &y, &w, &h)) {
+continue;
+}
+
+bool hovered = i == app->desktop_hover_item;
+if (hovered) {
+set_source_hex_a(cairo, 0x1f3352, 0.20);
+rounded_rect(cairo, x, y, w, h, 12.0);
+cairo_fill(cairo);
+}
+
+const char *icon_name = app->desktop_items[i].is_dir ? "folder" : "text-x-generic";
+bool have_icon = draw_named_icon(cairo, app, icon_name, x + w * 0.5, y + 30.0, 42.0);
+if (!have_icon) {
+draw_karton_symbol(cairo, app->desktop_items[i].is_dir ? 0 : 7,
+x + w * 0.5, y + 30.0, 30.0,
+app->desktop_items[i].is_dir ? karton_symbol_color(0) : karton_symbol_color(7), 0.98);
+}
+
+draw_pango_text(cairo, "Noto Sans", PANGO_WEIGHT_MEDIUM,
+10.2, 0xffffff, 0.96,
+x + 4.0, y + 60.0, (int)w - 8, PANGO_ALIGN_CENTER,
+app->desktop_items[i].name);
+}
+}
+
+static void
 panel_draw(struct panel *panel)
 {
 struct app *app = panel->app;
@@ -8855,8 +9096,10 @@ cairo_scale(cairo, scale, scale);
 
 if (panel->type == PANEL_TOP) {
 render_top_panel(cairo, panel);
-} else {
+} else if (panel->type == PANEL_SIDE) {
 render_side_panel(cairo, panel);
+} else {
+render_desktop_panel(cairo, panel);
 }
 
 cairo_restore(cairo);
@@ -10054,7 +10297,7 @@ height = panel->app->quick_open
 ? panel->app->style.top_expanded_height
 : panel->app->style.top_height;
 }
-} else {
+} else if (panel->type == PANEL_SIDE) {
 if (width == 0) {
 width = panel->app->popup_group >= 0
 ? panel->app->style.side_expanded_width
@@ -10062,6 +10305,13 @@ width = panel->app->popup_group >= 0
 if (panel->app->launcher_open) {
 width = launcher_panel_width(panel->app);
 }
+}
+} else {
+if (width == 0) {
+width = 1;
+}
+if (height == 0) {
+height = 1;
 }
 }
 
@@ -10182,6 +10432,11 @@ app->quick_hover_tile = quick_tile_hit(&app->top, app->pointer_x, app->pointer_y
 app->quick_menu_hover_item = quick_tile_menu_item_hit(&app->top, app, app->pointer_x, app->pointer_y);
 panel_draw(&app->top);
 }
+if (surface == app->desktop.surface) {
+desktop_items_load(app);
+app->desktop_hover_item = desktop_item_hit(&app->desktop, app, app->pointer_x, app->pointer_y);
+panel_draw(&app->desktop);
+}
 update_side_hover(app);
 }
 
@@ -10203,6 +10458,7 @@ app->launcher_hover_favorite = -1;
 app->launcher_menu_hover = -1;
 app->quick_hover_tile = -1;
 app->quick_menu_hover_item = -1;
+app->desktop_hover_item = -1;
 app->top_slider_drag_target = TOP_SLIDER_DRAG_NONE;
 if (app->quick_open) {
 top_popup_close(app);
@@ -10218,6 +10474,7 @@ return;
 }
 request_side_panel_size(app);
 panel_draw(&app->side);
+panel_draw(&app->desktop);
 }
 
 static void
@@ -10269,6 +10526,13 @@ if (top_popup_rect_for_mode(&app->top, app->top_popup_mode, &qx, &qy, &qw, &qh)
 top_popup_close(app);
 }
 }
+if (app->pointer_surface == app->desktop.surface) {
+int old_hover = app->desktop_hover_item;
+app->desktop_hover_item = desktop_item_hit(&app->desktop, app, app->pointer_x, app->pointer_y);
+if (old_hover != app->desktop_hover_item) {
+panel_draw(&app->desktop);
+}
+}
 update_side_hover(app);
 }
 
@@ -10311,6 +10575,28 @@ panel_draw(&app->top);
 }
 if (button == BTN_LEFT || button == BTN_RIGHT) {
 handle_side_click(app, button);
+}
+return;
+}
+
+if (app->pointer_surface == app->desktop.surface) {
+if (button == BTN_LEFT) {
+desktop_items_load(app);
+int hit = desktop_item_hit(&app->desktop, app, app->pointer_x, app->pointer_y);
+if (hit >= 0) {
+desktop_open_item(app, hit);
+}
+}
+if (app->quick_open) {
+top_popup_close(app);
+}
+if (app->global_menu_open) {
+app->global_menu_open = false;
+app->global_menu_open_top = -1;
+panel_draw(&app->top);
+}
+if (app->launcher_open) {
+launcher_close(app);
 }
 return;
 }
@@ -11060,6 +11346,8 @@ static bool
 panel_create(struct app *app, struct panel *panel, enum panel_type type)
 {
 uint32_t anchors = 0;
+enum zwlr_layer_shell_v1_layer layer = ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY;
+const char *namespace_name = "karton-side-panel";
 panel->type = type;
 panel->app = app;
 
@@ -11068,12 +11356,23 @@ if (!panel->surface) {
 return false;
 }
 
+if (type == PANEL_TOP) {
+namespace_name = "karton-top-panel";
+layer = ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY;
+} else if (type == PANEL_SIDE) {
+namespace_name = "karton-side-panel";
+layer = ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY;
+} else {
+namespace_name = "karton-desktop-panel";
+layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND;
+}
+
 panel->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
 app->layer_shell,
 panel->surface,
 app->output,
-ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
-type == PANEL_TOP ? "karton-top-panel" : "karton-side-panel");
+layer,
+namespace_name);
 if (!panel->layer_surface) {
 return false;
 }
@@ -11093,7 +11392,7 @@ app->quick_open ? app->style.top_expanded_height : app->style.top_height);
 zwlr_layer_surface_v1_set_exclusive_zone(panel->layer_surface, app->style.top_height);
 zwlr_layer_surface_v1_set_margin(panel->layer_surface,
 0, 0, 0, app->side_enabled ? app->style.side_width : 0);
-} else {
+} else if (type == PANEL_SIDE) {
 anchors = ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT
 | ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP
 | ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM;
@@ -11107,6 +11406,16 @@ zwlr_layer_surface_v1_set_size(panel->layer_surface,
 launcher_panel_width(app), 0);
 }
 zwlr_layer_surface_v1_set_exclusive_zone(panel->layer_surface, app->style.side_width);
+} else {
+anchors = ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT
+| ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT
+| ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP
+| ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM;
+zwlr_layer_surface_v1_set_anchor(panel->layer_surface, anchors);
+zwlr_layer_surface_v1_set_margin(panel->layer_surface,
+app->style.top_height, 0, 0, app->side_enabled ? app->style.side_width : 0);
+zwlr_layer_surface_v1_set_size(panel->layer_surface, 0, 0);
+zwlr_layer_surface_v1_set_exclusive_zone(panel->layer_surface, -1);
 }
 
 wl_surface_commit(panel->surface);
@@ -11143,6 +11452,7 @@ return 2;
 
 bool need_top = mode != RUN_SIDE_ONLY;
 bool need_side = mode != RUN_TOP_ONLY;
+bool need_desktop = mode == RUN_BOTH;
 
 struct app app = {
 .output_scale = 1,
@@ -11173,6 +11483,7 @@ sync_environment_theme(app.style.theme_mode);
 }
 app.top.app = &app;
 app.side.app = &app;
+app.desktop.app = &app;
 load_icon_theme_name(&app);
 calendar_set_today(&app);
 load_launcher_entries(&app);
@@ -11199,8 +11510,12 @@ return 1;
 }
 
 if ((need_top && !panel_create(&app, &app.top, PANEL_TOP))
-|| (need_side && !panel_create(&app, &app.side, PANEL_SIDE))) {
+|| (need_side && !panel_create(&app, &app.side, PANEL_SIDE))
+|| (need_desktop && !panel_create(&app, &app.desktop, PANEL_DESKTOP))) {
 fprintf(stderr, "%s\n", _("karton-shell: failed to create layer surfaces"));
+if (need_desktop) {
+panel_destroy(&app.desktop);
+}
 if (need_side) {
 panel_destroy(&app.side);
 }
@@ -11230,6 +11545,9 @@ panel_draw(&app.top);
 if (need_side && anim_active) {
 panel_draw(&app.side);
 }
+if (need_desktop && anim_active) {
+panel_draw(&app.desktop);
+}
 
 if (wl_display_flush(app.display) == -1 && errno != EAGAIN && errno != EINTR) {
 break;
@@ -11257,6 +11575,9 @@ panel_draw(&app.top);
 if (need_side) {
 panel_draw(&app.side);
 }
+if (need_desktop) {
+panel_draw(&app.desktop);
+}
 }
 continue;
 }
@@ -11283,8 +11604,14 @@ panel_draw(&app.top);
 if (need_side && runtime_animation_active(&app)) {
 panel_draw(&app.side);
 }
+if (need_desktop && runtime_animation_active(&app)) {
+panel_draw(&app.desktop);
+}
 }
 
+if (need_desktop) {
+panel_destroy(&app.desktop);
+}
 if (need_side) {
 panel_destroy(&app.side);
 }
