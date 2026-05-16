@@ -16,7 +16,7 @@ BuildRequires:  pkgconf-pkg-config
 BuildRequires:  pkgconfig(wayland-server)
 BuildRequires:  pkgconfig(wayland-client)
 BuildRequires:  pkgconfig(wayland-protocols)
-BuildRequires:  pkgconfig(wlroots)
+BuildRequires:  pkgconfig(wlroots-0.20)
 BuildRequires:  pkgconfig(cairo)
 BuildRequires:  pkgconfig(pango)
 BuildRequires:  pkgconfig(glib-2.0)
@@ -100,7 +100,11 @@ Locker
 
 %build
 for comp in tektura karton-shell karton-settings karton-files karton-terminal karton-idle karton-lock karton-session; do
-    meson setup "$comp/builddir" "$comp" --prefix=/usr -Dsystemd-session=enabled -Dicon=disabled
+    if [ "$comp" = "tektura" ]; then
+        meson setup "$comp/builddir" "$comp" --prefix=/usr -Dsystemd-session=enabled -Dicon=disabled
+    else
+        meson setup "$comp/builddir" "$comp" --prefix=/usr
+    fi
     meson compile -C "$comp/builddir"
 done
 
@@ -116,6 +120,7 @@ install -Dm644 repo/archlinux/config/rc.xml %{buildroot}/etc/xdg/karton/rc.xml
 install -Dm644 repo/archlinux/config/theme.toml %{buildroot}/etc/xdg/karton/theme.toml
 
 %find_lang karton-files
+%find_lang karton
 %find_lang karton-lock
 %find_lang karton-session
 %find_lang karton-settings
@@ -126,7 +131,7 @@ install -Dm644 repo/archlinux/config/theme.toml %{buildroot}/etc/xdg/karton/them
 %dir /etc/xdg/karton
 /etc/xdg/karton/*
 
-%files -n tektura
+%files -n tektura -f karton.lang
 %{_bindir}/karton
 %{_bindir}/karton-session-start
 %{_bindir}/labnag
@@ -140,7 +145,9 @@ install -Dm644 repo/archlinux/config/theme.toml %{buildroot}/etc/xdg/karton/them
 
 %files -n karton-shell -f karton-shell.lang
 %{_bindir}/karton-shell
-%{_datadir}/karton/shell.css.example
+%{_bindir}/karton-system-status
+%{_bindir}/karton-top-panel
+%{_bindir}/karton-side-dock
 
 %files -n karton-settings -f karton-settings.lang
 %{_bindir}/karton-settings
@@ -160,6 +167,7 @@ install -Dm644 repo/archlinux/config/theme.toml %{buildroot}/etc/xdg/karton/them
 %files -n karton-session -f karton-session.lang
 %{_bindir}/karton-screenshot
 %{_bindir}/karton-password-dialog
+%{_bindir}/karton-bootstrap-user
 %{_bindir}/karton-images
 %{_bindir}/karton-launcher
 %{_bindir}/karton-login-manager
