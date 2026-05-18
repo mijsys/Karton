@@ -47,11 +47,9 @@ Dostępne skrypty:
 
 - `build-arch.sh`
 - `archlinux/build-repo.sh`
-- `build-opensuse.sh`
 - `build-ubuntu.sh`
 - `build-debian.sh`
 - `install-arch.sh`
-- `install-opensuse.sh`
 - `install-ubuntu.sh`
 - `install-debian.sh`
 
@@ -63,7 +61,6 @@ Skrypty `install-*.sh` można uruchomić bezpośrednio z konsoli przez `curl`:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/mijsys/Tektura-i-Karton/main/repo/install-arch.sh | bash
-curl -fsSL https://raw.githubusercontent.com/mijsys/Tektura-i-Karton/main/repo/install-opensuse.sh | bash
 curl -fsSL https://raw.githubusercontent.com/mijsys/Tektura-i-Karton/main/repo/install-debian.sh | bash
 curl -fsSL https://raw.githubusercontent.com/mijsys/Tektura-i-Karton/main/repo/install-ubuntu.sh | bash
 ```
@@ -86,7 +83,6 @@ Pakiety docelowe:
 Uwagi dot. zaleznosci runtime (Faza B):
 
 - Arch (`kartonde`): metapakiet wymaga `lxqt-policykit` (lekki, niezalezny od GNOME), wiec po `pacman -S kartonde` agent polkit jest instalowany razem ze srodowiskiem.
-- openSUSE (`kartonde`): metapakiet wymaga jednego z agentow polkit (`polkit-gnome` lub `lxqt-policykit` lub `mate-polkit`).
 - Debian/Ubuntu: w tym repo nie ma jeszcze natywnego pakietu `.deb` metapakietu `kartonde`; skrypty `build-debian.sh` i `build-ubuntu.sh` instaluja wymagany pakiet agenta (`policykit-1-gnome`/alternatywy) podczas instalacji zaleznosci.
 
 Preferencja agenta polkit w automatyce KartON jest neutralna desktopowo:

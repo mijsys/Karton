@@ -157,8 +157,6 @@ warn_screenshot_runtime_deps() {
     log "Install hint (Debian/Ubuntu): sudo apt install grim slurp wl-clipboard"
   elif command -v dnf >/dev/null 2>&1; then
     log "Install hint (Fedora): sudo dnf install grim slurp wl-clipboard"
-  elif command -v zypper >/dev/null 2>&1; then
-    log "Install hint (openSUSE): sudo zypper install grim slurp wl-clipboard"
   fi
 }
 
@@ -179,8 +177,6 @@ warn_monitor_runtime_deps() {
     log "Install hint (Debian/Ubuntu): sudo apt install wlr-randr"
   elif command -v dnf >/dev/null 2>&1; then
     log "Install hint (Fedora): sudo dnf install wlr-randr"
-  elif command -v zypper >/dev/null 2>&1; then
-    log "Install hint (openSUSE): sudo zypper install wlr-randr"
   fi
 }
 
@@ -216,8 +212,6 @@ warn_display_tweak_runtime_deps() {
     log "Install hint (Debian/Ubuntu): sudo apt install brightnessctl ddcutil gammastep"
   elif command -v dnf >/dev/null 2>&1; then
     log "Install hint (Fedora): sudo dnf install brightnessctl ddcutil gammastep"
-  elif command -v zypper >/dev/null 2>&1; then
-    log "Install hint (openSUSE): sudo zypper install brightnessctl ddcutil gammastep"
   fi
 }
 
@@ -236,8 +230,6 @@ warn_portal_runtime_deps() {
     log "Install hint (Debian/Ubuntu): sudo apt install xdg-desktop-portal xdg-desktop-portal-gtk"
   elif command -v dnf >/dev/null 2>&1; then
     log "Install hint (Fedora): sudo dnf install xdg-desktop-portal xdg-desktop-portal-gtk"
-  elif command -v zypper >/dev/null 2>&1; then
-    log "Install hint (openSUSE): sudo zypper install xdg-desktop-portal xdg-desktop-portal-gtk"
   fi
 }
 
@@ -278,8 +270,6 @@ warn_stage1_core_runtime_deps() {
     log "Install hint (Debian/Ubuntu): sudo apt install swaylock swayidle cliphist policykit-1-gnome"
   elif command -v dnf >/dev/null 2>&1; then
     log "Install hint (Fedora): sudo dnf install swaylock swayidle wlroots-utils cliphist polkit-gnome"
-  elif command -v zypper >/dev/null 2>&1; then
-    log "Install hint (openSUSE): sudo zypper install swaylock swayidle wlopm cliphist polkit-gnome"
   fi
 }
 
@@ -315,17 +305,6 @@ pick_apt_pkg() {
   local pkg
   for pkg in "$@"; do
     if apt-cache show "$pkg" >/dev/null 2>&1; then
-      printf '%s\n' "$pkg"
-      return 0
-    fi
-  done
-  return 1
-}
-
-pick_zypper_pkg() {
-  local pkg
-  for pkg in "$@"; do
-    if zypper --non-interactive se -x "$pkg" 2>/dev/null | grep -q "<name>$pkg</name>"; then
       printf '%s\n' "$pkg"
       return 0
     fi
@@ -491,40 +470,6 @@ install_greetd_packages() {
     return 0
   fi
 
-  if command -v zypper >/dev/null 2>&1; then
-    local greetd_pkg cage_pkg
-    greetd_pkg="$(pick_zypper_pkg greetd || true)"
-    gtk_greeter_pkg="$(pick_zypper_pkg gtkgreet greetd-gtkgreet greetd-gtk-greeter greettdgtk greetdgtk || true)"
-    cage_pkg="$(pick_zypper_pkg cage || true)"
-    local zypper_packages=()
-
-    if [[ -n "$greetd_pkg" ]]; then
-      zypper_packages+=("$greetd_pkg")
-    else
-      log "Warning: greetd package not found in zypper repositories"
-    fi
-
-    if [[ -n "$gtk_greeter_pkg" ]]; then
-      zypper_packages+=("$gtk_greeter_pkg")
-    else
-      log "Warning: no GTK greeter package found (gtkgreet/greetd-gtkgreet)"
-    fi
-
-    if [[ -n "$cage_pkg" ]]; then
-      zypper_packages+=("$cage_pkg")
-    else
-      log "Warning: cage package not found, gtkgreet will run without cage"
-    fi
-
-    if [[ "${#zypper_packages[@]}" -gt 0 ]]; then
-      log "Installing greetd dependencies via zypper"
-      if ! run_sudo_or_warn zypper install -y "${zypper_packages[@]}"; then
-        log "Warning: failed to install greetd packages via zypper; continuing"
-      fi
-    fi
-    return 0
-  fi
-
   log "Warning: unsupported package manager; skipping greetd package installation"
   return 0
 }
@@ -565,22 +510,6 @@ install_lightdm_packages() {
     return 0
   fi
 
-  if command -v zypper >/dev/null 2>&1; then
-    local lightdm_pkg
-    lightdm_pkg="$(pick_zypper_pkg lightdm || true)"
-    greeter_pkg="$(pick_zypper_pkg lightdm-gtk-greeter lightdm-slick-greeter || true)"
-    local zypper_packages=()
-
-    [[ -n "$lightdm_pkg" ]] && zypper_packages+=("$lightdm_pkg") || log "Warning: lightdm package not found in zypper repositories"
-    [[ -n "$greeter_pkg" ]] && zypper_packages+=("$greeter_pkg") || log "Warning: no LightDM greeter package found (lightdm-gtk-greeter/lightdm-slick-greeter)"
-
-    if [[ "${#zypper_packages[@]}" -gt 0 ]]; then
-      log "Installing LightDM dependencies via zypper"
-      run_sudo_or_warn zypper install -y "${zypper_packages[@]}" || true
-    fi
-    return 0
-  fi
-
   log "Warning: unsupported package manager; skipping LightDM package installation"
   return 0
 }
@@ -603,18 +532,6 @@ install_sddm_packages() {
       run_sudo_or_warn apt install -y "$sddm_pkg" || true
     else
       log "Warning: sddm package not found in apt repositories"
-    fi
-    return 0
-  fi
-
-  if command -v zypper >/dev/null 2>&1; then
-    local sddm_pkg
-    sddm_pkg="$(pick_zypper_pkg sddm || true)"
-    if [[ -n "$sddm_pkg" ]]; then
-      log "Installing SDDM via zypper"
-      run_sudo_or_warn zypper install -y "$sddm_pkg" || true
-    else
-      log "Warning: sddm package not found in zypper repositories"
     fi
     return 0
   fi
@@ -645,18 +562,6 @@ install_gdm_packages() {
     return 0
   fi
 
-  if command -v zypper >/dev/null 2>&1; then
-    local gdm_pkg
-    gdm_pkg="$(pick_zypper_pkg gdm gdm3 || true)"
-    if [[ -n "$gdm_pkg" ]]; then
-      log "Installing GDM via zypper"
-      run_sudo_or_warn zypper install -y "$gdm_pkg" || true
-    else
-      log "Warning: gdm/gdm3 package not found in zypper repositories"
-    fi
-    return 0
-  fi
-
   log "Warning: unsupported package manager; skipping GDM package installation"
   return 0
 }
@@ -679,18 +584,6 @@ install_ly_packages() {
       run_sudo_or_warn apt install -y "$ly_pkg" || true
     else
       log "Warning: ly package not found in apt repositories"
-    fi
-    return 0
-  fi
-
-  if command -v zypper >/dev/null 2>&1; then
-    local ly_pkg
-    ly_pkg="$(pick_zypper_pkg ly || true)"
-    if [[ -n "$ly_pkg" ]]; then
-      log "Installing Ly via zypper"
-      run_sudo_or_warn zypper install -y "$ly_pkg" || true
-    else
-      log "Warning: ly package not found in zypper repositories"
     fi
     return 0
   fi
@@ -1053,9 +946,6 @@ install_cursor_build_tool() {
     # Debian/Ubuntu: pakiet to x11-apps (zawiera xcursorgen)
     run_sudo_or_warn apt update || true
     run_sudo_or_warn apt install -y x11-apps || true
-  elif command -v zypper >/dev/null 2>&1; then
-    # openSUSE: pakiet to xcursorgen
-    run_sudo_or_warn zypper install -y xcursorgen || true
   elif command -v dnf >/dev/null 2>&1; then
     # Fedora/RHEL: pakiet to xorg-x11-apps
     run_sudo_or_warn dnf install -y xorg-x11-apps || true

@@ -12,7 +12,6 @@
   - `repo/build-arch.sh`
   - `repo/build-debian.sh`
   - `repo/build-ubuntu.sh`
-  - `repo/build-opensuse.sh`
 - `repo/build-common.sh` zawiera `run_phase_b_smoke_tests` z trybem strict:
   - `KARTON_SMOKE_STAGE2_STRICT=0` (domyslnie: ostrzezenia)
   - `KARTON_SMOKE_STAGE2_STRICT=1` (blokujacy fail)
@@ -25,7 +24,6 @@
 - `karton-sessiond` ma rozszerzone wykrywanie binarek polkit agenta (sciezki + nazwy binarne), co poprawia autostart miedzy dystrybucjami.
 - Kolejnosc preferencji agenta jest neutralna desktopowo: `lxqt-policykit` -> `mate-polkit` -> `polkit-gnome` (build scripts + runtime autostart).
 - metapakiet Arch `kartonde` wymaga teraz `lxqt-policykit` (neutralny agent, bez zaleznosci od GNOME) (`repo/archlinux/PKGBUILD`, `.SRCINFO`).
-- metapakiet openSUSE `kartonde` wymaga agenta przez zaleznosc alternatywna: `(polkit-gnome or lxqt-policykit or mate-polkit)`.
 - `repo/check-session-integrity.sh` pilnuje regresji tych zaleznosci pakietowych.
 
 ## Aktualny wynik smoke-stage2 (lokalnie)

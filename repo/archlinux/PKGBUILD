@@ -1,7 +1,7 @@
 pkgbase=kartonde
-pkgname=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock' 'kartonde')
+pkgname=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock' 'karton-themes-wallpapers' 'kartonde')
 pkgver=0.8.0
-pkgrel=3
+pkgrel=4
 arch=('x86_64')
 url='https://github.com/mijsys/Tektura-i-Karton'
 license=('GPL-2.0-only')
@@ -148,7 +148,7 @@ package_karton-session() {
 package_kartonde() {
   pkgdesc='Complete KartONDE desktop environment metapackage'
   depends=(
-    'tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock'
+    'tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock' 'karton-themes-wallpapers'
     'lxqt-policykit'
     'swayidle' 'swaylock' 'wlopm'
     'xdg-desktop-portal' 'xdg-desktop-portal-gtk'
@@ -187,4 +187,29 @@ package_kartonde() {
   install -Dm644 "$src_root/repo/archlinux/config/theme.toml" "$pkgdir/etc/xdg/karton/theme.toml"
   install -Dm644 "$src_root/README.md" "$pkgdir/usr/share/doc/kartonde/README.md"
   install -Dm644 "$src_root/repo/archlinux/pacman.conf.example" "$pkgdir/usr/share/doc/kartonde/pacman.conf.example"
+}
+
+package_karton-themes-wallpapers() {
+  pkgdesc='KartONDE themes, wallpapers and icons'
+  depends=()
+  
+  local src_root="$srcdir/kartonde"
+  
+  # Install wallpapers
+  install -Dm644 "$src_root/Wallpaper/karton.png" "$pkgdir/usr/share/backgrounds/karton/karton.png"
+  install -Dm644 "$src_root/Wallpaper/karton2.png" "$pkgdir/usr/share/backgrounds/karton/karton2.png"
+  
+  # Install theme files
+  mkdir -p "$pkgdir/usr/share/themes"
+  cp -r "$src_root/tektura/themes/KartONFlat" "$pkgdir/usr/share/themes/"
+  
+  # Install icons from tektura
+  install -Dm644 "$src_root/tektura/data/karton.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/karton.svg"
+  install -Dm644 "$src_root/tektura/data/karton-symbolic.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/karton-symbolic.svg"
+  install -Dm644 "$src_root/tektura/data/tektura.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/tektura.svg"
+  install -Dm644 "$src_root/tektura/data/tektura-symbolic.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/tektura-symbolic.svg"
+  
+  # Install icons from karton-files
+  mkdir -p "$pkgdir/usr/share/icons/hicolor/scalable/apps"
+  cp "$src_root/karton-files/data/icons"/*.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/"
 }

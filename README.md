@@ -34,7 +34,7 @@ KartONDE łączy kompozytor Wayland Tektura z panelem Karton, usługami sesji i 
 - kompilator C (`gcc` albo `clang`)
 - podstawowe zależności Wayland i GTK4 wymagane przez podprojekty
 
-Na Arch, Debian, Ubuntu lub openSUSE możesz też skorzystać ze skryptów w katalogu `repo`.
+Na Arch, Debian i Ubuntu możesz też skorzystać ze skryptów w katalogu `repo`.
 
 ### Instalacja użytkownika
 
@@ -111,7 +111,6 @@ W katalogu `repo` są gotowe skrypty dla wybranych systemów:
 - `repo/build-arch.sh`
 - `repo/build-debian.sh`
 - `repo/build-ubuntu.sh`
-- `repo/build-opensuse.sh`
 
 ### Struktura dokumentacji
 
@@ -152,7 +151,7 @@ KartONDE combines the Tektura Wayland compositor with the Karton shell, session 
 - a C compiler such as `gcc` or `clang`
 - Wayland and GTK4 runtime/build dependencies required by the subprojects
 
-You can also use the distro helper scripts in `repo` for Arch, Debian, Ubuntu and openSUSE.
+You can also use the distro helper scripts in `repo` for Arch, Debian and Ubuntu.
 
 ### User installation
 
@@ -229,7 +228,6 @@ The `repo` directory includes ready-made scripts for selected distributions:
 - `repo/build-arch.sh`
 - `repo/build-debian.sh`
 - `repo/build-ubuntu.sh`
-- `repo/build-opensuse.sh`
 
 ### Documentation assets
 
@@ -270,7 +268,7 @@ KartONDE kombiniert den Tektura-Wayland-Compositor mit der Karton-Shell, den Sit
 - ein C-Compiler wie `gcc` oder `clang`
 - die von den Teilprojekten benötigten Wayland- und GTK4-Abhängigkeiten
 
-Für Arch, Debian, Ubuntu und openSUSE kannst du außerdem die Hilfsskripte im Verzeichnis `repo` verwenden.
+Für Arch, Debian und Ubuntu kannst du außerdem die Hilfsskripte im Verzeichnis `repo` verwenden.
 
 ### Benutzerinstallation
 
@@ -347,7 +345,6 @@ Im Verzeichnis `repo` befinden sich vorbereitete Skripte für ausgewählte Distr
 - `repo/build-arch.sh`
 - `repo/build-debian.sh`
 - `repo/build-ubuntu.sh`
-- `repo/build-opensuse.sh`
 
 ### Dokumentationsbilder
 

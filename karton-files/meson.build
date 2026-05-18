@@ -37,7 +37,8 @@ install_data(
   install_dir: join_paths(get_option('datadir'), 'applications')
 )
 
-install_data(
-  ['data/icons/io.karton.Files.svg'],
-  install_dir: join_paths(get_option('datadir'), 'icons', 'hicolor', 'scalable', 'apps')
-)
+# Icons are now installed by karton-themes-wallpapers package
+# install_data(
+#   ['data/icons/io.karton.Files.svg'],
+#   install_dir: join_paths(get_option('datadir'), 'icons', 'hicolor', 'scalable', 'apps')
+# )

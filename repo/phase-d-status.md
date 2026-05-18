@@ -18,5 +18,5 @@
 ## Najblizsze kroki
 1. wdrozyc baseline performance: czas startu sesji + pomiar RAM/CPU
 2. rozszerzyc smoke-stage3 o scenariusze `xdg-open` na probkach plikow
-3. domknac i zweryfikowac checklisty release dla Arch/Debian/Ubuntu/openSUSE
+3. domknac i zweryfikowac checklisty release dla Arch/Debian/Ubuntu
 4. zaktualizowac README/CHANGELOG o status MVP i znane ograniczenia

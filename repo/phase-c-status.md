@@ -12,7 +12,7 @@
   - obecność aplikacji dla kategorii: image/media/text/pdf (KartON lub fallback systemowy)
   - bazowe domyslne skojarzenia MIME (`image/png`, `video/mp4`, `text/plain`, `application/pdf`)
 - dodano runner `run_phase_c_smoke_tests` w `repo/build-common.sh`
-- skrypty build/install (Arch, Debian, Ubuntu, openSUSE) probuja automatycznie instalowac fallback app dla image/media/text/pdf.
+- skrypty build/install (Arch, Debian, Ubuntu) probuja automatycznie instalowac fallback app dla image/media/text/pdf.
 - wdrozono natywne aplikacje KartON (MVP launchery): `karton-images`, `karton-media`, `karton-text`, `karton-pdf` + desktop entries `io.karton.*`.
 
 ## Aktualny status

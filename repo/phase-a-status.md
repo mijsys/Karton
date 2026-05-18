@@ -6,7 +6,7 @@
 - lista blockerow release
 
 ## Co zostalo wdrozone
-- build scripts (arch/debian/ubuntu/opensuse) uruchamiaja `run_phase_a_smoke_tests` po instalacji.
+- build scripts (arch/debian/ubuntu) uruchamiaja `run_phase_a_smoke_tests` po instalacji.
 - smoke test sprawdza kluczowe binarki KartON: `karton-sessiond`, `karton-settingsd`, `karton-shell`, `karton-settings`, `karton-files`, `karton-terminal`, `karton-lock`, `karton-idle`.
 - smoke test ma tryb bezpieczny: `KARTON_SMOKE_NO_LOCK_TEST=1` (pomija inwazyjny `--lock-now`).
 - build scripts uruchamiaja smoke w trybie bezpiecznym domyslnie (`KARTON_SMOKE_NO_LOCK_TEST=1`), a pelny test lock mozna wymusic recznie.

@@ -233,8 +233,6 @@ executable(
   link_args: link_args,
 )
 
-install_subdir('themes/KartONFlat', install_dir: get_option('datadir') / 'themes')
-
 install_data('data/karton.desktop', install_dir: get_option('datadir') / 'wayland-sessions')
 
 install_data('data/karton-session-start',
@@ -254,8 +252,4 @@ if systemd.found()
     install_dir: systemd.get_variable('systemduserunitdir'))
 endif
 
-icons = ['karton-symbolic.svg', 'karton.svg']
-foreach icon : icons
-  icon_path = join_paths('data', icon)
-  install_data(icon_path, install_dir: get_option('datadir') / 'icons/hicolor/scalable/apps')
-endforeach
+# Icons, themes and wallpapers are now installed by karton-themes-wallpapers package

@@ -4,7 +4,6 @@
 - [ ] build przechodzi na Arch
 - [ ] build przechodzi na Debian
 - [ ] build przechodzi na Ubuntu
-- [ ] build przechodzi na openSUSE
 - [ ] instalacja metapakietu domyka zaleznosci runtime
 
 ## Smoke i integralnosc
