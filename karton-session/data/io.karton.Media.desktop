@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Karton Media
+Comment=Open media with KartON default player
+Exec=karton-media %U
+Icon=io.karton.Media
+Terminal=false
+Categories=AudioVideo;Player;
+MimeType=video/mp4;video/x-matroska;video/webm;video/x-msvideo;audio/mpeg;audio/flac;audio/x-wav;audio/ogg;
+StartupNotify=true
+StartupWMClass=io.karton.Media

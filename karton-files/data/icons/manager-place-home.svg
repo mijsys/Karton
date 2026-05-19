@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Karton Place Home</title>
+  <path d="M12 31 32 14l20 17" fill="none" stroke="#7b66f0" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M18 28v22h28V28" fill="none" stroke="#7b66f0" stroke-width="5" stroke-linejoin="round"/>
+  <rect x="27" y="36" width="10" height="14" rx="2.5" fill="#5dcdc3"/>
+</svg>

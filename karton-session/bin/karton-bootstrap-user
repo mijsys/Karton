@@ -1,0 +1,69 @@
+#!/usr/bin/env sh
+
+set -eu
+
+config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+config_dir="$config_home/karton"
+desktop_dir="$data_home/applications"
+icon_dir="$data_home/icons/hicolor/scalable/apps"
+
+copy_if_missing() {
+  src="$1"
+  dst="$2"
+
+  [ -f "$src" ] || return 0
+  [ -e "$dst" ] && return 0
+
+  dst_parent=$(dirname "$dst")
+  mkdir -p "$dst_parent"
+  cp "$src" "$dst"
+}
+
+set_mime_default_if_possible() {
+  desktop_id="$1"
+  shift
+
+  if ! command -v xdg-mime >/dev/null 2>&1; then
+    return 0
+  fi
+
+  for mime in "$@"; do
+    xdg-mime default "$desktop_id" "$mime" >/dev/null 2>&1 || true
+  done
+}
+
+mkdir -p "$config_dir" "$desktop_dir" "$icon_dir"
+
+copy_if_missing "/etc/xdg/karton/autostart" "$config_dir/autostart"
+copy_if_missing "/etc/xdg/karton/environment" "$config_dir/environment"
+copy_if_missing "/etc/xdg/karton/rc.xml" "$config_dir/rc.xml"
+copy_if_missing "/etc/xdg/karton/theme.toml" "$config_dir/theme.toml"
+
+if [ -f "$config_dir/autostart" ]; then
+  chmod +x "$config_dir/autostart" 2>/dev/null || true
+fi
+
+copy_if_missing "/usr/share/applications/io.karton.Settings.desktop" "$desktop_dir/io.karton.Settings.desktop"
+copy_if_missing "/usr/share/applications/io.karton.Files.desktop" "$desktop_dir/io.karton.Files.desktop"
+copy_if_missing "/usr/share/applications/io.karton.Terminal.desktop" "$desktop_dir/io.karton.Terminal.desktop"
+copy_if_missing "/usr/share/applications/io.karton.Images.desktop" "$desktop_dir/io.karton.Images.desktop"
+copy_if_missing "/usr/share/applications/io.karton.Media.desktop" "$desktop_dir/io.karton.Media.desktop"
+copy_if_missing "/usr/share/applications/io.karton.Text.desktop" "$desktop_dir/io.karton.Text.desktop"
+copy_if_missing "/usr/share/applications/io.karton.PDF.desktop" "$desktop_dir/io.karton.PDF.desktop"
+
+copy_if_missing "/usr/share/icons/hicolor/scalable/apps/io.karton.Settings.svg" "$icon_dir/io.karton.Settings.svg"
+copy_if_missing "/usr/share/icons/hicolor/scalable/apps/io.karton.Files.svg" "$icon_dir/io.karton.Files.svg"
+copy_if_missing "/usr/share/icons/hicolor/scalable/apps/io.karton.Terminal.svg" "$icon_dir/io.karton.Terminal.svg"
+
+set_mime_default_if_possible "io.karton.Images.desktop" \
+  "image/png" "image/jpeg" "image/webp" "image/svg+xml" "image/gif" "image/bmp"
+set_mime_default_if_possible "io.karton.Media.desktop" \
+  "video/mp4" "video/x-matroska" "video/webm" "video/x-msvideo" "audio/mpeg" "audio/flac" "audio/x-wav" "audio/ogg"
+set_mime_default_if_possible "io.karton.Text.desktop" \
+  "text/plain" "text/markdown" "text/x-log" "application/json" "application/x-yaml" "text/x-ini"
+set_mime_default_if_possible "io.karton.PDF.desktop" "application/pdf"
+
+if command -v karton-apply-theme >/dev/null 2>&1; then
+  karton-apply-theme --sync-from-css >/dev/null 2>&1 || true
+fi

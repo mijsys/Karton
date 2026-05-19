@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Karton Welcome
+Name[pl]=Karton Welcome
+Name[en]=Karton Welcome
+Comment=Welcome screen for live and fresh KartON sessions
+Comment[pl]=Ekran powitalny dla sesji live i swiezych instalacji KartON
+Comment[en]=Welcome screen for live and fresh KartON sessions
+Exec=karton-welcome
+Icon=io.karton.Welcome
+Terminal=false
+Categories=System;Settings;
+StartupNotify=true

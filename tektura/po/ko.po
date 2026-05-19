@@ -1,0 +1,90 @@
+# Labwc pot file
+# Copyright (C) 2024
+# This file is distributed under the same license as the labwc package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: labwc\n"
+"Report-Msgid-Bugs-To: https://github.com/labwc/labwc/issues\n"
+"POT-Creation-Date: 2026-05-10 11:47+0200\n"
+"PO-Revision-Date: 2025-08-02 03:27+0000\n"
+"Last-Translator: 이정희 <daemul72@gmail.com>\n"
+"Language-Team: Korean <https://translate.lxqt-project.org/projects/labwc/"
+"labwc/ko/>\n"
+"Language: ko\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Weblate 4.2.1\n"
+
+#: src/menu/menu.c:842
+msgid "Always on Visible Workspace"
+msgstr "현재 작업공간에 항상 표시"
+
+#: src/menu/menu.c:899
+msgid "Go there..."
+msgstr "빨리 가기..."
+
+#: src/menu/menu.c:918
+msgid "Create folder"
+msgstr ""
+
+#: src/menu/menu.c:929
+msgid "Terminal"
+msgstr "터미널"
+
+#: src/menu/menu.c:934
+msgid "Settings"
+msgstr ""
+
+#: src/menu/menu.c:940
+msgid "Reconfigure"
+msgstr "재설정"
+
+#: src/menu/menu.c:942
+msgid "Exit"
+msgstr "종료"
+
+#: src/menu/menu.c:956
+msgid "Minimize"
+msgstr "최소화"
+
+#: src/menu/menu.c:958
+msgid "Maximize"
+msgstr "최대화"
+
+#: src/menu/menu.c:960
+msgid "Fullscreen"
+msgstr "전체화면"
+
+#: src/menu/menu.c:962
+msgid "Roll Up/Down"
+msgstr "접기/펼치기"
+
+#: src/menu/menu.c:964
+msgid "Decorations"
+msgstr "창 장식"
+
+#: src/menu/menu.c:966
+msgid "Always on Top"
+msgstr "항상 최상단에 표시"
+
+#: src/menu/menu.c:970 src/menu/menu.c:989 src/config/rcxml.c:1857
+msgid "Workspace"
+msgstr "작업공간"
+
+#: src/menu/menu.c:973
+msgid "Close"
+msgstr "닫기"
+
+#: src/menu/menu.c:988
+msgid "Windows"
+msgstr ""
+
+#~ msgid "Move Left"
+#~ msgstr "좌로 이동"
+
+#~ msgid "Move Right"
+#~ msgstr "우로 이동"

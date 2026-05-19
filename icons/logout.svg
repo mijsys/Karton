@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>KartON Logout</title>
+  <path fill="#7b66f0" d="M14 10h24a6 6 0 0 1 6 6v8h-6v-7a1 1 0 0 0-1-1H20v32h17a1 1 0 0 0 1-1v-7h6v8a6 6 0 0 1-6 6H14z"/>
+  <path fill="none" stroke="#5dcdc3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M35 32h17M45 23l9 9-9 9"/>
+  <circle cx="24" cy="32" r="3" fill="#ffb84d"/>
+</svg>

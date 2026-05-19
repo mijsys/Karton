@@ -1,0 +1,20 @@
+# Karton lock screen style
+# Place this file as ~/.config/karton/lock-style and edit values.
+# Set password in ~/.config/karton/lock-password (first line)
+# or through env: KARTON_LOCK_PASSWORD.
+
+FONT=Sans
+FONT_SIZE=14
+INDICATOR_RADIUS=110
+INDICATOR_THICKNESS=8
+
+# Colors are swaylock-compatible hex values (RRGGBB or RRGGBBAA)
+BACKGROUND_COLOR=000000
+INSIDE_COLOR=111111cc
+RING_COLOR=88aaddff
+LINE_COLOR=00000000
+TEXT_COLOR=ffffffff
+SEPARATOR_COLOR=00000000
+
+# 1=true/visible, 0=false/hidden
+SHOW_INDICATOR=1

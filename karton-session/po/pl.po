@@ -1,0 +1,186 @@
+# SPDX-FileCopyrightText: 2026 mijsys
+msgid ""
+msgstr ""
+"Project-Id-Version: karton-session 0.8.1\n"
+"POT-Creation-Date: 2026-05-03 00:00+0000\n"
+"PO-Revision-Date: 2026-05-03 00:00+0000\n"
+"Last-Translator: Karton Team\n"
+"Language-Team: Polish\n"
+"Language: pl\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "karton-sessiond: missing component %s"
+msgstr "karton-sessiond: brakujący komponent %s"
+
+msgid "karton-sessiond: component %s exited with %s, restarting"
+msgstr "karton-sessiond: komponent %s zakończył się kodem %s, ponawiam uruchomienie"
+
+msgid "karton-launcher: install fuzzel, wofi, bemenu, zenity or kdialog"
+msgstr "karton-launcher: zainstaluj fuzzel, wofi, bemenu, zenity lub kdialog"
+
+msgid "Search apps..."
+msgstr "Szukaj aplikacji..."
+
+msgid "karton-notifyd: mako not found, running idle fallback"
+msgstr "karton-notifyd: nie znaleziono mako, uruchamiam tryb zapasowy"
+
+msgid "karton-settingsd: no backends found (kanshi/karton-idle), running idle fallback"
+msgstr "karton-settingsd: nie znaleziono backendów (kanshi/karton-idle), uruchamiam tryb zapasowy"
+
+msgid "Theme: %s"
+msgstr "Motyw: %s"
+
+msgid "Dark"
+msgstr "Ciemny"
+
+msgid "Light"
+msgstr "Jasny"
+
+msgid "No image loaded"
+msgstr "Nie wczytano obrazu"
+
+msgid "Fit to window"
+msgstr "Dopasuj do okna"
+
+msgid "(unknown)"
+msgstr "(nieznane)"
+
+msgid "Could not open image: %s"
+msgstr "Nie można otworzyć obrazu: %s"
+
+msgid "unknown error"
+msgstr "nieznany błąd"
+
+msgid "Loaded"
+msgstr "Wczytano"
+
+msgid "Open image"
+msgstr "Otwórz obraz"
+
+msgid "Open"
+msgstr "Otwórz"
+
+msgid "Cancel"
+msgstr "Anuluj"
+
+msgid "Karton Images"
+msgstr "Karton Obrazy"
+
+msgid "Fit"
+msgstr "Dopasuj"
+
+msgid "Theme"
+msgstr "Motyw"
+
+msgid "Loaded: %s"
+msgstr "Wczytano: %s"
+
+msgid "Paused"
+msgstr "Wstrzymano"
+
+msgid "Playing"
+msgstr "Odtwarzanie"
+
+msgid "Stopped"
+msgstr "Zatrzymano"
+
+msgid "Karton Media"
+msgstr "Karton Media"
+
+msgid "Play/Pause"
+msgstr "Odtwórz/Wstrzymaj"
+
+msgid "Stop"
+msgstr "Stop"
+
+msgid "No media loaded"
+msgstr "Nie wczytano mediów"
+
+msgid "Open media"
+msgstr "Otwórz media"
+
+msgid "Karton Text - %s"
+msgstr "Karton Tekst - %s"
+
+msgid "Karton Text"
+msgstr "Karton Tekst"
+
+msgid "New document"
+msgstr "Nowy dokument"
+
+msgid "Open failed: %s"
+msgstr "Otwarcie nie powiodło się: %s"
+
+msgid "Opened: %s"
+msgstr "Otwarto: %s"
+
+msgid "Save failed: %s"
+msgstr "Zapis nie powiódł się: %s"
+
+msgid "Saved: %s"
+msgstr "Zapisano: %s"
+
+msgid "Open text file"
+msgstr "Otwórz plik tekstowy"
+
+msgid "Save text file"
+msgstr "Zapisz plik tekstowy"
+
+msgid "Save"
+msgstr "Zapisz"
+
+msgid "New"
+msgstr "Nowy"
+
+msgid "Save As"
+msgstr "Zapisz jako"
+
+msgid "Ready"
+msgstr "Gotowe"
+
+msgid "No PDF backend installed (evince/zathura/okular/atril)"
+msgstr "Brak zainstalowanego backendu PDF (evince/zathura/okular/atril)"
+
+msgid "Only local files are supported"
+msgstr "Obsługiwane są tylko pliki lokalne"
+
+msgid "Could not launch %s: %s"
+msgstr "Nie można uruchomić %s: %s"
+
+msgid "Opened with %s: %s"
+msgstr "Otwarto przez %s: %s"
+
+msgid "Open PDF"
+msgstr "Otwórz PDF"
+
+msgid "Karton PDF"
+msgstr "Karton PDF"
+
+msgid "Karton PDF launches your preferred PDF backend.\nInstall one of: evince, zathura, okular, atril."
+msgstr "Karton PDF uruchamia preferowany backend PDF.\nZainstaluj jeden z: evince, zathura, okular, atril."
+
+msgid "Karton PDF - %s"
+msgstr "Karton PDF - %s"
+
+msgid "Could not open PDF: %s"
+msgstr "Nie można otworzyć PDF: %s"
+
+msgid "No PDF loaded"
+msgstr "Nie wczytano PDF"
+
+msgid "Page %d of %d"
+msgstr "Strona %d z %d"
+
+msgid "Open PDF file"
+msgstr "Otwórz plik PDF"
+
+msgid "Previous"
+msgstr "Poprzednia"
+
+msgid "Next"
+msgstr "Następna"
+
+msgid "Open PDF file to start reading."
+msgstr "Otwórz plik PDF, aby rozpocząć czytanie."

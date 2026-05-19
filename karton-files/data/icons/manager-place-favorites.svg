@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Karton Place Favorites</title>
+  <path d="M32 11l6.4 13 14.4 2.1-10.4 10.1 2.5 14.3L32 43.8 19.1 50.5l2.5-14.3L11.2 26l14.4-2.1z" fill="none" stroke="#7b66f0" stroke-width="4.8" stroke-linejoin="round"/>
+  <circle cx="32" cy="31" r="4" fill="#5dcdc3"/>
+</svg>

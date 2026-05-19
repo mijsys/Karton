@@ -1,0 +1,3466 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: karton-settings 0.2\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-11 18:08+0200\n"
+"PO-Revision-Date: 2026-05-09 00:00+0000\n"
+"Last-Translator: KartON Team\n"
+"Language-Team: Deutsch\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/window.c:34 src/page-appearance.c:1329
+msgid "Appearance and personalization"
+msgstr "Darstellung und Personalisierung"
+
+#: src/window.c:35 src/page-display.c:2568
+msgid "Display and monitors"
+msgstr "Anzeige und Monitore"
+
+#: src/window.c:36
+msgid "Sound"
+msgstr "Ton"
+
+#: src/window.c:37 src/page-input.c:1444
+msgid "Input devices"
+msgstr "Eingabegerät"
+
+#: src/window.c:38
+msgid "Network"
+msgstr "Netzwerk"
+
+#: src/window.c:39 src/page-audio.c:35 src/page-bluetooth.c:1056
+msgid "Bluetooth"
+msgstr "Bluetooth"
+
+#: src/window.c:40
+msgid "Power"
+msgstr "Energie"
+
+#: src/window.c:41 src/page-users.c:1219
+msgid "Users and accounts"
+msgstr "Desktop und Layout"
+
+#: src/window.c:42 src/page-security.c:906
+msgid "Security and privacy"
+msgstr "Security and privacy"
+
+#: src/window.c:43 src/page-notifications.c:878
+msgid "Notifications"
+msgstr "Benachrichtigungen"
+
+#: src/window.c:44 src/page-default-apps.c:1042
+msgid "Default applications"
+msgstr "Standardanwendungen"
+
+#: src/window.c:45 src/page-updates.c:1699
+msgid "Updates and software"
+msgstr "Aktualisierungen und Software"
+
+#: src/window.c:46 src/page-region.c:1675
+msgid "Date, time and region"
+msgstr "Datum, Uhrzeit und Region"
+
+#: src/window.c:47 src/page-accessibility.c:452
+msgid "Accessibility"
+msgstr "Accessibility"
+
+#: src/window.c:48 src/page-files-disks.c:556
+msgid "File manager and disks"
+msgstr "Dateimanager und Datentrager"
+
+#: src/window.c:49 src/page-session-startup.c:711
+msgid "Session and startup"
+msgstr "Sitzung und Start"
+
+#: src/window.c:50 src/page-system-info.c:444
+msgid "System information"
+msgstr "Systeminformationen"
+
+#: src/window.c:51 src/page-advanced.c:446
+msgid "Advanced / developer"
+msgstr "Erweitert / Entwickler"
+
+#: src/window.c:242
+msgid "This module is prepared for expansion in future iterations."
+msgstr "Dieses Modul ist für weitere Ausbaustufen vorbereitet."
+
+#: src/window.c:306
+msgid "Unknown module"
+msgstr "Unknown module"
+
+#: src/window.c:366
+msgid "Karton System Settings"
+msgstr "Karton Systemeinstellungen"
+
+#: src/page-appearance.c:258
+msgid "Automatic (KartON Light/Dark)"
+msgstr "Automatisch (KartON Hell/Dunkel)"
+
+#: src/page-appearance.c:409
+msgid "Choose default wallpaper"
+msgstr "Standard-Hintergrund wählen"
+
+#: src/page-appearance.c:409
+msgid "Choose image from disk"
+msgstr "Bild von Datenträger wählen"
+
+#: src/page-appearance.c:411 src/page-users.c:470
+msgid "Select"
+msgstr "Auswählen"
+
+#: src/page-appearance.c:415 src/page-users.c:474
+msgid "Image files"
+msgstr "Bilddateien"
+
+#: src/page-appearance.c:517 src/page-appearance.c:1392
+msgid "Install custom font"
+msgstr "Benutzerdefinierte Schrift installieren"
+
+#: src/page-appearance.c:518
+msgid "Install"
+msgstr "Installieren"
+
+#: src/page-appearance.c:522
+msgid "Font files"
+msgstr "Schriftdateien"
+
+#: src/page-appearance.c:597
+msgid "Path to image file"
+msgstr "Pfad zur Bilddatei"
+
+#: src/page-appearance.c:599 src/page-users.c:514
+msgid "Choose from disk"
+msgstr "Von Datenträger wählen"
+
+#: src/page-appearance.c:600
+msgid "Default wallpapers"
+msgstr "Standard-Hintergründe"
+
+#: src/page-appearance.c:1068 src/page-appearance.c:1111
+msgid "Path is empty"
+msgstr "Pfad ist leer"
+
+#: src/page-appearance.c:1073 src/page-appearance.c:1116
+msgid "File not found"
+msgstr "Datei nicht gefunden"
+
+#: src/page-appearance.c:1080
+msgid "Failed to save wallpaper path"
+msgstr "Hintergrundbildpfad konnte nicht gespeichert werden"
+
+#: src/page-appearance.c:1091
+msgid "Wallpaper saved, but live apply failed"
+msgstr "Hintergrundbild gespeichert, aber Live-Anwenden fehlgeschlagen"
+
+#: src/page-appearance.c:1096
+msgid "Wallpaper applied (OK)"
+msgstr "Hintergrund angewendet (OK)"
+
+#: src/page-appearance.c:1123
+msgid "Failed to save lock screen path"
+msgstr "Sperrbildschirm-Pfad konnte nicht gespeichert werden"
+
+#: src/page-appearance.c:1131
+msgid "Lock screen applied (OK)"
+msgstr "Sperrbildschirm angewendet (OK)"
+
+#: src/page-appearance.c:1333
+msgid ""
+"Configure theme and UI details so the environment works as one coherent "
+"whole."
+msgstr ""
+"Konfiguriere Thema, Farben und UI-Details, damit die Umgebung als Einheit "
+"funktioniert."
+
+#: src/page-appearance.c:1342
+msgid "Light/Dark themes"
+msgstr "Helle/Dunkle Themen"
+
+#: src/page-appearance.c:1342
+msgid ""
+"Changes instantly affect shell, window decorations and GTK applications."
+msgstr ""
+"Änderungen wirken sich sofort auf Shell, Dekorationen und GTK-Anwendungen "
+"aus."
+
+#: src/page-appearance.c:1357
+msgid "Light"
+msgstr "Hell"
+
+#: src/page-appearance.c:1358
+msgid "Dark"
+msgstr "Dunkel"
+
+#: src/page-appearance.c:1359
+msgid "Auto"
+msgstr "Automatisch"
+
+#: src/page-appearance.c:1372
+msgid "Window styles"
+msgstr "Fensterstile"
+
+#: src/page-appearance.c:1379
+msgid "Transparency"
+msgstr "Transparenz"
+
+#: src/page-appearance.c:1379
+msgid "Window and panel transparency level (0-40%)"
+msgstr "Transparenzstufe für Fenster und Panels (0-40%)"
+
+#: src/page-appearance.c:1383
+msgid "Fonts, scaling and animations"
+msgstr "Schriften, Skalierung und Animationen"
+
+#: src/page-appearance.c:1383
+msgid "Behavior settings for GTK apps and interface."
+msgstr "Verhaltens-Einstellungen für GTK-Anwendungen und Oberfläche."
+
+#: src/page-appearance.c:1389
+msgid "System font"
+msgstr "Systemschrift"
+
+#: src/page-appearance.c:1394
+msgid "Custom font"
+msgstr "Benutzerdefinierte Schrift"
+
+#: src/page-appearance.c:1401
+msgid "Interface scaling"
+msgstr "Oberflächenskalierung"
+
+#: src/page-appearance.c:1401
+msgid "Affects GTK application font size"
+msgstr "Beeinflusst die Schriftgröße von GTK-Anwendungen"
+
+#: src/page-appearance.c:1405 src/page-input.c:28
+msgid "Default"
+msgstr "Standard"
+
+#: src/page-appearance.c:1413
+msgid "Animations"
+msgstr "Animationen"
+
+#: src/page-appearance.c:1420
+msgid "Cursor theme"
+msgstr "Cursor-Design"
+
+#: src/page-appearance.c:1426
+msgid "Cursor size"
+msgstr "Cursorgroesse"
+
+#: src/page-appearance.c:1426
+msgid "Pointer size in pixels"
+msgstr "Zeigergroesse in Pixeln"
+
+#: src/page-appearance.c:1430
+msgid "Wallpapers and lock screen"
+msgstr "Hintergrundbilder und Sperrbildschirm"
+
+#: src/page-appearance.c:1430
+msgid "Set image paths for desktop and lock screen."
+msgstr "Lege Bildpfade für Desktop und Sperrbildschirm fest."
+
+#: src/page-appearance.c:1435
+msgid "Wallpapers"
+msgstr "Hintergrundbilder"
+
+#: src/page-appearance.c:1435
+msgid "Apply wallpaper"
+msgstr "Hintergrund anwenden"
+
+#: src/page-appearance.c:1439
+msgid "Lock screen"
+msgstr "Sperrbildschirm"
+
+#: src/page-appearance.c:1439
+msgid "Apply lock screen"
+msgstr "Sperrbildschirm anwenden"
+
+#: src/page-desktop.c:18 src/page-audio.c:22 src/page-network.c:19
+#: src/page-network.c:26 src/page-system-info.c:305 src/page-system-info.c:311
+msgid "Disabled"
+msgstr "Deaktiviert"
+
+#: src/page-desktop.c:19
+msgid "Workspace overview"
+msgstr "Anzahl der Arbeitsflächen"
+
+#: src/page-desktop.c:20
+msgid "Switch workspace left"
+msgstr "Switch workspace left"
+
+#: src/page-desktop.c:21
+msgid "Switch workspace right"
+msgstr "Switch workspace right"
+
+#: src/page-desktop.c:22
+msgid "Toggle show desktop"
+msgstr "Toggle show desktop"
+
+#: src/page-desktop.c:23
+msgid "Open launcher"
+msgstr "Open launcher"
+
+#: src/page-desktop.c:449
+msgid "Could not persist desktop environment settings. "
+msgstr "Desktop-Umgebungseinstellungen konnten nicht gespeichert werden. "
+
+#: src/page-desktop.c:496
+msgid "Desktop settings reloaded"
+msgstr "Desktop-Einstellungen neu geladen"
+
+#: src/page-desktop.c:512
+msgid "Desktop settings applied"
+msgstr "Desktop-Einstellungen angewendet"
+
+#: src/page-desktop.c:531
+msgid "Desktop and layout"
+msgstr "Desktop und Layout"
+
+#: src/page-desktop.c:535
+msgid ""
+"Configure workspace behavior, desktop icons and hot corners for everyday "
+"workflow."
+msgstr ""
+"Konfigurieren Sie Arbeitsflächenverhalten, Panelsichtbarkeit und Dock-"
+"Position für den täglichen Arbeitsablauf."
+
+#: src/page-desktop.c:544
+msgid "Desktop behavior"
+msgstr "Desktop-Verhalten"
+
+#: src/page-desktop.c:545
+msgid "Control how the desktop reacts during daily work and login."
+msgstr ""
+"Legen Sie fest, wie der Desktop im Alltag und bei der Anmeldung reagiert."
+
+#: src/page-desktop.c:554
+msgid "Desktop icons"
+msgstr "Desktop-Symbole"
+
+#: src/page-desktop.c:556 src/page-desktop.c:576
+msgid "Hot corners"
+msgstr "Aktive Ecken"
+
+#: src/page-desktop.c:558
+msgid "Remember layout on login"
+msgstr "Layout bei der Anmeldung merken"
+
+#: src/page-desktop.c:562
+msgid "Workspaces"
+msgstr "Arbeitsflächen"
+
+#: src/page-desktop.c:563
+msgid "Tune the number and navigation behavior of virtual desktops."
+msgstr "Passen Sie Anzahl und Navigationsverhalten virtueller Desktops an."
+
+#: src/page-desktop.c:570
+msgid "Workspace count"
+msgstr "Anzahl der Arbeitsflächen"
+
+#: src/page-desktop.c:572
+msgid "Workspace wrap-around"
+msgstr "Zyklischer Arbeitsflächenwechsel"
+
+#: src/page-desktop.c:577
+msgid "Choose what happens when the pointer reaches each screen corner."
+msgstr "Choose what happens when the pointer reaches each screen corner."
+
+#: src/page-desktop.c:589
+msgid "Top-left corner"
+msgstr "Aktive Ecken"
+
+#: src/page-desktop.c:591
+msgid "Top-right corner"
+msgstr "Aktive Ecken"
+
+#: src/page-desktop.c:593
+msgid "Bottom-left corner"
+msgstr "Unten links"
+
+#: src/page-desktop.c:595
+msgid "Bottom-right corner"
+msgstr "Unten rechts"
+
+#: src/page-desktop.c:602 src/page-input.c:1546 src/page-network.c:648
+#: src/page-bluetooth.c:1127 src/page-power.c:947 src/page-users.c:1290
+#: src/page-security.c:1006 src/page-notifications.c:955
+#: src/page-default-apps.c:1092 src/page-updates.c:1793 src/page-region.c:1733
+#: src/page-accessibility.c:510 src/page-files-disks.c:644
+#: src/page-session-startup.c:756 src/page-system-info.c:519
+#: src/page-advanced.c:487
+msgid "Reload saved settings"
+msgstr "Gespeicherte Einstellungen neu laden"
+
+#: src/page-desktop.c:606
+msgid "Apply desktop settings"
+msgstr "Desktop-Einstellungen anwenden"
+
+#: src/page-display.c:61
+msgid "Landscape"
+msgstr "Querformat"
+
+#: src/page-display.c:62
+msgid "Portrait left"
+msgstr "Hochformat links"
+
+#: src/page-display.c:63
+msgid "Portrait right"
+msgstr "Hochformat rechts"
+
+#: src/page-display.c:64
+msgid "Inverted"
+msgstr "Umgekehrt"
+
+#: src/page-display.c:77
+msgid "Keep current layout"
+msgstr "Aktuelle Anordnung beibehalten"
+
+#: src/page-display.c:78
+msgid "Arrange to the right"
+msgstr "Nach rechts anordnen"
+
+#: src/page-display.c:79
+msgid "Arrange to the left"
+msgstr "Nach links anordnen"
+
+#: src/page-display.c:80
+msgid "Arrange downward"
+msgstr "Nach unten anordnen"
+
+#: src/page-display.c:81
+msgid "Arrange upward"
+msgstr "Nach oben anordnen"
+
+#: src/page-display.c:82
+msgid "Mirror all monitors"
+msgstr "Alle Monitore spiegeln"
+
+#: src/page-display.c:402 src/page-display.c:2490
+msgid "Applying display settings..."
+msgstr "Anzeigeeinstellungen werden angewendet..."
+
+#: src/page-display.c:408 src/page-display.c:2506
+msgid ""
+"Monitor controls are in limited mode (missing wlr-randr). Layout changes are "
+"saved locally only."
+msgstr ""
+"Die Monitorsteuerung läuft im eingeschränkten Modus (wlr-randr/swaymsg "
+"fehlt). Layout-Änderungen werden nur lokal gespeichert."
+
+#: src/page-display.c:417 src/page-display.c:2461 src/page-display.c:2517
+msgid "Could not apply monitor settings"
+msgstr "Monitoreinstellungen konnten nicht angewendet werden"
+
+#: src/page-display.c:428 src/page-display.c:2534
+msgid "Display settings applied"
+msgstr "Anzeigeeinstellungen angewendet"
+
+#: src/page-display.c:483
+msgid "Monitor moved in preview. Click Apply display settings to save."
+msgstr ""
+"Monitor in der Vorschau verschoben. Klicke auf Anzeigeeinstellungen "
+"anwenden, um zu speichern."
+
+#: src/page-display.c:1153
+msgid "No monitor backend available (wlr-randr) or no outputs"
+msgstr "Kein Monitor-Backend verfügbar (wlr-randr/swaymsg) oder keine Ausgänge"
+
+#: src/page-display.c:1268
+msgid "No monitors were detected"
+msgstr "Es wurden keine Monitore erkannt"
+
+#: src/page-display.c:1469
+msgid "No monitor selected"
+msgstr "Kein Monitor ausgewählt"
+
+#: src/page-display.c:1482
+msgid "scale"
+msgstr "Skalierung"
+
+#: src/page-display.c:1484
+msgid "position"
+msgstr "Position"
+
+#: src/page-display.c:1498
+msgid "No modes available"
+msgstr "Keine Modi verfügbar"
+
+#: src/page-display.c:1508 src/page-display.c:1510
+msgid "preferred"
+msgstr "bevorzugt"
+
+#: src/page-display.c:1508 src/page-display.c:1512
+msgid "current"
+msgstr "aktuell"
+
+#: src/page-display.c:1537 src/page-display.c:2275 src/page-display.c:2360
+#: src/page-display.c:2486
+msgid "No connected monitors"
+msgstr "Keine angeschlossenen Monitore"
+
+#: src/page-display.c:1661 src/page-display.c:1681
+msgid "Rebuilding display layout..."
+msgstr "Bildschirmanordnung wird neu aufgebaut..."
+
+#: src/page-display.c:1735
+msgid "No monitors detected"
+msgstr "Keine Monitore erkannt"
+
+#: src/page-display.c:1764
+msgid "All outputs are disabled"
+msgstr "Alle Ausgänge sind deaktiviert"
+
+#: src/page-display.c:1863
+msgid ""
+"Brightness could not be applied. Install/configure a supported backend: "
+"karton-system-status, brightnessctl or ddcutil."
+msgstr ""
+"Brightness could not be applied. Install/configure a supported backend: "
+"karton-system-status, brightnessctl or ddcutil."
+
+#: src/page-display.c:1871
+msgid ""
+"Night light could not be applied. Install/configure gammastep or wlsunset."
+msgstr ""
+"Night light could not be applied. Install/configure gammastep or wlsunset."
+
+#: src/page-display.c:2288
+msgid " [main]"
+msgstr " [Haupt]"
+
+#: src/page-display.c:2292
+msgid " [disabled]"
+msgstr " [deaktiviert]"
+
+#: src/page-display.c:2334
+msgid "Could not detect monitors"
+msgstr "Monitore konnten nicht erkannt werden"
+
+#: src/page-display.c:2336
+msgid "Monitor list refreshed"
+msgstr "Monitorliste aktualisiert"
+
+#: src/page-display.c:2348
+msgid "Refreshing monitor list..."
+msgstr "Monitorliste wird aktualisiert..."
+
+#: src/page-display.c:2367
+msgid ""
+"Detected monitors, but no output-management backend is available for mode/"
+"layout apply"
+msgstr ""
+"Monitore wurden erkannt, aber es ist kein Ausgabe-Backend zum Anwenden von "
+"Modus/Anordnung verfügbar"
+
+#: src/page-display.c:2501
+#, c-format
+msgid ""
+"Monitor controls are in limited mode (missing wlr-randr). Layout changes are "
+"saved locally only. %s"
+msgstr ""
+"Die Monitorsteuerung läuft im eingeschränkten Modus (wlr-randr/swaymsg "
+"fehlt). Layout-Änderungen werden nur lokal gespeichert. %s"
+
+#: src/page-display.c:2530
+#, c-format
+msgid "Display settings applied. %s"
+msgstr "Anzeigeeinstellungen angewendet. %s"
+
+#: src/page-display.c:2572
+msgid ""
+"Detected outputs are shown graphically with live name, resolution and "
+"refresh rate."
+msgstr ""
+"Erkannte Ausgänge werden grafisch mit Name, Auflösung und Bildwiederholrate "
+"angezeigt."
+
+#: src/page-display.c:2581
+msgid "Connected monitors"
+msgstr "Angeschlossene Monitore"
+
+#: src/page-display.c:2581
+msgid "Preview and detect all currently connected outputs."
+msgstr "Vorschau und Erkennung aller aktuell angeschlossenen Ausgänge."
+
+#: src/page-display.c:2625
+msgid "Working..."
+msgstr "Bitte warten..."
+
+#: src/page-display.c:2638
+msgid "Refresh monitor list"
+msgstr "Monitorliste aktualisieren"
+
+#: src/page-display.c:2645
+msgid "Screen configuration"
+msgstr "Bildschirmkonfiguration"
+
+#: src/page-display.c:2645
+msgid ""
+"Apply mode, scaling, orientation and adaptive sync to the selected monitor."
+msgstr ""
+"Wende Modus, Skalierung, Ausrichtung und Adaptive Sync auf den ausgewählten "
+"Monitor an."
+
+#: src/page-display.c:2691
+msgid "Monitor"
+msgstr "Monitor"
+
+#: src/page-display.c:2693
+msgid "Main monitor"
+msgstr "Hauptmonitor"
+
+#: src/page-display.c:2695
+msgid "Monitor layout"
+msgstr "Monitoranordnung"
+
+#: src/page-display.c:2697
+msgid "Resolution and refresh rate"
+msgstr "Auflösung und Bildwiederholrate"
+
+#: src/page-display.c:2699
+msgid "DPI scaling"
+msgstr "DPI-Skalierung"
+
+#: src/page-display.c:2701
+msgid "Orientation"
+msgstr "Ausrichtung"
+
+#: src/page-display.c:2703
+msgid "VRR / Adaptive Sync"
+msgstr "VRR / Adaptive Sync"
+
+#: src/page-display.c:2709
+msgid "Brightness"
+msgstr "Helligkeit"
+
+#: src/page-display.c:2709
+msgid "Adjust display brightness (10-100%)"
+msgstr "Displayhelligkeit anpassen (10-100%)"
+
+#: src/page-display.c:2713
+msgid "Night light"
+msgstr "Nachtlicht"
+
+#: src/page-display.c:2721
+msgid "Apply display settings"
+msgstr "Anzeigeeinstellungen anwenden"
+
+#: src/page-audio.c:18
+msgid "Pro audio"
+msgstr "Pro Audio"
+
+#: src/page-audio.c:19
+msgid "Analog stereo"
+msgstr "Analoges Stereo"
+
+#: src/page-audio.c:20
+msgid "Digital stereo"
+msgstr "Digitales Stereo"
+
+#: src/page-audio.c:21
+msgid "Headset / hands-free"
+msgstr "Headset / Freisprechen"
+
+#: src/page-audio.c:26 src/page-audio.c:32 src/page-network.c:23
+msgid "Automatic"
+msgstr "Automatisch"
+
+#: src/page-audio.c:27
+msgid "Software mixing"
+msgstr "Software-Mixing"
+
+#: src/page-audio.c:28
+msgid "Hardware mixing"
+msgstr "Hardware-Mixing"
+
+#: src/page-audio.c:33
+msgid "Speakers"
+msgstr "Lautsprecher"
+
+#: src/page-audio.c:34 src/page-bluetooth.c:1107
+msgid "Headphones"
+msgstr "Kopfhörer"
+
+#: src/page-audio.c:515
+msgid "Default output"
+msgstr "Standard-Ausgang"
+
+#: src/page-audio.c:518
+msgid "Default input"
+msgstr "Standard-Eingang"
+
+#: src/page-audio.c:707 src/page-audio.c:1182
+msgid "No microphone detected"
+msgstr "Kein Mikrofon erkannt"
+
+#: src/page-audio.c:713
+msgid "Microphone detected (muted)"
+msgstr "Mikrofon erkannt (stummgeschaltet)"
+
+#: src/page-audio.c:724
+#, c-format
+msgid "Microphone detected (%d%%)"
+msgstr "Mikrofon erkannt (%d%%)"
+
+#: src/page-audio.c:1074
+msgid "Could not apply volume or microphone level."
+msgstr "Lautstärke oder Mikrofonpegel konnte nicht angewendet werden."
+
+#: src/page-audio.c:1081
+msgid "Could not apply audio balance."
+msgstr "Audiobalance konnte nicht angewendet werden."
+
+#: src/page-audio.c:1088
+msgid "Some advanced audio options were queued with limited backend support."
+msgstr ""
+"Einige erweiterte Audiooptionen wurden mit eingeschränkter Backend-"
+"Unterstützung eingeplant."
+
+#: src/page-audio.c:1106
+msgid "Audio devices refreshed"
+msgstr "Audiogeräte aktualisiert"
+
+#: src/page-audio.c:1118
+#, c-format
+msgid "Audio settings saved. %s"
+msgstr "Audioeinstellungen gespeichert. %s"
+
+#: src/page-audio.c:1122
+msgid "Audio settings applied"
+msgstr "Audioeinstellungen angewendet"
+
+#: src/page-audio.c:1153
+msgid "Sound and multimedia"
+msgstr "Ton und Multimedia"
+
+#: src/page-audio.c:1157
+msgid ""
+"Configure volume, devices, microphone, balance, profiles, bluetooth audio "
+"and routing."
+msgstr ""
+"Lautstärke, Geräte, Mikrofon, Balance, Profile, Bluetooth-Audio und Routing "
+"konfigurieren."
+
+#: src/page-audio.c:1166
+msgid "Volume and capture"
+msgstr "Lautstärke und Aufnahme"
+
+#: src/page-audio.c:1167
+msgid "Set master volume, microphone level and left/right balance."
+msgstr "Master-Lautstärke, Mikrofonpegel und Links/Rechts-Balance einstellen."
+
+#: src/page-audio.c:1190
+msgid "Volume"
+msgstr "Lautstärke"
+
+#: src/page-audio.c:1190
+msgid "Master output level"
+msgstr "Master-Ausgabepegel"
+
+#: src/page-audio.c:1192 src/page-security.c:962
+msgid "Microphone"
+msgstr "Mikrofon"
+
+#: src/page-audio.c:1192
+msgid "Input gain level"
+msgstr "Eingangsverstärkung"
+
+#: src/page-audio.c:1194
+msgid "Microphone activity"
+msgstr "Mikrofonaktivität"
+
+#: src/page-audio.c:1194
+msgid "Live microphone input detection"
+msgstr "Live-Erkennung des Mikrofoneingangs"
+
+#: src/page-audio.c:1197
+msgid "Audio balance"
+msgstr "Audiobalance"
+
+#: src/page-audio.c:1197
+msgid "-100 left / +100 right"
+msgstr "-100 links / +100 rechts"
+
+#: src/page-audio.c:1201
+msgid "Audio devices"
+msgstr "Audiogeräte"
+
+#: src/page-audio.c:1202
+msgid "Choose default output and input devices."
+msgstr "Standard-Ausgabe- und Eingabegeräte auswählen."
+
+#: src/page-audio.c:1211
+msgid "Output device"
+msgstr "Ausgabegerät"
+
+#: src/page-audio.c:1213
+msgid "Input device"
+msgstr "Eingabegerät"
+
+#: src/page-audio.c:1215
+msgid "Refresh audio devices"
+msgstr "Audiogeräte aktualisieren"
+
+#: src/page-audio.c:1222
+msgid "Profiles, effects and routing"
+msgstr "Profile, Effekte und Routing"
+
+#: src/page-audio.c:1223
+msgid ""
+"Tune profile, bluetooth behavior, system effects, mixing and routing policy."
+msgstr ""
+"Profil, Bluetooth-Verhalten, Systemeffekte, Mixing und Routing-Richtlinie "
+"anpassen."
+
+#: src/page-audio.c:1250
+msgid "Audio profile"
+msgstr "Audioprofil"
+
+#: src/page-audio.c:1252
+msgid "Bluetooth audio"
+msgstr "Bluetooth-Audio"
+
+#: src/page-audio.c:1254
+msgid "System sound effects"
+msgstr "Systemklangeffekte"
+
+#: src/page-audio.c:1256
+msgid "Mixing"
+msgstr "Mixing"
+
+#: src/page-audio.c:1258
+msgid "Routing"
+msgstr "Routing"
+
+#: src/page-audio.c:1265
+msgid "Apply audio settings"
+msgstr "Audioeinstellungen anwenden"
+
+#: src/page-input.c:19
+msgid "Polish"
+msgstr "Polish"
+
+#: src/page-input.c:20
+msgid "English (US)"
+msgstr "English (US)"
+
+#: src/page-input.c:21
+msgid "German"
+msgstr "German"
+
+#: src/page-input.c:22
+msgid "French"
+msgstr "French"
+
+#: src/page-input.c:23
+msgid "Spanish"
+msgstr "Spanish"
+
+#: src/page-input.c:24
+msgid "Czech"
+msgstr "Czech"
+
+#: src/page-input.c:29
+msgid "Developer"
+msgstr "Developer"
+
+#: src/page-input.c:30
+msgid "Compact"
+msgstr "Kompakt"
+
+#: src/page-input.c:34
+msgid "Absolute mapping"
+msgstr "Absolute mapping"
+
+#: src/page-input.c:35
+msgid "Relative mapping"
+msgstr "Relative mapping"
+
+#: src/page-input.c:52
+msgid "Launch terminal"
+msgstr "Karton Terminal"
+
+#: src/page-input.c:62
+msgid "Close window"
+msgstr "Close window"
+
+#: src/page-input.c:72
+msgid "Next window"
+msgstr "Next window"
+
+#: src/page-input.c:82
+msgid "Previous window"
+msgstr "Previous window"
+
+#: src/page-input.c:92
+msgid "Window menu"
+msgstr "Fensterstile"
+
+#: src/page-input.c:102
+msgid "Toggle maximize"
+msgstr "Toggle maximize"
+
+#: src/page-input.c:112
+msgid "Snap window left"
+msgstr "Fenster links andocken"
+
+#: src/page-input.c:122
+msgid "Snap window right"
+msgstr "Fenster rechts andocken"
+
+#: src/page-input.c:132
+msgid "Snap window up"
+msgstr "Fenster oben andocken"
+
+#: src/page-input.c:142
+msgid "Snap window down"
+msgstr "Fenster unten andocken"
+
+#: src/page-input.c:152
+msgid "Screenshot full"
+msgstr "Vollbild-Screenshot"
+
+#: src/page-input.c:162
+msgid "Screenshot area"
+msgstr "Bereichs-Screenshot"
+
+#: src/page-input.c:172
+msgid "Screenshot full (copy)"
+msgstr "Vollbild-Screenshot (kopieren)"
+
+#: src/page-input.c:182
+msgid "Screenshot area (copy)"
+msgstr "Bereichs-Screenshot (kopieren)"
+
+#: src/page-input.c:1008 src/page-input.c:1409
+msgid "Could not update session keyboard environment file."
+msgstr ""
+"Aktualisierungs-Umgebungseinstellungen konnten nicht gespeichert werden. "
+
+#: src/page-input.c:1014 src/page-input.c:1414
+msgid "Could not update compositor input configuration."
+msgstr "Zuordnung für Mail-Client konnte nicht aktualisiert werden. "
+
+#: src/page-input.c:1027
+msgid "Shortcuts saved and applied globally"
+msgstr "Tastenkurzel gespeichert und global angewendet"
+
+#: src/page-input.c:1042
+msgid "Press a key combination"
+msgstr "Tastenkombination drucken"
+
+#: src/page-input.c:1070
+msgid "Configure keyboard shortcuts"
+msgstr "Configure keyboard shortcuts"
+
+#: src/page-input.c:1084
+msgid "Edit shortcut bindings used by the compositor."
+msgstr "Edit shortcut bindings used by the compositor."
+
+#: src/page-input.c:1090
+msgid "Shortcut"
+msgstr "Shortcut"
+
+#: src/page-input.c:1096
+msgid "Key combination"
+msgstr "Key combination"
+
+#: src/page-input.c:1120 src/page-security.c:360 src/page-updates.c:410
+#: src/page-session-startup.c:205
+msgid "Cancel"
+msgstr "Cancel"
+
+#: src/page-input.c:1124
+msgid "Save shortcuts"
+msgstr "Save shortcuts"
+
+#: src/page-input.c:1386
+msgid "Settings were saved. Some changes may require logging out and back in."
+msgstr "Settings were saved. Some changes may require logging out and back in."
+
+#: src/page-input.c:1398
+msgid "Input settings reloaded"
+msgstr "Benachrichtigungseinstellungen neu geladen"
+
+#: src/page-input.c:1425
+msgid "Input device settings applied"
+msgstr "Audioeinstellungen angewendet"
+
+#: src/page-input.c:1448
+msgid "Configure mouse, keyboard, touchpad, gestures and other input devices."
+msgstr "Configure mouse, keyboard, touchpad, gestures and other input devices."
+
+#: src/page-input.c:1457
+msgid "Keyboard and shortcuts"
+msgstr "Keyboard and shortcuts"
+
+#: src/page-input.c:1458
+msgid "Set keyboard layout and shortcut profile for everyday workflows."
+msgstr "Set keyboard layout and shortcut profile for everyday workflows."
+
+#: src/page-input.c:1480
+msgid "Configure"
+msgstr "Configure"
+
+#: src/page-input.c:1490 src/page-region.c:1726
+msgid "Keyboard layout"
+msgstr "Desktop und Layout"
+
+#: src/page-input.c:1492
+msgid "Keyboard shortcuts"
+msgstr "Keyboard shortcuts"
+
+#: src/page-input.c:1496
+msgid "Pointer and touchpad"
+msgstr "Pointer and touchpad"
+
+#: src/page-input.c:1497
+msgid ""
+"Tune cursor speed and touchpad behavior, including gestures and natural "
+"scrolling."
+msgstr ""
+"Tune cursor speed and touchpad behavior, including gestures and natural "
+"scrolling."
+
+#: src/page-input.c:1508
+msgid "Cursor speed"
+msgstr "Cursor speed"
+
+#: src/page-input.c:1508
+msgid "0 = precise, 100 = fast"
+msgstr "0 = precise, 100 = fast"
+
+#: src/page-input.c:1510
+msgid "Touchpad"
+msgstr "Touchpad"
+
+#: src/page-input.c:1512
+msgid "Gestures"
+msgstr "Gestures"
+
+#: src/page-input.c:1514
+msgid "Natural scrolling"
+msgstr "Natural scrolling"
+
+#: src/page-input.c:1518
+msgid "Additional input devices"
+msgstr "Audiogeräte"
+
+#: src/page-input.c:1519
+msgid "Configure multimedia keys, graphics tablets and controllers."
+msgstr "Configure multimedia keys, graphics tablets and controllers."
+
+#: src/page-input.c:1533
+msgid "Multimedia keys"
+msgstr "Multimedia keys"
+
+#: src/page-input.c:1535
+msgid "Graphics tablets"
+msgstr "Graphics tablets"
+
+#: src/page-input.c:1537
+msgid "Tablet mode"
+msgstr "Tablet mode"
+
+#: src/page-input.c:1539 src/page-bluetooth.c:1109
+msgid "Controllers"
+msgstr "Controllers"
+
+#: src/page-input.c:1550
+msgid "Apply input settings"
+msgstr "Anzeigeeinstellungen anwenden"
+
+#: src/page-network.c:17
+msgid "Automatic (DHCP)"
+msgstr "Automatisch"
+
+#: src/page-network.c:18 src/page-network.c:24
+msgid "Manual"
+msgstr "Manual"
+
+#: src/page-network.c:25
+msgid "Link-local only"
+msgstr "Link-local only"
+
+#: src/page-network.c:276
+msgid "Hidden network"
+msgstr "Hidden network"
+
+#: src/page-network.c:278
+msgid "open"
+msgstr "open"
+
+#: src/page-network.c:294
+msgid "No networks found"
+msgstr "No networks found"
+
+#: src/page-network.c:471
+msgid "Could not switch Wi-Fi radio state. "
+msgstr "Could not switch Wi-Fi radio state. "
+
+#: src/page-network.c:480
+msgid "Could not start hotspot with current settings. "
+msgstr ""
+"Aktualisierungs-Umgebungseinstellungen konnten nicht gespeichert werden. "
+
+#: src/page-network.c:486
+msgid ""
+"NetworkManager CLI (nmcli) not found. Runtime network apply is limited. "
+msgstr ""
+"NetworkManager CLI (nmcli) not found. Runtime network apply is limited. "
+
+#: src/page-network.c:508
+msgid "Wi-Fi networks refreshed"
+msgstr "Monitorliste aktualisiert"
+
+#: src/page-network.c:518
+msgid "Network settings reloaded"
+msgstr "Benachrichtigungseinstellungen neu geladen"
+
+#: src/page-network.c:536
+msgid "Network settings applied"
+msgstr "Audioeinstellungen angewendet"
+
+#: src/page-network.c:555
+msgid "Network and internet"
+msgstr "Network and internet"
+
+#: src/page-network.c:559
+msgid ""
+"Configure Wi-Fi, Ethernet, VPN, proxy, hotspot, DNS and connection sharing."
+msgstr ""
+"Configure Wi-Fi, Ethernet, VPN, proxy, hotspot, DNS and connection sharing."
+
+#: src/page-network.c:568
+msgid "Connections"
+msgstr "Angeschlossene Monitore"
+
+#: src/page-network.c:569
+msgid "Manage Wi-Fi, Ethernet, VPN and hotspot connectivity."
+msgstr "Manage Wi-Fi, Ethernet, VPN and hotspot connectivity."
+
+#: src/page-network.c:578
+msgid "Scan"
+msgstr "Scan"
+
+#: src/page-network.c:585
+msgid "Wi-Fi"
+msgstr "Wi-Fi"
+
+#: src/page-network.c:587
+msgid "Available networks"
+msgstr "Available networks"
+
+#: src/page-network.c:589
+msgid "Ethernet"
+msgstr "Ethernet"
+
+#: src/page-network.c:591
+msgid "VPN"
+msgstr "VPN"
+
+#: src/page-network.c:593
+msgid "Hotspot"
+msgstr "Hotspot"
+
+#: src/page-network.c:595
+msgid "Hotspot name"
+msgstr "Hotspot name"
+
+#: src/page-network.c:595
+msgid "Karton Hotspot"
+msgstr "Karton Hotspot"
+
+#: src/page-network.c:601
+msgid "Routing and addressing"
+msgstr "Routing and addressing"
+
+#: src/page-network.c:602
+msgid "Set proxy, DNS and IPv4/IPv6 behavior."
+msgstr "Set proxy, DNS and IPv4/IPv6 behavior."
+
+#: src/page-network.c:619
+msgid "Proxy"
+msgstr "Proxy"
+
+#: src/page-network.c:619
+msgid "http://proxy.local:8080"
+msgstr "http://proxy.local:8080"
+
+#: src/page-network.c:621
+msgid "DNS servers"
+msgstr "Treiber"
+
+#: src/page-network.c:621
+msgid "1.1.1.1, 8.8.8.8"
+msgstr "1.1.1.1, 8.8.8.8"
+
+#: src/page-network.c:623
+msgid "IPv4"
+msgstr "IPv4"
+
+#: src/page-network.c:625
+msgid "IPv6"
+msgstr "IPv6"
+
+#: src/page-network.c:629
+msgid "Security and sharing"
+msgstr "Security and sharing"
+
+#: src/page-network.c:630
+msgid "Control firewall, network sharing and Bluetooth tethering."
+msgstr "Control firewall, network sharing and Bluetooth tethering."
+
+#: src/page-network.c:637 src/page-security.c:933
+msgid "Firewall"
+msgstr "Firewall"
+
+#: src/page-network.c:639
+msgid "Network sharing"
+msgstr "Netzwerk"
+
+#: src/page-network.c:641
+msgid "Bluetooth tethering"
+msgstr "Bluetooth-Audio"
+
+#: src/page-network.c:652
+msgid "Apply network settings"
+msgstr "Audioeinstellungen anwenden"
+
+#: src/page-bluetooth.c:17
+msgid "Balanced quality"
+msgstr "Balanced quality"
+
+#: src/page-bluetooth.c:18
+msgid "Low latency"
+msgstr "Low latency"
+
+#: src/page-bluetooth.c:19
+msgid "Voice and calls"
+msgstr "Lautstärke und Aufnahme"
+
+#: src/page-bluetooth.c:23
+msgid "A2DP (high quality)"
+msgstr "A2DP (high quality)"
+
+#: src/page-bluetooth.c:24
+msgid "Hands-free (HFP/HSP)"
+msgstr "Hands-free (HFP/HSP)"
+
+#: src/page-bluetooth.c:25 src/page-accessibility.c:18
+msgid "Off"
+msgstr "Off"
+
+#: src/page-bluetooth.c:29
+msgid "XInput"
+msgstr "XInput"
+
+#: src/page-bluetooth.c:30
+msgid "DirectInput"
+msgstr "DirectInput"
+
+#: src/page-bluetooth.c:31
+msgid "Switch mode"
+msgstr "Switch mode"
+
+#: src/page-bluetooth.c:531
+msgid "No active Bluetooth audio card found to apply profile. "
+msgstr "No active Bluetooth audio card found to apply profile. "
+
+#: src/page-bluetooth.c:541
+msgid "Could not apply Bluetooth audio profile on active card. "
+msgstr "Audiobalance konnte nicht angewendet werden."
+
+#: src/page-bluetooth.c:588
+msgid "Could not persist controller profile environment settings. "
+msgstr ""
+"Aktualisierungs-Umgebungseinstellungen konnten nicht gespeichert werden. "
+
+#: src/page-bluetooth.c:620
+msgid "Could not create Bluetooth transfer directory. "
+msgstr "Could not create Bluetooth transfer directory. "
+
+#: src/page-bluetooth.c:634
+msgid "Could not write obexd file transfer configuration. "
+msgstr "Zuordnungen für Texteditor konnten nicht aktualisiert werden. "
+
+#: src/page-bluetooth.c:642
+msgid "Could not restart user OBEX service. "
+msgstr "Could not restart user OBEX service. "
+
+#: src/page-bluetooth.c:688
+msgid "No Bluetooth devices found"
+msgstr "Bluetooth-Audio"
+
+#: src/page-bluetooth.c:767 src/page-bluetooth.c:1145
+msgid "Loading Bluetooth settings..."
+msgstr "Audioeinstellungen anwenden"
+
+#: src/page-bluetooth.c:856
+msgid "bluetoothctl not found. Runtime Bluetooth apply is limited. "
+msgstr "bluetoothctl not found. Runtime Bluetooth apply is limited. "
+
+#: src/page-bluetooth.c:866
+msgid "Could not change Bluetooth power state. "
+msgstr "Could not change Bluetooth power state. "
+
+#: src/page-bluetooth.c:872
+msgid "Could not change Bluetooth visibility. "
+msgstr ""
+"Sichtbarkeit des Benachrichtigungsverlaufs konnte nicht aktualisiert werden. "
+
+#: src/page-bluetooth.c:909
+msgid "Refreshing Bluetooth devices..."
+msgstr "Audiogeräte aktualisieren"
+
+#: src/page-bluetooth.c:912
+msgid "Bluetooth device list refreshed"
+msgstr "Audiogeräte aktualisiert"
+
+#: src/page-bluetooth.c:922
+msgid "Enter device MAC address to pair."
+msgstr "Enter device MAC address to pair."
+
+#: src/page-bluetooth.c:926
+msgid "Pairing Bluetooth device..."
+msgstr "Bluetooth-Audio"
+
+#: src/page-bluetooth.c:939
+msgid "Could not pair/connect device with provided MAC."
+msgstr "Could not pair/connect device with provided MAC."
+
+#: src/page-bluetooth.c:945
+msgid "Pairing command sent."
+msgstr "Pairing command sent."
+
+#: src/page-bluetooth.c:955
+msgid "Select a Bluetooth device to remove."
+msgstr "Select a Bluetooth device to remove."
+
+#: src/page-bluetooth.c:959
+msgid "Removing selected Bluetooth device..."
+msgstr "Removing selected Bluetooth device..."
+
+#: src/page-bluetooth.c:970
+msgid "Could not remove selected Bluetooth device."
+msgstr "Could not remove selected Bluetooth device."
+
+#: src/page-bluetooth.c:976
+msgid "Selected Bluetooth device removed."
+msgstr "Selected Bluetooth device removed."
+
+#: src/page-bluetooth.c:984
+msgid "Reloading Bluetooth settings..."
+msgstr "Audioeinstellungen anwenden"
+
+#: src/page-bluetooth.c:988
+msgid "Bluetooth settings reloaded"
+msgstr "Benachrichtigungseinstellungen neu geladen"
+
+#: src/page-bluetooth.c:996
+msgid "Applying Bluetooth settings..."
+msgstr "Audioeinstellungen anwenden"
+
+#: src/page-bluetooth.c:1009
+msgid "Bluetooth settings applied"
+msgstr "Audioeinstellungen angewendet"
+
+#: src/page-bluetooth.c:1028
+msgid "Bluetooth and wireless devices"
+msgstr "Bluetooth and wireless devices"
+
+#: src/page-bluetooth.c:1032
+msgid ""
+"Manage pairing, headphones, controllers, file transfer, Bluetooth profiles "
+"and device visibility."
+msgstr ""
+"Manage pairing, headphones, controllers, file transfer, Bluetooth profiles "
+"and device visibility."
+
+#: src/page-bluetooth.c:1041
+msgid "Pairing and visibility"
+msgstr "Pairing and visibility"
+
+#: src/page-bluetooth.c:1042
+msgid "Control Bluetooth radio, discoverability and pairing."
+msgstr "Control Bluetooth radio, discoverability and pairing."
+
+#: src/page-bluetooth.c:1049 src/page-users.c:1237
+msgid "Refresh"
+msgstr "Refresh"
+
+#: src/page-bluetooth.c:1058
+msgid "Device visibility"
+msgstr "Device visibility"
+
+#: src/page-bluetooth.c:1060
+msgid "Detected devices"
+msgstr "Audiogeräte"
+
+#: src/page-bluetooth.c:1064
+msgid "AA:BB:CC:DD:EE:FF"
+msgstr "AA:BB:CC:DD:EE:FF"
+
+#: src/page-bluetooth.c:1066
+msgid "Pair"
+msgstr "Pair"
+
+#: src/page-bluetooth.c:1068
+msgid "Forget selected"
+msgstr "Kein Monitor ausgewählt"
+
+#: src/page-bluetooth.c:1076
+msgid "Device pairing"
+msgstr "Device pairing"
+
+#: src/page-bluetooth.c:1080
+msgid "Bluetooth profiles"
+msgstr "Bluetooth-Audio"
+
+#: src/page-bluetooth.c:1081
+msgid "Configure profiles for headphones and controllers."
+msgstr "Configure profiles for headphones and controllers."
+
+#: src/page-bluetooth.c:1105
+msgid "Bluetooth profile"
+msgstr "Bluetooth"
+
+#: src/page-bluetooth.c:1113
+msgid "File transfer"
+msgstr "Dateimanager"
+
+#: src/page-bluetooth.c:1114
+msgid "Enable Bluetooth file transfer and set default target directory."
+msgstr "Enable Bluetooth file transfer and set default target directory."
+
+#: src/page-bluetooth.c:1118
+msgid "Allow file transfer"
+msgstr "Allow file transfer"
+
+#: src/page-bluetooth.c:1120
+msgid "Transfer directory"
+msgstr "Transparenz"
+
+#: src/page-bluetooth.c:1120
+msgid "$HOME/Downloads"
+msgstr "$HOME/Downloads"
+
+#: src/page-bluetooth.c:1131
+msgid "Apply Bluetooth settings"
+msgstr "Audioeinstellungen anwenden"
+
+#: src/page-power.c:18
+msgid "Performance"
+msgstr "Performance"
+
+#: src/page-power.c:19
+msgid "Balanced"
+msgstr "Balanced"
+
+#: src/page-power.c:20
+msgid "Power saver"
+msgstr "Energie"
+
+#: src/page-power.c:24
+msgid "Suspend"
+msgstr "Suspend"
+
+#: src/page-power.c:25
+msgid "Hibernate"
+msgstr "Hibernate"
+
+#: src/page-power.c:26
+msgid "Do nothing"
+msgstr "Do nothing"
+
+#: src/page-power.c:419 src/page-power.c:422
+msgid "unknown"
+msgstr "unknown"
+
+#: src/page-power.c:434
+#, c-format
+msgid ""
+"State: %s\n"
+"Charge: %s\n"
+"Estimated time: %s"
+msgstr ""
+"State: %s\n"
+"Charge: %s\n"
+"Estimated time: %s"
+
+#: src/page-power.c:436
+#, c-format
+msgid ""
+"State: %s\n"
+"Charge: %s"
+msgstr ""
+"State: %s\n"
+"Charge: %s"
+
+#: src/page-power.c:633
+msgid "No battery device found for charge limit control. "
+msgstr "No battery device found for charge limit control. "
+
+#: src/page-power.c:661
+msgid "Could not apply battery charge limits on this device. "
+msgstr ""
+"Automatischer Aktualisierungs-Timer konnte auf diesem System nicht aktiviert "
+"werden. "
+
+#: src/page-power.c:694
+msgid "Could not apply selected power profile. "
+msgstr "Lautstärke oder Mikrofonpegel konnte nicht angewendet werden."
+
+#: src/page-power.c:699
+msgid "powerprofilesctl not found. Runtime power profile apply is limited. "
+msgstr "powerprofilesctl not found. Runtime power profile apply is limited. "
+
+#: src/page-power.c:718
+msgid "Could not apply some desktop power settings via gsettings. "
+msgstr "Standardbrowser konnte nicht über xdg-settings gesetzt werden. "
+
+#: src/page-power.c:723
+msgid "Charge start limit must be lower than charge end limit. "
+msgstr "Charge start limit must be lower than charge end limit. "
+
+#: src/page-power.c:755
+msgid "Could not persist power environment settings. "
+msgstr ""
+"Aktualisierungs-Umgebungseinstellungen konnten nicht gespeichert werden. "
+
+#: src/page-power.c:795
+msgid "Battery statistics refreshed"
+msgstr "Monitorliste aktualisiert"
+
+#: src/page-power.c:805
+msgid "Power settings reloaded"
+msgstr "Benachrichtigungseinstellungen neu geladen"
+
+#: src/page-power.c:818
+msgid "Charge start limit must be lower than charge end limit."
+msgstr "Charge start limit must be lower than charge end limit."
+
+#: src/page-power.c:834
+msgid "Power settings applied"
+msgstr "Audioeinstellungen angewendet"
+
+#: src/page-power.c:853
+msgid "Power and battery"
+msgstr "Power and battery"
+
+#: src/page-power.c:857
+msgid ""
+"Manage performance profile, power saving, suspend and hibernation behavior, "
+"charging limits and battery statistics."
+msgstr ""
+"Manage performance profile, power saving, suspend and hibernation behavior, "
+"charging limits and battery statistics."
+
+#: src/page-power.c:866
+msgid "Performance and saving"
+msgstr "Performance and saving"
+
+#: src/page-power.c:867
+msgid "Choose performance profile and enable battery saving features."
+msgstr "Choose performance profile and enable battery saving features."
+
+#: src/page-power.c:880
+msgid "Performance profile"
+msgstr "Performance profile"
+
+#: src/page-power.c:882
+msgid "Power saving"
+msgstr "Power saving"
+
+#: src/page-power.c:884
+msgid "Automatic brightness"
+msgstr "Automatische Aktualisierungen"
+
+#: src/page-power.c:888
+msgid "Sleep and lid"
+msgstr "Sleep and lid"
+
+#: src/page-power.c:889
+msgid "Configure suspend, hibernation and behavior after closing the lid."
+msgstr "Configure suspend, hibernation and behavior after closing the lid."
+
+#: src/page-power.c:902
+msgid "Allow suspend"
+msgstr "Allow suspend"
+
+#: src/page-power.c:904
+msgid "Allow hibernation"
+msgstr "Allow hibernation"
+
+#: src/page-power.c:906
+msgid "Lid close action"
+msgstr "Lid close action"
+
+#: src/page-power.c:910
+msgid "Charging limits"
+msgstr "Charging limits"
+
+#: src/page-power.c:911
+msgid "Set battery charging thresholds if hardware/driver supports them."
+msgstr "Set battery charging thresholds if hardware/driver supports them."
+
+#: src/page-power.c:918
+msgid "Enable charge limits"
+msgstr "Enable charge limits"
+
+#: src/page-power.c:920
+msgid "Charge start (%)"
+msgstr "Charge start (%)"
+
+#: src/page-power.c:922
+msgid "Charge end (%)"
+msgstr "Charge end (%)"
+
+#: src/page-power.c:926
+msgid "Battery statistics"
+msgstr "Battery statistics"
+
+#: src/page-power.c:927
+msgid "Current battery status and estimated remaining time."
+msgstr "Current battery status and estimated remaining time."
+
+#: src/page-power.c:935
+msgid "Refresh battery stats"
+msgstr "Monitorliste aktualisieren"
+
+#: src/page-power.c:940
+msgid "Statistics update"
+msgstr "Automatische Aktualisierungen"
+
+#: src/page-power.c:951
+msgid "Apply power settings"
+msgstr "Aktualisierungseinstellungen anwenden"
+
+#: src/page-users.c:380 src/page-default-apps.c:198
+msgid "System default"
+msgstr "Systemstandard"
+
+#: src/page-users.c:389 src/page-users.c:400 src/page-users.c:405
+msgid "Wayland"
+msgstr "Wayland"
+
+#: src/page-users.c:394 src/page-users.c:410 src/page-users.c:415
+msgid "X11"
+msgstr "X11"
+
+#: src/page-users.c:418
+msgid "Wayland session"
+msgstr "Wayland session"
+
+#: src/page-users.c:419
+msgid "X11 session"
+msgstr "X11 session"
+
+#: src/page-users.c:421
+msgid "Safe session"
+msgstr "Safe session"
+
+#: src/page-users.c:454
+msgid "Could not open profile image picker"
+msgstr "Aktualisierungen konnten über zypper nicht geprüft werden."
+
+#: src/page-users.c:469
+msgid "Choose profile image"
+msgstr "Von Datenträger wählen"
+
+#: src/page-users.c:510
+msgid "No profile image selected"
+msgstr "Kein Monitor ausgewählt"
+
+#: src/page-users.c:638 src/page-users.c:786
+msgid "No local users found"
+msgstr "No local users found"
+
+#: src/page-users.c:967
+msgid "Avatar file path does not exist. "
+msgstr "Avatar file path does not exist. "
+
+#: src/page-users.c:975
+msgid "Could not create user avatar directory. "
+msgstr "Richtlinie für Hinweistöne konnte nicht aktualisiert werden. "
+
+#: src/page-users.c:994
+msgid "Could not copy selected avatar image. "
+msgstr "Aktualisierungen konnten über pacman nicht geprüft werden."
+
+#: src/page-users.c:1026
+msgid "Invalid username for new account. "
+msgstr "Invalid username for new account. "
+
+#: src/page-users.c:1028
+msgid "User already exists. "
+msgstr "User already exists. "
+
+#: src/page-users.c:1042
+msgid "Could not create new user account (missing privileges). "
+msgstr "Could not create new user account (missing privileges). "
+
+#: src/page-users.c:1060
+msgid "Could not set user password (missing privileges). "
+msgstr "Could not set user password (missing privileges). "
+
+#: src/page-users.c:1076
+msgid "Could not apply additional user groups (missing privileges). "
+msgstr "Could not apply additional user groups (missing privileges). "
+
+#: src/page-users.c:1089
+msgid "Could not grant administrator rights (missing privileges). "
+msgstr "Could not grant administrator rights (missing privileges). "
+
+#: src/page-users.c:1104
+msgid "Select a user before enabling autologin. "
+msgstr "Select a user before enabling autologin. "
+
+#: src/page-users.c:1122
+msgid "Could not persist users/session environment settings. "
+msgstr ""
+"Aktualisierungs-Umgebungseinstellungen konnten nicht gespeichert werden. "
+
+#: src/page-users.c:1170
+msgid "Users list refreshed"
+msgstr "Monitorliste aktualisiert"
+
+#: src/page-users.c:1181
+msgid "Users settings reloaded"
+msgstr "Einstellungen für Aktualisierungen und Software neu geladen"
+
+#: src/page-users.c:1200
+msgid "Users and accounts settings applied"
+msgstr "Einstellungen für Aktualisierungen und Software angewendet"
+
+#: src/page-users.c:1223
+msgid ""
+"Manage accounts, passwords, autologin, profile image, user groups, "
+"administrator rights and default sessions."
+msgstr ""
+"Manage accounts, passwords, autologin, profile image, user groups, "
+"administrator rights and default sessions."
+
+#: src/page-users.c:1232
+msgid "Accounts"
+msgstr "Accounts"
+
+#: src/page-users.c:1233
+msgid "Select existing users and create new user accounts."
+msgstr "Select existing users and create new user accounts."
+
+#: src/page-users.c:1244
+msgid "Existing users"
+msgstr "Existing users"
+
+#: src/page-users.c:1246
+msgid "New account username"
+msgstr "New account username"
+
+#: src/page-users.c:1246
+msgid "newuser"
+msgstr "newuser"
+
+#: src/page-users.c:1248
+msgid "New account full name"
+msgstr "New account full name"
+
+#: src/page-users.c:1248
+msgid "New User"
+msgstr "New User"
+
+#: src/page-users.c:1252
+msgid "Authentication and sessions"
+msgstr "Authentication and sessions"
+
+#: src/page-users.c:1253
+msgid "Set user password, autologin and default session."
+msgstr "Set user password, autologin and default session."
+
+#: src/page-users.c:1259
+msgid "Leave empty to keep current password"
+msgstr "Leave empty to keep current password"
+
+#: src/page-users.c:1265
+msgid "Set password"
+msgstr "Set password"
+
+#: src/page-users.c:1267
+msgid "Autologin"
+msgstr "Automatisch"
+
+#: src/page-users.c:1269
+msgid "Default session"
+msgstr "Standard-Eingang"
+
+#: src/page-users.c:1273
+msgid "Profile and permissions"
+msgstr "Profile and permissions"
+
+#: src/page-users.c:1274
+msgid "Configure profile image, user groups and administrator rights."
+msgstr "Configure profile image, user groups and administrator rights."
+
+#: src/page-users.c:1279
+msgid "Profile image"
+msgstr "Dateimanager"
+
+#: src/page-users.c:1281
+msgid "Additional groups"
+msgstr "Additional groups"
+
+#: src/page-users.c:1281
+msgid "audio,video,network"
+msgstr "audio,video,network"
+
+#: src/page-users.c:1283
+msgid "Administrator rights"
+msgstr "Administrator rights"
+
+#: src/page-users.c:1294
+msgid "Apply users settings"
+msgstr "Aktualisierungseinstellungen anwenden"
+
+#: src/page-users.c:283
+msgid "Delete user account"
+msgstr "Benutzerkonto löschen"
+
+#: src/page-users.c:297
+#, c-format
+msgid "Do you want to permanently delete user '%s' and home files?"
+msgstr "Möchtest du den Benutzer '%s' und die Home-Dateien dauerhaft löschen?"
+
+#: src/page-users.c:305
+msgid "Delete user"
+msgstr "Benutzer löschen"
+
+#: src/page-users.c:1255
+msgid "Delete selected user"
+msgstr "Ausgewählten Benutzer löschen"
+
+#: src/page-users.c:1190
+msgid "Select a user to delete."
+msgstr "Wähle einen Benutzer zum Löschen aus."
+
+#: src/page-users.c:1196
+msgid "Deleting the root user is not allowed."
+msgstr "Das Löschen des Root-Benutzers ist nicht erlaubt."
+
+#: src/page-users.c:1203
+msgid "Deleting the currently logged in user is not allowed."
+msgstr "Das Löschen des aktuell angemeldeten Benutzers ist nicht erlaubt."
+
+#: src/page-users.c:1214 src/page-users.c:1226
+msgid "Deleting user account was canceled."
+msgstr "Das Löschen des Benutzerkontos wurde abgebrochen."
+
+#: src/page-users.c:1230
+msgid "Administrator password is required to delete users."
+msgstr "Zum Löschen von Benutzern ist ein Administratorpasswort erforderlich."
+
+#: src/page-users.c:1250
+msgid "Could not delete user account (missing privileges or user is currently in use)."
+msgstr "Benutzerkonto konnte nicht gelöscht werden (fehlende Berechtigungen oder Benutzer wird derzeit verwendet)."
+
+#: src/page-users.c:1264
+#, c-format
+msgid "User '%s' was deleted."
+msgstr "Benutzer '%s' wurde gelöscht."
+
+#: src/page-users.c:1233
+msgid "Select existing users, create new user accounts and remove accounts you no longer need."
+msgstr "Wähle bestehende Benutzer, erstelle neue Benutzerkonten und entferne Konten, die du nicht mehr brauchst."
+
+#: src/page-users.c:1298
+msgid "Applying users and accounts settings was canceled."
+msgstr "Das Anwenden der Benutzer- und Kontoeinstellungen wurde abgebrochen."
+
+#: src/page-users.c:1300
+msgid "Administrator password is required to apply users and accounts settings."
+msgstr "Zum Anwenden der Benutzer- und Kontoeinstellungen ist ein Administratorpasswort erforderlich."
+
+#: src/page-security.c:352 src/page-updates.c:402
+#: src/page-session-startup.c:197
+msgid "Enter password"
+msgstr "Enter password"
+
+#: src/page-security.c:361 src/page-updates.c:411
+#: src/page-session-startup.c:206
+msgid "Apply"
+msgstr "Apply"
+
+#: src/page-security.c:371
+msgid "Type your administrator password to apply security settings."
+msgstr "Type your administrator password to apply security settings."
+
+#: src/page-security.c:375 src/page-updates.c:425
+#: src/page-session-startup.c:220
+msgid "Password"
+msgstr "Password"
+
+#: src/page-security.c:487
+msgid "SELinux: unavailable"
+msgstr "SELinux: unavailable"
+
+#: src/page-security.c:494
+msgid "SELinux: unknown"
+msgstr "SELinux: unknown"
+
+#: src/page-security.c:498
+#, c-format
+msgid "SELinux: %s"
+msgstr "SELinux: %s"
+
+#: src/page-security.c:506
+msgid "AppArmor: unavailable"
+msgstr "Keine Modi verfügbar"
+
+#: src/page-security.c:510
+msgid "AppArmor: enabled"
+msgstr "AppArmor: enabled"
+
+#: src/page-security.c:510
+msgid "AppArmor: disabled"
+msgstr " [deaktiviert]"
+
+#: src/page-security.c:519
+msgid "Root filesystem encryption: enabled"
+msgstr "Root filesystem encryption: enabled"
+
+#: src/page-security.c:520
+msgid "Root filesystem encryption: not detected"
+msgstr "Root filesystem encryption: not detected"
+
+#: src/page-security.c:527
+msgid "Secure Boot: enabled"
+msgstr "Secure Boot: enabled"
+
+#: src/page-security.c:530
+msgid "Secure Boot: disabled"
+msgstr "Secure Boot: disabled"
+
+#: src/page-security.c:533
+msgid "Secure Boot: unavailable or unknown"
+msgstr "Secure Boot: unavailable or unknown"
+
+#: src/page-security.c:662
+msgid "Authentication backend unavailable: sudo not found. "
+msgstr "Authentication backend unavailable: sudo not found. "
+
+#: src/page-security.c:667
+msgid "Password is required. "
+msgstr "Password is required. "
+
+#: src/page-security.c:675
+msgid "Authentication failed: password is required to apply security changes. "
+msgstr ""
+"Authentication failed: password is required to apply security changes. "
+
+#: src/page-security.c:707
+msgid "Could not update screen lock policy. "
+msgstr "Richtlinie für Hinweistöne konnte nicht aktualisiert werden. "
+
+#: src/page-security.c:711
+msgid "Could not update activity history policy. "
+msgstr "Richtlinie für Hinweistöne konnte nicht aktualisiert werden. "
+
+#: src/page-security.c:715
+msgid "Could not update location policy. "
+msgstr "Richtlinie für Hinweistöne konnte nicht aktualisiert werden. "
+
+#: src/page-security.c:719
+msgid "Could not update camera privacy policy. "
+msgstr "Richtlinie für Hinweistöne konnte nicht aktualisiert werden. "
+
+#: src/page-security.c:723
+msgid "Could not update microphone privacy policy on this desktop. "
+msgstr "Zuordnungen für Musikplayer konnten nicht aktualisiert werden. "
+
+#: src/page-security.c:729
+msgid "Could not apply firewall state via ufw. "
+msgstr "Monitoreinstellungen konnten nicht angewendet werden"
+
+#: src/page-security.c:737
+msgid "Could not apply firewall state via firewalld. "
+msgstr "Could not apply firewall state via firewalld. "
+
+#: src/page-security.c:740
+msgid "No supported firewall backend found (ufw/firewalld). "
+msgstr "Kein unterstütztes Paketmanager-Backend gefunden."
+
+#: src/page-security.c:746
+msgid "Could not switch SELinux enforcement mode. "
+msgstr "Could not switch SELinux enforcement mode. "
+
+#: src/page-security.c:753
+msgid "Could not switch AppArmor service state. "
+msgstr "Could not switch AppArmor service state. "
+
+#: src/page-security.c:758
+msgid "Application isolation tools not found (flatpak/bwrap). "
+msgstr "Application isolation tools not found (flatpak/bwrap). "
+
+#: src/page-security.c:763
+msgid "Disk encryption cannot be toggled live from settings. "
+msgstr "Disk encryption cannot be toggled live from settings. "
+
+#: src/page-security.c:768
+msgid "Secure Boot cannot be changed from userspace. Use firmware setup. "
+msgstr "Secure Boot cannot be changed from userspace. Use firmware setup. "
+
+#: src/page-security.c:802
+msgid "Could not persist security environment settings. "
+msgstr ""
+"Aktualisierungs-Umgebungseinstellungen konnten nicht gespeichert werden. "
+
+#: src/page-security.c:840
+msgid "Security status refreshed"
+msgstr "Monitorliste aktualisiert"
+
+#: src/page-security.c:850
+msgid "Security settings reloaded"
+msgstr "Benachrichtigungseinstellungen neu geladen"
+
+#: src/page-security.c:864
+msgid "Applying security settings was canceled."
+msgstr "Anzeigeeinstellungen werden angewendet..."
+
+#: src/page-security.c:874
+msgid "Administrator password is required to apply security settings."
+msgstr "Zum Anwenden der Sicherheitseinstellungen ist ein Administratorpasswort erforderlich."
+
+#: src/page-security.c:866
+msgid "Password is required."
+msgstr "Password is required."
+
+#: src/page-security.c:887
+msgid "Security and privacy settings applied"
+msgstr "Anzeigeeinstellungen angewendet"
+
+#: src/page-security.c:910
+msgid ""
+"Protect the session and personal data: lock screen, encryption state, "
+"firewall, app permissions, activity history, location, camera, microphone, "
+"application isolation and SELinux/AppArmor."
+msgstr ""
+"Protect the session and personal data: lock screen, encryption state, "
+"firewall, app permissions, activity history, location, camera, microphone, "
+"application isolation and SELinux/AppArmor."
+
+#: src/page-security.c:919
+msgid "System protection"
+msgstr "Systemaktualisierungen"
+
+#: src/page-security.c:920
+msgid ""
+"Configure lock screen, firewall, encryption requirement, Secure Boot "
+"expectation and SELinux/AppArmor policy."
+msgstr ""
+"Configure lock screen, firewall, encryption requirement, Secure Boot "
+"expectation and SELinux/AppArmor policy."
+
+#: src/page-security.c:931
+msgid "Screen lock"
+msgstr "Screen lock"
+
+#: src/page-security.c:935
+msgid "Encryption (detected state)"
+msgstr "Mikrofon erkannt (stummgeschaltet)"
+
+#: src/page-security.c:937
+msgid "Secure Boot (detected state)"
+msgstr "Mikrofon erkannt (stummgeschaltet)"
+
+#: src/page-security.c:939
+msgid "SELinux/AppArmor hardening"
+msgstr "SELinux/AppArmor hardening"
+
+#: src/page-security.c:943
+msgid "Privacy controls"
+msgstr "Privacy controls"
+
+#: src/page-security.c:944
+msgid ""
+"Control app permissions, activity history, location, camera, microphone and "
+"application isolation policy."
+msgstr ""
+"Control app permissions, activity history, location, camera, microphone and "
+"application isolation policy."
+
+#: src/page-security.c:954
+msgid "Application permissions"
+msgstr "Anwendungsprioritäten"
+
+#: src/page-security.c:956
+msgid "Activity history"
+msgstr "Benachrichtigungsverlauf"
+
+#: src/page-security.c:958
+msgid "Location"
+msgstr "Benachrichtigungen"
+
+#: src/page-security.c:960
+msgid "Camera"
+msgstr "Camera"
+
+#: src/page-security.c:964
+msgid "Application isolation"
+msgstr "Software-Store"
+
+#: src/page-security.c:968
+msgid "Security runtime status"
+msgstr "Security runtime status"
+
+#: src/page-security.c:969
+msgid ""
+"Live status from the current system. Some options (encryption and Secure "
+"Boot) are read-only in userspace."
+msgstr ""
+"Live status from the current system. Some options (encryption and Secure "
+"Boot) are read-only in userspace."
+
+#: src/page-security.c:985
+msgid "Refresh status"
+msgstr "Audiogeräte aktualisieren"
+
+#: src/page-security.c:994
+msgid "Status refresh"
+msgstr "Status refresh"
+
+#: src/page-security.c:998
+msgid "Password authentication is required when applying security changes."
+msgstr "Password authentication is required when applying security changes."
+
+#: src/page-security.c:1010
+msgid "Apply security settings"
+msgstr "Audioeinstellungen anwenden"
+
+#: src/page-notifications.c:18
+msgid "Top right"
+msgstr "Oben rechts"
+
+#: src/page-notifications.c:19
+msgid "Top left"
+msgstr "Oben links"
+
+#: src/page-notifications.c:20
+msgid "Bottom right"
+msgstr "Unten rechts"
+
+#: src/page-notifications.c:21
+msgid "Bottom left"
+msgstr "Unten links"
+
+#: src/page-notifications.c:25
+msgid "Low"
+msgstr "Niedrig"
+
+#: src/page-notifications.c:26
+msgid "Normal"
+msgstr "Normal"
+
+#: src/page-notifications.c:27
+msgid "High"
+msgstr "Hoch"
+
+#: src/page-notifications.c:28
+msgid "Urgent"
+msgstr "Dringend"
+
+#: src/page-notifications.c:593 src/page-notifications.c:983
+msgid "Loading notification settings..."
+msgstr "Benachrichtigungseinstellungen anwenden"
+
+#: src/page-notifications.c:699
+msgid "Could not update Do Not Disturb state in desktop notifications. "
+msgstr ""
+"Nicht-stören-Status in Desktop-Benachrichtigungen konnte nicht aktualisiert "
+"werden. "
+
+#: src/page-notifications.c:703
+msgid "Could not update notification history visibility. "
+msgstr ""
+"Sichtbarkeit des Benachrichtigungsverlaufs konnte nicht aktualisiert werden. "
+
+#: src/page-notifications.c:707
+msgid "Could not update alert sound policy. "
+msgstr "Richtlinie für Hinweistöne konnte nicht aktualisiert werden. "
+
+#: src/page-notifications.c:726 src/page-notifications.c:762
+msgid "Could not persist notifications environment settings. "
+msgstr ""
+"Benachrichtigungs-Umgebungseinstellungen konnten nicht gespeichert werden. "
+
+#: src/page-notifications.c:806
+msgid "Notification settings reloaded"
+msgstr "Benachrichtigungseinstellungen neu geladen"
+
+#: src/page-notifications.c:814
+msgid "Applying notification settings..."
+msgstr "Benachrichtigungseinstellungen anwenden"
+
+#: src/page-notifications.c:826
+msgid "Notification settings applied"
+msgstr "Benachrichtigungseinstellungen angewendet"
+
+#: src/page-notifications.c:834
+msgid "Preparing test notification..."
+msgstr "Update-Benachrichtigungen"
+
+#: src/page-notifications.c:848
+msgid "Could not send test notification because notify-send is not installed."
+msgstr ""
+"Benachrichtigungs-Umgebungseinstellungen konnten nicht gespeichert werden. "
+
+#: src/page-notifications.c:854
+msgid "Could not send test notification."
+msgstr "Richtlinie für Hinweistöne konnte nicht aktualisiert werden. "
+
+#: src/page-notifications.c:859
+msgid "Test notification sent."
+msgstr "Update-Benachrichtigungen"
+
+#: src/page-notifications.c:882
+msgid ""
+"Manage system notification behavior: Do Not Disturb, popup position, "
+"history, alert sounds and app priorities."
+msgstr ""
+"Verwalte Systembenachrichtigungen: Nicht stören, Popup-Position, Verlauf, "
+"Hinweistöne und Anwendungsprioritäten."
+
+#: src/page-notifications.c:891
+msgid "Notification behavior"
+msgstr "Benachrichtigungsverhalten"
+
+#: src/page-notifications.c:892
+msgid ""
+"Control Do Not Disturb mode, position of popups, history and alert sounds."
+msgstr ""
+"Steuere Nicht-stören-Modus, Position der Popups, Verlauf und Hinweistöne."
+
+#: src/page-notifications.c:906
+msgid "Do Not Disturb"
+msgstr "Nicht stören"
+
+#: src/page-notifications.c:908
+msgid "Notification popup position"
+msgstr "Position des Benachrichtigungs-Popups"
+
+#: src/page-notifications.c:910
+msgid "Notification history"
+msgstr "Benachrichtigungsverlauf"
+
+#: src/page-notifications.c:500
+msgid "Could not open custom notification sound picker"
+msgstr "Auswahl für benutzerdefinierten Benachrichtigungston konnte nicht geöffnet werden"
+
+#: src/page-notifications.c:516
+msgid "Choose custom notification sound"
+msgstr "Benutzerdefinierten Benachrichtigungston wählen"
+
+#: src/page-notifications.c:521
+msgid "Audio files"
+msgstr "Audiodateien"
+
+#: src/page-notifications.c:585
+msgid "No notification history entries found."
+msgstr "Keine Einträge in der Benachrichtigungshistorie gefunden."
+
+#: src/page-notifications.c:590
+msgid "Notification history list"
+msgstr "Benachrichtigungsverlauf"
+
+#: src/page-notifications.c:787
+msgid "Custom notification sound file is missing or invalid. "
+msgstr "Datei für benutzerdefinierten Benachrichtigungston fehlt oder ist ungültig. "
+
+#: src/page-notifications.c:940
+msgid "Could not play selected notification sound."
+msgstr "Ausgewählter Benachrichtigungston konnte nicht abgespielt werden."
+
+#: src/page-notifications.c:1032
+msgid "System sound"
+msgstr "Systemton"
+
+#: src/page-notifications.c:1033
+msgid "Custom sound"
+msgstr "Benutzerdefinierter Ton"
+
+#: src/page-notifications.c:1046
+msgid "No custom notification sound selected"
+msgstr "Kein benutzerdefinierter Benachrichtigungston ausgewählt"
+
+#: src/page-notifications.c:1050
+msgid "Choose custom sound"
+msgstr "Benutzerdefinierten Ton wählen"
+
+#: src/page-notifications.c:1062
+msgid "Sound source"
+msgstr "Tonquelle"
+
+#: src/page-notifications.c:1064
+msgid "Custom sound file"
+msgstr "Datei für benutzerdefinierten Ton"
+
+#: src/page-notifications.c:1124
+msgid "Open notification list"
+msgstr "Benachrichtigungsliste öffnen"
+
+#: src/page-notifications.c:963
+msgid "Chat"
+msgstr "Chat"
+
+#: src/page-notifications.c:964
+msgid "Test notification from chat applications"
+msgstr "Testbenachrichtigung aus Chat-Anwendungen"
+
+#: src/page-notifications.c:966
+msgid "System"
+msgstr "System"
+
+#: src/page-notifications.c:967
+msgid "Test notification from system alerts"
+msgstr "Testbenachrichtigung aus Systemwarnungen"
+
+#: src/page-notifications.c:969
+msgid "Updates"
+msgstr "Aktualisierungen"
+
+#: src/page-notifications.c:970
+msgid "Test notification from updates"
+msgstr "Testbenachrichtigung aus Aktualisierungen"
+
+#: src/page-notifications.c:912
+msgid "Alert sounds"
+msgstr "Hinweistöne"
+
+#: src/page-notifications.c:916
+msgid "Application priorities"
+msgstr "Anwendungsprioritäten"
+
+#: src/page-notifications.c:917
+msgid ""
+"Choose priority groups used for sorting and prominence of notifications."
+msgstr ""
+"Wähle Prioritätsgruppen für Sortierung und Sichtbarkeit von "
+"Benachrichtigungen."
+
+#: src/page-notifications.c:944
+msgid "Chat applications"
+msgstr "Chat-Anwendungen"
+
+#: src/page-notifications.c:946
+msgid "System alerts"
+msgstr "Systemwarnungen"
+
+#: src/page-notifications.c:948
+msgid "Update notifications"
+msgstr "Update-Benachrichtigungen"
+
+#: src/page-notifications.c:962 src/page-default-apps.c:1099
+msgid "Test"
+msgstr "Test"
+
+#: src/page-notifications.c:969
+msgid "Apply notification settings"
+msgstr "Benachrichtigungseinstellungen anwenden"
+
+#: src/page-default-apps.c:825
+msgid "Could not update default browser via xdg-settings. "
+msgstr "Standardbrowser konnte nicht über xdg-settings gesetzt werden. "
+
+#: src/page-default-apps.c:837
+msgid "Could not update browser MIME associations. "
+msgstr "Browser-MIME-Zuordnungen konnten nicht aktualisiert werden. "
+
+#: src/page-default-apps.c:848
+msgid "Could not update file manager default association. "
+msgstr "Standardzuordnung für Dateimanager konnte nicht aktualisiert werden. "
+
+#: src/page-default-apps.c:857
+msgid "Could not update terminal default association. "
+msgstr "Standardzuordnung für Dateimanager konnte nicht aktualisiert werden. "
+
+#: src/page-default-apps.c:867
+msgid "Could not update mail client association. "
+msgstr "Zuordnung für Mail-Client konnte nicht aktualisiert werden. "
+
+#: src/page-default-apps.c:879
+msgid "Could not update music player associations. "
+msgstr "Zuordnungen für Musikplayer konnten nicht aktualisiert werden. "
+
+#: src/page-default-apps.c:891
+msgid "Could not update video player associations. "
+msgstr "Zuordnungen für Videoplayer konnten nicht aktualisiert werden. "
+
+#: src/page-default-apps.c:903
+msgid "Could not update text editor associations. "
+msgstr "Zuordnungen für Texteditor konnten nicht aktualisiert werden. "
+
+#: src/page-default-apps.c:929
+msgid "Could not persist default applications environment settings. "
+msgstr ""
+"Umgebungseinstellungen für Standardanwendungen konnten nicht gespeichert "
+"werden. "
+
+#: src/page-default-apps.c:978
+msgid "Default applications settings reloaded"
+msgstr "Einstellungen für Standardanwendungen neu geladen"
+
+#: src/page-default-apps.c:995
+msgid "Default applications settings applied"
+msgstr "Einstellungen für Standardanwendungen angewendet"
+
+#: src/page-default-apps.c:1017
+msgid "Could not launch default application test targets."
+msgstr ""
+"Umgebungseinstellungen für Standardanwendungen konnten nicht gespeichert "
+"werden. "
+
+#: src/page-default-apps.c:1021
+msgid "Default application tests launched."
+msgstr "Einstellungen für Standardanwendungen neu geladen"
+
+#: src/page-default-apps.c:1046
+msgid ""
+"Choose which applications should open links, folders, terminal sessions, "
+"mail, music, video and text files."
+msgstr ""
+"Wähle, welche Anwendungen Links, Ordner, Terminal-Sitzungen, Mail, Musik, "
+"Video und Textdateien öffnen sollen."
+
+#: src/page-default-apps.c:1055
+msgid "Application defaults"
+msgstr "Anwendungsstandards"
+
+#: src/page-default-apps.c:1056
+msgid "Set default handlers for the most common tasks and file types."
+msgstr ""
+"Lege Standardprogramme für die häufigsten Aufgaben und Dateitypen fest."
+
+#: src/page-default-apps.c:1067
+msgid "Web browser"
+msgstr "Webbrowser"
+
+#: src/page-default-apps.c:1069
+msgid "File manager"
+msgstr "Dateimanager"
+
+#: src/page-default-apps.c:1071
+msgid "Terminal"
+msgstr "Terminal"
+
+#: src/page-default-apps.c:1073
+msgid "Mail client"
+msgstr "Mail-Client"
+
+#: src/page-default-apps.c:1075
+msgid "Music player"
+msgstr "Musikplayer"
+
+#: src/page-default-apps.c:1077
+msgid "Video player"
+msgstr "Videoplayer"
+
+#: src/page-default-apps.c:1079
+msgid "Text editor"
+msgstr "Texteditor"
+
+#: src/page-default-apps.c:1083
+msgid ""
+"Some desktop environments may ignore selected handlers for specific "
+"categories. In that case values are still saved for KartON services."
+msgstr ""
+"Einige Desktop-Umgebungen ignorieren ausgewählte Zuordnungen für bestimmte "
+"Kategorien. In diesem Fall werden die Werte weiterhin für KartON-Dienste "
+"gespeichert."
+
+#: src/page-default-apps.c:1106
+msgid "Apply default applications"
+msgstr "Standardanwendungen anwenden"
+
+#: src/page-updates.c:20
+msgid "Stable"
+msgstr "Stabil"
+
+#: src/page-updates.c:21
+msgid "Testing"
+msgstr "Test"
+
+#: src/page-updates.c:22
+msgid "Nightly"
+msgstr "Nachtversion"
+
+#: src/page-updates.c:421
+msgid "Type your administrator password to continue."
+msgstr ""
+"Gib dein Administratorpasswort ein, um die Repositorienkonfiguration zu "
+"bearbeiten."
+
+#: src/page-updates.c:630 src/page-updates.c:1267
+msgid "No supported package manager backend found."
+msgstr "Kein unterstütztes Paketmanager-Backend gefunden."
+
+#: src/page-updates.c:635
+msgid "Could not start system update: sudo is not available."
+msgstr ""
+"Repositorien-Änderungen konnten nicht angewendet werden: sudo ist nicht "
+"verfügbar."
+
+#: src/page-updates.c:642 src/page-updates.c:1576
+msgid "Administrator password is required to install updates."
+msgstr ""
+"Zum Anwenden von Repositorien-Änderungen ist ein Administratorpasswort "
+"erforderlich."
+
+#: src/page-updates.c:649
+msgid "Authentication failed: invalid administrator password."
+msgstr ""
+"Authentifizierung fehlgeschlagen: Zum Bearbeiten der Repositorien ist ein "
+"Administratorpasswort erforderlich. "
+
+#: src/page-updates.c:654
+msgid "Installing system updates"
+msgstr "Systemaktualisierungen"
+
+#: src/page-updates.c:664
+msgid "Close"
+msgstr "Close"
+
+#: src/page-updates.c:674
+msgid "Update process is running. Live output is shown below."
+msgstr "Update process is running. Live output is shown below."
+
+#: src/page-updates.c:701
+msgid "Starting package manager update...\n"
+msgstr "Starting package manager update...\n"
+
+#: src/page-updates.c:739
+#, c-format
+msgid "Could not start update process: %s"
+msgstr "Could not start update process: %s"
+
+#: src/page-updates.c:758 src/page-updates.c:879
+msgid "System update command failed. Please check package manager logs."
+msgstr "System update command failed. Please check package manager logs."
+
+#: src/page-updates.c:858
+msgid ""
+"\n"
+"Update process finished successfully.\n"
+msgstr ""
+"\n"
+"Update process finished successfully.\n"
+
+#: src/page-updates.c:860
+msgid ""
+"\n"
+"Update process failed.\n"
+msgstr ""
+"\n"
+"Update process failed.\n"
+
+#: src/page-updates.c:1150
+msgid "Could not check updates via APT."
+msgstr "Aktualisierungen konnten über APT nicht geprüft werden."
+
+#: src/page-updates.c:1155 src/page-updates.c:1181 src/page-updates.c:1212
+#: src/page-updates.c:1247
+msgid "No pending updates were found."
+msgstr "Keine ausstehenden Aktualisierungen gefunden."
+
+#: src/page-updates.c:1166
+#, c-format
+msgid "Pending updates detected: %u packages (APT)."
+msgstr "Ausstehende Aktualisierungen erkannt: %u Pakete (APT)."
+
+#: src/page-updates.c:1185
+msgid "Pending updates detected (DNF)."
+msgstr "Ausstehende Aktualisierungen erkannt (DNF)."
+
+#: src/page-updates.c:1191
+msgid "Could not check updates via DNF."
+msgstr "Aktualisierungen konnten über DNF nicht geprüft werden."
+
+#: src/page-updates.c:1207
+msgid "Could not check updates via pacman."
+msgstr "Aktualisierungen konnten über pacman nicht geprüft werden."
+
+#: src/page-updates.c:1223
+#, c-format
+msgid "Pending updates detected: %u packages (pacman)."
+msgstr "Ausstehende Aktualisierungen erkannt: %u Pakete (pacman)."
+
+#: src/page-updates.c:1242
+msgid "Could not check updates via zypper."
+msgstr "Aktualisierungen konnten über zypper nicht geprüft werden."
+
+#: src/page-updates.c:1258
+#, c-format
+msgid "Pending updates detected: %u packages (zypper)."
+msgstr "Ausstehende Aktualisierungen erkannt: %u Pakete (zypper)."
+
+#: src/page-updates.c:1430
+msgid "Flatpak support was requested but flatpak is not installed. "
+msgstr ""
+"Flatpak-Unterstützung wurde angefordert, aber Flatpak ist nicht installiert. "
+
+#: src/page-updates.c:1434
+msgid "Snap support was requested but snap is not installed. "
+msgstr ""
+"Snap-Unterstützung wurde angefordert, aber Snap ist nicht installiert. "
+
+#: src/page-updates.c:1442
+msgid "Could not persist repositories list. "
+msgstr "Die Repositorienliste konnte nicht gespeichert werden. "
+
+#: src/page-updates.c:1452
+msgid ""
+"Authentication failed: administrator password is required to edit "
+"repositories. "
+msgstr ""
+"Authentifizierung fehlgeschlagen: Zum Bearbeiten der Repositorien ist ein "
+"Administratorpasswort erforderlich. "
+
+#: src/page-updates.c:1457
+#, c-format
+msgid "Could not write repositories configuration file: %s. "
+msgstr ""
+"Die Konfigurationsdatei der Repositorien konnte nicht geschrieben werden: "
+"%s. "
+
+#: src/page-updates.c:1463
+msgid "No supported repositories configuration file for this package backend. "
+msgstr ""
+"Für dieses Paketmanager-Backend ist keine unterstützte Repositorien-"
+"Konfigurationsdatei verfügbar. "
+
+#: src/page-updates.c:1477
+msgid "Could not enable automatic update timer on this system. "
+msgstr ""
+"Automatischer Aktualisierungs-Timer konnte auf diesem System nicht aktiviert "
+"werden. "
+
+#: src/page-updates.c:1509
+msgid "Could not persist updates environment settings. "
+msgstr ""
+"Aktualisierungs-Umgebungseinstellungen konnten nicht gespeichert werden. "
+
+#: src/page-updates.c:1559
+msgid "Enable System updates first, then run update installation."
+msgstr "Enable System updates first, then run update installation."
+
+#: src/page-updates.c:1566
+msgid "Could not start update installation: sudo is not available."
+msgstr ""
+"Repositorien-Änderungen konnten nicht angewendet werden: sudo ist nicht "
+"verfügbar."
+
+#: src/page-updates.c:1574
+msgid "System update was cancelled."
+msgstr "Aktualisierung der Repositorien wurde abgebrochen."
+
+#: src/page-updates.c:1592
+msgid "System update finished successfully."
+msgstr "System update finished successfully."
+
+#: src/page-updates.c:1613
+msgid "Updates and software settings reloaded"
+msgstr "Einstellungen für Aktualisierungen und Software neu geladen"
+
+#: src/page-updates.c:1628
+msgid "Could not apply repositories changes: sudo is not available."
+msgstr ""
+"Repositorien-Änderungen konnten nicht angewendet werden: sudo ist nicht "
+"verfügbar."
+
+#: src/page-updates.c:1639
+msgid "Repositories update was cancelled."
+msgstr "Aktualisierung der Repositorien wurde abgebrochen."
+
+#: src/page-updates.c:1641
+msgid "Administrator password is required to apply repositories changes."
+msgstr ""
+"Zum Anwenden von Repositorien-Änderungen ist ein Administratorpasswort "
+"erforderlich."
+
+#: src/page-updates.c:1660
+msgid "Updates and software settings applied"
+msgstr "Einstellungen für Aktualisierungen und Software angewendet"
+
+#: src/page-updates.c:1670
+#, c-format
+msgid "Loaded repositories from %s. Edit and click Apply updates settings."
+msgstr ""
+"Repositorien aus %s wurden geladen. Bearbeite sie und klicke auf "
+"„Aktualisierungseinstellungen anwenden“"
+
+#: src/page-updates.c:1674
+msgid ""
+"Could not read repositories from system config file; using current editor "
+"text."
+msgstr ""
+"Repositorien konnten nicht aus der Systemkonfigurationsdatei gelesen werden; "
+"der aktuelle Editortext wird verwendet."
+
+#: src/page-updates.c:1703
+msgid ""
+"Manage system updates, repositories, drivers, application store and package "
+"formats like Flatpak, Snap and AppImage."
+msgstr ""
+"Verwalte Systemaktualisierungen, Repositorien, Treiber, den Software-Store "
+"und Paketformate wie Flatpak, Snap und AppImage."
+
+#: src/page-updates.c:1712
+msgid "Update sources"
+msgstr "Aktualisierungsquellen"
+
+#: src/page-updates.c:1713
+msgid "Control system updates, repositories, drivers and software channels."
+msgstr ""
+"Steuere Systemaktualisierungen, Repositorien, Treiber und Softwarekanäle."
+
+#: src/page-updates.c:1728
+msgid "System updates"
+msgstr "Systemaktualisierungen"
+
+#: src/page-updates.c:1730
+msgid "Repositories"
+msgstr "Repositorien"
+
+#: src/page-updates.c:1732
+msgid "Drivers"
+msgstr "Treiber"
+
+#: src/page-updates.c:1734
+msgid "Automatic updates"
+msgstr "Automatische Aktualisierungen"
+
+#: src/page-updates.c:1736
+msgid "Update channel"
+msgstr "Aktualisierungskanal"
+
+#: src/page-updates.c:1741
+msgid "Repositories list"
+msgstr "Repositorienliste"
+
+#: src/page-updates.c:1746
+msgid "Edit repositories"
+msgstr "Repositorien bearbeiten"
+
+#: src/page-updates.c:1763
+msgid "Software formats and store"
+msgstr "Softwareformate und Store"
+
+#: src/page-updates.c:1764
+msgid ""
+"Enable software store integration and package formats used by desktop "
+"applications."
+msgstr ""
+"Aktiviere die Integration des Software-Stores und Paketformate, die von "
+"Desktop-Anwendungen verwendet werden."
+
+#: src/page-updates.c:1772
+msgid "Application store"
+msgstr "Software-Store"
+
+#: src/page-updates.c:1774
+msgid "Flatpak"
+msgstr "Flatpak"
+
+#: src/page-updates.c:1776
+msgid "Snap"
+msgstr "Snap"
+
+#: src/page-updates.c:1778
+msgid "AppImage"
+msgstr "AppImage"
+
+#: src/page-updates.c:1785
+msgid "Check for updates now"
+msgstr "Jetzt nach Aktualisierungen suchen"
+
+#: src/page-updates.c:1789
+msgid "Install updates now"
+msgstr "Benutzerdefinierte Schrift installieren"
+
+#: src/page-updates.c:1797
+msgid "Apply updates settings"
+msgstr "Aktualisierungseinstellungen anwenden"
+
+#: src/page-region.c:26
+msgid "ISO (2026-05-10)"
+msgstr "ISO (2026-05-10)"
+
+#: src/page-region.c:27
+msgid "European (10.05.2026)"
+msgstr "Europäisch (10.05.2026)"
+
+#: src/page-region.c:28
+msgid "US (05/10/2026)"
+msgstr "US (05/10/2026)"
+
+#: src/page-region.c:32
+msgid "24-hour"
+msgstr "24-Stunden"
+
+#: src/page-region.c:33
+msgid "12-hour"
+msgstr "12-Stunden"
+
+#: src/page-region.c:37
+msgid "Metric"
+msgstr "Metrisch"
+
+#: src/page-region.c:38
+msgid "Imperial"
+msgstr "Imperial"
+
+#: src/page-region.c:1216
+msgid "Automatic (match language)"
+msgstr "Automatisch (an Sprache anpassen)"
+
+#: src/page-region.c:1347 src/page-region.c:1751
+msgid "Loading date, time and region settings..."
+msgstr "Einstellungen für Datum, Uhrzeit und Region werden geladen..."
+
+#: src/page-region.c:1517
+msgid "Could not set system time zone (this may require elevated privileges). "
+msgstr ""
+"Systemzeitzone konnte nicht gesetzt werden (möglicherweise sind erhöhte "
+"Rechte erforderlich). "
+
+#: src/page-region.c:1527
+msgid "Could not apply keyboard layout at runtime. "
+msgstr "Tastaturlayout konnte zur Laufzeit nicht angewendet werden. "
+
+#: src/page-region.c:1538
+msgid "Could not apply 12/24h clock format at runtime. "
+msgstr "12/24-Stunden-Uhrformat konnte zur Laufzeit nicht angewendet werden. "
+
+#: src/page-region.c:1578
+msgid "Could not persist region environment settings. "
+msgstr "Region-Umgebungseinstellungen konnten nicht gespeichert werden. "
+
+#: src/page-region.c:1635
+msgid "Date, time and region settings reloaded"
+msgstr "Einstellungen für Datum, Uhrzeit und Region neu geladen"
+
+#: src/page-region.c:1643
+msgid "Applying date, time and region settings..."
+msgstr "Einstellungen für Datum, Uhrzeit und Region werden angewendet..."
+
+#: src/page-region.c:1656
+msgid "Date, time and region settings applied"
+msgstr "Einstellungen für Datum, Uhrzeit und Region angewendet"
+
+#: src/page-region.c:1679
+msgid ""
+"Set time zone, date format, time format, language, measurement units, "
+"keyboard layout and regional profile."
+msgstr ""
+"Lege Zeitzone, Datumsformat, Zeitformat, Sprache, Maßeinheiten, "
+"Tastaturlayout und Regionalprofil fest."
+
+#: src/page-region.c:1688
+msgid "Date and time"
+msgstr "Datum und Uhrzeit"
+
+#: src/page-region.c:1689
+msgid "Select your time zone, date format and 12/24h clock mode."
+msgstr "Wähle Zeitzone, Datumsformat und den 12/24-Stunden-Uhrmodus."
+
+#: src/page-region.c:1696
+msgid "Time zone"
+msgstr "Zeitzone"
+
+#: src/page-region.c:1698
+msgid "Date format"
+msgstr "Datumsformat"
+
+#: src/page-region.c:1700
+msgid "Time format"
+msgstr "Zeitformat"
+
+#: src/page-region.c:1704
+msgid "Language and regional settings"
+msgstr "Sprach- und Regionseinstellungen"
+
+#: src/page-region.c:1705
+msgid "Load language and region choices directly from the system locale list."
+msgstr "Lade Sprach- und Regionsoptionen direkt aus der System-Locales-Liste."
+
+#: src/page-region.c:1712
+msgid "System language"
+msgstr "Systemsprache"
+
+#: src/page-region.c:1714
+msgid "Measurement units"
+msgstr "Maßeinheiten"
+
+#: src/page-region.c:1716
+msgid "Regionalization"
+msgstr "Regionalisierung"
+
+#: src/page-region.c:1720
+msgid "Keyboard"
+msgstr "Tastatur"
+
+#: src/page-region.c:1721
+msgid ""
+"Load keyboard layouts from the system and apply selected layout in current "
+"session."
+msgstr ""
+"Lade Tastaturlayouts aus dem System und wende das ausgewählte Layout in der "
+"aktuellen Sitzung an."
+
+#: src/page-region.c:1737
+msgid "Apply date/time/region settings"
+msgstr "Datum/Uhrzeit/Region-Einstellungen anwenden"
+
+#: src/page-accessibility.c:19
+msgid "Grayscale"
+msgstr "Graustufen"
+
+#: src/page-accessibility.c:20
+msgid "Protanopia filter"
+msgstr "Protanopie-Filter"
+
+#: src/page-accessibility.c:21
+msgid "Deuteranopia filter"
+msgstr "Deuteranopie-Filter"
+
+#: src/page-accessibility.c:22
+msgid "Tritanopia filter"
+msgstr "Tritanopie-Filter"
+
+#: src/page-accessibility.c:371
+msgid "Could not persist accessibility environment settings. "
+msgstr ""
+"Barrierefreiheits-Umgebungseinstellungen konnten nicht gespeichert werden. "
+
+#: src/page-accessibility.c:417
+msgid "Accessibility settings reloaded"
+msgstr "Barrierefreiheitseinstellungen neu geladen"
+
+#: src/page-accessibility.c:433
+msgid "Accessibility settings applied"
+msgstr "Barrierefreiheitseinstellungen angewendet"
+
+#: src/page-accessibility.c:456
+msgid ""
+"Configure assistive technologies and sync them with KartON session "
+"components and compositor."
+msgstr ""
+"Konfigurieren Sie Hilfstechnologien und synchronisieren Sie sie mit den "
+"KartON-Sitzungskomponenten und dem Compositor."
+
+#: src/page-accessibility.c:465
+msgid "Assistive technologies"
+msgstr "Hilfstechnologien"
+
+#: src/page-accessibility.c:466
+msgid ""
+"Turn on the screen reader, captions and on-screen keyboard for daily "
+"accessibility needs."
+msgstr ""
+"Aktivieren Sie Bildschirmleser, Untertitel und Bildschirmtastatur fuer den "
+"taeglichen Bedarf an Barrierefreiheit."
+
+#: src/page-accessibility.c:473
+msgid "Screen reader"
+msgstr "Bildschirmleser"
+
+#: src/page-accessibility.c:475
+msgid "Captions"
+msgstr "Untertitel"
+
+#: src/page-accessibility.c:477
+msgid "On-screen keyboard"
+msgstr "Bildschirmtastatur"
+
+#: src/page-accessibility.c:481
+msgid "Vision"
+msgstr "Sehen"
+
+#: src/page-accessibility.c:482
+msgid "Tune magnification, contrast and color filters for better readability."
+msgstr ""
+"Passen Sie Vergroesserung, Kontrast und Farbfilter fuer bessere Lesbarkeit "
+"an."
+
+#: src/page-accessibility.c:490
+msgid "Magnifier"
+msgstr "Lupe"
+
+#: src/page-accessibility.c:492
+msgid "High contrast"
+msgstr "Hoher Kontrast"
+
+#: src/page-accessibility.c:494
+msgid "Color filters"
+msgstr "Farbfilter"
+
+#: src/page-accessibility.c:498
+msgid "Keyboard accessibility"
+msgstr "Tastatur-Barrierefreiheit"
+
+#: src/page-accessibility.c:499
+msgid ""
+"Use sticky keys when keyboard shortcuts are hard to press simultaneously."
+msgstr ""
+"Verwenden Sie Einrasttasten, wenn Tastenkombinationen schwer gleichzeitig zu "
+"druecken sind."
+
+#: src/page-accessibility.c:503
+msgid "Sticky keys"
+msgstr "Einrasttasten"
+
+#: src/page-accessibility.c:514
+msgid "Apply accessibility settings"
+msgstr "Barrierefreiheitseinstellungen anwenden"
+
+#: src/page-accessibility.c:521
+msgid "Changes are propagated to KartON session daemons and compositor."
+msgstr ""
+"Aenderungen werden an KartON-Sitzungsdaemons und den Compositor "
+"weitergegeben."
+
+#: src/page-files-disks.c:312
+msgid "Could not read block devices list."
+msgstr "Liste der Blockgerate konnte nicht gelesen werden."
+
+#: src/page-files-disks.c:327
+msgid "Provide a block device path (for example /dev/sdb1)."
+msgstr "Geben Sie den Pfad eines Blockgerats an (z. B. /dev/sdb1)."
+
+#: src/page-files-disks.c:352
+msgid ""
+"Could not mount selected device. Install udisks2 or use sudo mount with "
+"mount point."
+msgstr ""
+"Ausgewahltes Gerat konnte nicht eingehangt werden. Installieren Sie udisks2 "
+"oder verwenden Sie sudo mount mit Einhangepunkt."
+
+#: src/page-files-disks.c:353
+msgid "Could not unmount selected device. Install udisks2."
+msgstr ""
+"Ausgewahltes Gerat konnte nicht ausgehangt werden. Installieren Sie udisks2."
+
+#: src/page-files-disks.c:359
+msgid "Device mounted successfully."
+msgstr "Gerat erfolgreich eingehangt."
+
+#: src/page-files-disks.c:359
+msgid "Device unmounted successfully."
+msgstr "Gerat erfolgreich ausgehangt."
+
+#: src/page-files-disks.c:368
+msgid "Device list refreshed."
+msgstr "Gerateliste aktualisiert."
+
+#: src/page-files-disks.c:400
+msgid ""
+"No partition management tool found (gnome-disks/partitionmanager/gparted)."
+msgstr ""
+"Kein Partitionierungswerkzeug gefunden (gnome-disks/partitionmanager/"
+"gparted)."
+
+#: src/page-files-disks.c:404
+msgid "Partition management tool launched."
+msgstr "Partitionierungswerkzeug gestartet."
+
+#: src/page-files-disks.c:414
+msgid "Provide encrypted device path to unlock (for example /dev/nvme0n1p3)."
+msgstr ""
+"Geben Sie den Pfad des verschlusselten Gerats zum Entsperren an (z. B. /dev/"
+"nvme0n1p3)."
+
+#: src/page-files-disks.c:419
+msgid "Could not unlock encrypted device: udisksctl is not available."
+msgstr ""
+"Verschlusseltes Gerat konnte nicht entsperrt werden: udisksctl ist nicht "
+"verfugbar."
+
+#: src/page-files-disks.c:430
+msgid "Could not unlock encrypted device."
+msgstr "Verschlusseltes Gerat konnte nicht entsperrt werden."
+
+#: src/page-files-disks.c:435
+msgid "Encrypted device unlocked."
+msgstr "Verschlusseltes Gerat entsperrt."
+
+#: src/page-files-disks.c:476
+msgid "Could not persist file manager and disks environment settings. "
+msgstr ""
+"Umgebungseinstellungen fur Dateimanager und Datentrager konnten nicht "
+"gespeichert werden. "
+
+#: src/page-files-disks.c:521
+msgid "File manager and disks settings reloaded"
+msgstr "Einstellungen fur Dateimanager und Datentrager neu geladen"
+
+#: src/page-files-disks.c:537
+msgid "File manager and disks settings applied"
+msgstr "Einstellungen fur Dateimanager und Datentrager angewendet"
+
+#: src/page-files-disks.c:560
+msgid "Storage settings for managing files, partitions and connected media."
+msgstr ""
+"Speichereinstellungen zum Verwalten von Dateien, Partitionen und "
+"angeschlossenen Medien."
+
+#: src/page-files-disks.c:569
+msgid "Storage and file operations"
+msgstr "Speicher- und Dateivorgange"
+
+#: src/page-files-disks.c:570
+msgid "Manage mass-storage behavior and file-manager integration."
+msgstr ""
+"Verwalten Sie das Verhalten von Massenspeichern und die Dateimanager-"
+"Integration."
+
+#: src/page-files-disks.c:582
+msgid "Mounting disks"
+msgstr "Datentrager einhangen"
+
+#: src/page-files-disks.c:584
+msgid "Partitions"
+msgstr "Partitionen"
+
+#: src/page-files-disks.c:586
+msgid "Automount"
+msgstr "Automatisches Einhangen"
+
+#: src/page-files-disks.c:588
+msgid "Network folders"
+msgstr "Netzwerkordner"
+
+#: src/page-files-disks.c:590
+msgid "Trash"
+msgstr "Papierkorb"
+
+#: src/page-files-disks.c:592
+msgid "Thumbnails"
+msgstr "Vorschaubilder"
+
+#: src/page-files-disks.c:594
+msgid "File permissions"
+msgstr "Dateiberechtigungen"
+
+#: src/page-files-disks.c:596
+msgid "Disk encryption"
+msgstr "Datentragerverschlusselung"
+
+#: src/page-files-disks.c:600
+msgid "Direct disk operations"
+msgstr "Direkte Datentrageroperationen"
+
+#: src/page-files-disks.c:601
+msgid "Perform mount/unmount/unlock actions on selected block device."
+msgstr ""
+"Fuhren Sie Einhangen/Aushangen/Entsperren auf dem ausgewahlten Blockgerat "
+"aus."
+
+#: src/page-files-disks.c:609
+msgid "Device"
+msgstr "Gerat"
+
+#: src/page-files-disks.c:611
+msgid "Mount point (optional)"
+msgstr "Einhangepunkt (optional)"
+
+#: src/page-files-disks.c:614
+msgid "Refresh devices"
+msgstr "Gerate aktualisieren"
+
+#: src/page-files-disks.c:615
+msgid "Mount"
+msgstr "Einhangen"
+
+#: src/page-files-disks.c:616
+msgid "Unmount"
+msgstr "Aushangen"
+
+#: src/page-files-disks.c:617
+msgid "Unlock encrypted"
+msgstr "Verschlusseltes entsperren"
+
+#: src/page-files-disks.c:618
+msgid "Open partition manager"
+msgstr "Partitionsmanager offnen"
+
+#: src/page-files-disks.c:648
+msgid "Apply file manager and disks settings"
+msgstr "Dateimanager- und Datentragereinstellungen anwenden"
+
+#: src/page-files-disks.c:655
+msgid "Settings are saved and propagated to the current session environment."
+msgstr ""
+"Einstellungen werden gespeichert und in die aktuelle Sitzungsumgebung "
+"ubernommen."
+
+#: src/page-session-startup.c:216
+msgid "Type your administrator password to apply session and startup settings."
+msgstr ""
+"Geben Sie Ihr Administratorpasswort ein, um Sitzungs- und Starteinstellungen "
+"anzuwenden."
+
+#: src/page-session-startup.c:548
+#, c-format
+msgid "Detected login manager: %s"
+msgstr "Erkannter Login-Manager: %s"
+
+#: src/page-session-startup.c:562
+msgid "Could not apply login manager: sudo is not available. "
+msgstr ""
+"Login-Manager konnte nicht angewendet werden: sudo ist nicht verfugbar. "
+
+#: src/page-session-startup.c:566
+msgid ""
+"Authentication failed: administrator password is required to switch login "
+"manager. "
+msgstr ""
+"Authentifizierung fehlgeschlagen: Zum Wechseln des Login-Managers ist ein "
+"Administratorpasswort erforderlich. "
+
+#: src/page-session-startup.c:583
+msgid "Could not apply login manager backend flow. "
+msgstr "Backend-Ablauf des Login-Managers konnte nicht angewendet werden. "
+
+#: src/page-session-startup.c:621
+msgid "Could not persist session and startup environment settings. "
+msgstr ""
+"Sitzungs- und Start-Umgebungseinstellungen konnten nicht gespeichert werden. "
+
+#: src/page-session-startup.c:657
+msgid "Session and startup settings reloaded"
+msgstr "Sitzungs- und Starteinstellungen neu geladen"
+
+#: src/page-session-startup.c:674
+msgid "Applying session and startup settings was canceled."
+msgstr "Anwenden der Sitzungs- und Starteinstellungen wurde abgebrochen."
+
+#: src/page-session-startup.c:676
+msgid "Administrator password is required to switch login manager."
+msgstr ""
+"Zum Wechseln des Login-Managers ist ein Administratorpasswort erforderlich."
+
+#: src/page-session-startup.c:692
+msgid "Session and startup settings applied"
+msgstr "Sitzungs- und Starteinstellungen angewendet"
+
+#: src/page-session-startup.c:715
+msgid "Controls for system startup, login flow and desktop session lifecycle."
+msgstr ""
+"Steuerelemente fur Systemstart, Login-Ablauf und Lebenszyklus der Desktop-"
+"Sitzung."
+
+#: src/page-session-startup.c:724
+msgid "Startup and session controls"
+msgstr "Start- und Sitzungssteuerung"
+
+#: src/page-session-startup.c:725
+msgid "Configure how your desktop session starts and restores."
+msgstr ""
+"Konfigurieren Sie, wie Ihre Desktop-Sitzung startet und wiederhergestellt "
+"wird."
+
+#: src/page-session-startup.c:735
+msgid "Application autostart"
+msgstr "Autostart von Anwendungen"
+
+#: src/page-session-startup.c:737
+msgid "Session services"
+msgstr "Sitzungsdienste"
+
+#: src/page-session-startup.c:739
+msgid "Login manager"
+msgstr "Login-Manager"
+
+#: src/page-session-startup.c:741
+msgid "Session selection"
+msgstr "Sitzungsauswahl"
+
+#: src/page-session-startup.c:743
+msgid "Session restore"
+msgstr "Sitzungswiederherstellung"
+
+#: src/page-session-startup.c:747
+msgid "Detected login manager: unknown"
+msgstr "Erkannter Login-Manager: unbekannt"
+
+#: src/page-session-startup.c:760
+msgid "Apply session and startup settings"
+msgstr "Sitzungs- und Starteinstellungen anwenden"
+
+#: src/page-session-startup.c:767
+msgid ""
+"Changes are saved in user config and exported to the session environment."
+msgstr ""
+"Anderungen werden in der Benutzerkonfiguration gespeichert und in die "
+"Sitzungsumgebung exportiert."
+
+#: src/page-system-info.c:321 src/page-system-info.c:323
+msgid "No logs available"
+msgstr "Keine Protokolle verfugbar"
+
+#: src/page-system-info.c:326
+msgid "Logs view disabled"
+msgstr "Protokollansicht deaktiviert"
+
+#: src/page-system-info.c:367
+msgid "Could not persist system information environment settings. "
+msgstr ""
+"Systeminformations-Umgebungseinstellungen konnten nicht gespeichert werden. "
+
+#: src/page-system-info.c:398
+msgid "System metrics refreshed"
+msgstr "Systemmetriken aktualisiert"
+
+#: src/page-system-info.c:408
+msgid "System information settings reloaded"
+msgstr "Systeminformationseinstellungen neu geladen"
+
+#: src/page-system-info.c:425
+msgid "System information settings applied"
+msgstr "Systeminformationseinstellungen angewendet"
+
+#: src/page-system-info.c:448
+msgid "Diagnostics and hardware details for monitoring system health."
+msgstr "Diagnose- und Hardwaredetails zur Uberwachung der Systemgesundheit."
+
+#: src/page-system-info.c:457
+msgid "Live diagnostics"
+msgstr "Live-Diagnose"
+
+#: src/page-system-info.c:458
+msgid "Enable selected data streams in system diagnostics views."
+msgstr "Aktivieren Sie ausgewahlte Datenstrome in den Systemdiagnoseansichten."
+
+#: src/page-system-info.c:465 src/page-system-info.c:492
+msgid "Temperature"
+msgstr "Temperatur"
+
+#: src/page-system-info.c:467 src/page-system-info.c:494
+msgid "Disk usage"
+msgstr "Datentragernutzung"
+
+#: src/page-system-info.c:469
+msgid "System logs"
+msgstr "Systemprotokolle"
+
+#: src/page-system-info.c:473
+msgid "Live metrics"
+msgstr "Live-Metriken"
+
+#: src/page-system-info.c:474
+msgid "Hardware and software metrics are refreshed every 5 seconds."
+msgstr "Hardware- und Softwaremetriken werden alle 5 Sekunden aktualisiert."
+
+#: src/page-system-info.c:484
+msgid "CPU"
+msgstr "CPU"
+
+#: src/page-system-info.c:486
+msgid "RAM"
+msgstr "RAM"
+
+#: src/page-system-info.c:488
+msgid "GPU"
+msgstr "GPU"
+
+#: src/page-system-info.c:490
+msgid "Kernel"
+msgstr "Kernel"
+
+#: src/page-system-info.c:498
+msgid "Recent logs"
+msgstr "Letzte Protokolle"
+
+#: src/page-system-info.c:499
+msgid "Shows the last system log lines (journalctl or dmesg fallback)."
+msgstr ""
+"Zeigt die letzten Systemprotokollzeilen (journalctl oder dmesg-Fallback)."
+
+#: src/page-system-info.c:515
+msgid "Refresh metrics now"
+msgstr "Metriken jetzt aktualisieren"
+
+#: src/page-system-info.c:523
+msgid "Apply system information settings"
+msgstr "Systeminformationseinstellungen anwenden"
+
+#: src/page-system-info.c:530
+msgid "Monitoring preferences are saved and exported to the active session."
+msgstr ""
+"Uberwachungsoptionen werden gespeichert und in die aktive Sitzung exportiert."
+
+#: src/page-advanced.c:377
+msgid "Could not persist advanced environment settings. "
+msgstr "Erweiterte Umgebungseinstellungen konnten nicht gespeichert werden. "
+
+#: src/page-advanced.c:411
+msgid "Advanced settings reloaded"
+msgstr "Erweiterte Einstellungen neu geladen"
+
+#: src/page-advanced.c:427
+msgid "Advanced settings applied"
+msgstr "Erweiterte Einstellungen angewendet"
+
+#: src/page-advanced.c:450
+msgid ""
+"Options for advanced users, diagnostics and low-level graphics/session "
+"tuning."
+msgstr ""
+"Optionen fur fortgeschrittene Benutzer, Diagnose und niedrigstufige Grafik-/"
+"Sitzungsabstimmung."
+
+#: src/page-advanced.c:459
+msgid "Developer controls"
+msgstr "Entwicklersteuerung"
+
+#: src/page-advanced.c:460
+msgid "Tune backend, renderer and experimental flags used by the desktop."
+msgstr ""
+"Stimmen Sie Backend, Renderer und experimentelle Flags fur den Desktop ab."
+
+#: src/page-advanced.c:472
+msgid "Debugging"
+msgstr "Debugging"
+
+#: src/page-advanced.c:474
+msgid "Experimental features"
+msgstr "Experimentelle Funktionen"
+
+#: src/page-advanced.c:476
+msgid "Wayland/X11"
+msgstr "Wayland/X11"
+
+#: src/page-advanced.c:478
+msgid "Performance profiles"
+msgstr "Leistungsprofile"
+
+#: src/page-advanced.c:480
+msgid "Renderer configuration"
+msgstr "Renderer-Konfiguration"
+
+#: src/page-advanced.c:491
+msgid "Apply advanced settings"
+msgstr "Erweiterte Einstellungen anwenden"
+
+#: src/page-advanced.c:498
+msgid ""
+"Advanced options are persisted and synchronized with running session "
+"components."
+msgstr ""
+"Erweiterte Optionen werden gespeichert und mit laufenden Sitzungskomponenten "
+"synchronisiert."
+
+#~ msgid ""
+#~ "Shortcut list updated. Click Apply input settings to send to compositor."
+#~ msgstr ""
+#~ "Shortcut list updated. Click Apply input settings to send to compositor."

@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Karton Install
+Name[pl]=Karton Install
+Name[en]=Karton Install
+Comment=Arch installation helper for KartON
+Comment[pl]=Pomocnik instalacji Arch dla KartON
+Comment[en]=Arch installation helper for KartON
+Exec=karton-install
+Icon=io.karton.Install
+Terminal=false
+Categories=System;Settings;
+StartupNotify=true
+NoDisplay=true

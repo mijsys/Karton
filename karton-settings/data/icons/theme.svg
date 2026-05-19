@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>KartON Settings</title>
+  <rect x="8" y="8" width="48" height="48" rx="12" fill="none" stroke="#7b66f0" stroke-width="4.5"/>
+  <g fill="none" stroke="#7b66f0" stroke-width="4" stroke-linecap="round">
+    <path d="M16 22h32"/>
+    <path d="M16 32h32"/>
+    <path d="M16 42h32"/>
+  </g>
+  <circle cx="25" cy="22" r="5" fill="#5dcdc3"/>
+  <circle cx="38" cy="32" r="5" fill="#ffb84d"/>
+  <circle cx="29" cy="42" r="5" fill="#5dcdc3"/>
+</svg>

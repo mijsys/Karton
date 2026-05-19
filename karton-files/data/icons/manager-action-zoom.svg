@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <title>Karton Action Zoom</title>
+  <circle cx="10.5" cy="10.5" r="4.8" fill="none" stroke="#7b66f0" stroke-width="2"/>
+  <path d="M14.4 14.4 19 19" fill="none" stroke="#7b66f0" stroke-width="2.3" stroke-linecap="round"/>
+  <path d="M10.5 8.2v4.6M8.2 10.5h4.6" fill="none" stroke="#5dcdc3" stroke-width="1.9" stroke-linecap="round"/>
+</svg>

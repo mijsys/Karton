@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-2.0-only
+
+set -euo pipefail
+
+manager_service_name() {
+    case "$1" in
+        greetd) printf 'greetd.service\n' ;;
+        lightdm) printf 'lightdm.service\n' ;;
+        sddm) printf 'sddm.service\n' ;;
+        gdm) printf 'gdm.service\n' ;;
+        ly) printf 'ly.service\n' ;;
+        *) return 1 ;;
+    esac
+}
+
+normalize_manager() {
+    case "${1,,}" in
+        greetd|gtkgreet) printf 'greetd\n' ;;
+        lightdm|lightdm-gtk|lightdm-gtk-greeter) printf 'lightdm\n' ;;
+        sddm) printf 'sddm\n' ;;
+        gdm|gdm3) printf 'gdm\n' ;;
+        ly) printf 'ly\n' ;;
+        auto|none|skip) printf '%s\n' "${1,,}" ;;
+        *) return 1 ;;
+    esac
+}
+
+detect_current_manager() {
+    if command -v systemctl >/dev/null 2>&1; then
+        for candidate in greetd lightdm sddm gdm ly; do
+            service="$(manager_service_name "$candidate" || true)"
+            [[ -n "$service" ]] || continue
+            if systemctl is-enabled "$service" >/dev/null 2>&1; then
+                printf '%s\n' "$candidate"
+                return 0
+            fi
+        done
+    fi
+
+    printf 'unknown\n'
+}
+
+apply_theme_stack_if_possible() {
+    local manager="$1"
+    local repo_root="${KARTON_REPO_ROOT:-}"
+
+    if [[ -z "$repo_root" ]]; then
+        if [[ -n "${KARTON_PROJECT_ROOT:-}" && -f "${KARTON_PROJECT_ROOT}/repo/build-common.sh" ]]; then
+            repo_root="${KARTON_PROJECT_ROOT}"
+        elif [[ -f "$PWD/repo/build-common.sh" ]]; then
+            repo_root="$PWD"
+        fi
+    fi
+
+    if [[ -z "$repo_root" || ! -f "$repo_root/repo/build-common.sh" ]]; then
+        return 0
+    fi
+
+    KARTON_LOGIN_MANAGER="$manager" bash -lc ". '$repo_root/repo/build-common.sh'; setup_selected_login_manager"
+}
+
+switch_login_manager_services() {
+    local manager="$1"
+
+    if ! command -v systemctl >/dev/null 2>&1; then
+        echo "systemctl not available" >&2
+        return 1
+    fi
+
+    local selected_service
+    selected_service="$(manager_service_name "$manager")"
+
+    for candidate in greetd lightdm sddm gdm ly; do
+        service="$(manager_service_name "$candidate" || true)"
+        [[ -n "$service" ]] || continue
+
+        if [[ "$service" == "$selected_service" ]]; then
+            systemctl enable "$service" >/dev/null 2>&1 || true
+            systemctl start "$service" >/dev/null 2>&1 || true
+        else
+            systemctl disable "$service" >/dev/null 2>&1 || true
+            systemctl stop "$service" >/dev/null 2>&1 || true
+        fi
+    done
+}
+
+usage() {
+    cat <<USAGE
+Usage:
+  karton-login-manager --status
+  karton-login-manager --set <greetd|lightdm|sddm|gdm|ly|auto|none>
+USAGE
+}
+
+main() {
+    if [[ $# -lt 1 ]]; then
+        usage
+        return 1
+    fi
+
+    case "$1" in
+        --status)
+            detect_current_manager
+            return 0
+            ;;
+        --set)
+            if [[ $# -lt 2 ]]; then
+                usage
+                return 1
+            fi
+
+            manager="$(normalize_manager "$2")" || {
+                echo "Unsupported login manager: $2" >&2
+                return 1
+            }
+
+            if [[ "$manager" == "auto" || "$manager" == "none" || "$manager" == "skip" ]]; then
+                echo "No login manager change requested ($manager)."
+                return 0
+            fi
+
+            if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+                echo "This operation requires root privileges." >&2
+                return 1
+            fi
+
+            apply_theme_stack_if_possible "$manager" || true
+            switch_login_manager_services "$manager"
+            echo "Applied login manager: $manager"
+            return 0
+            ;;
+        *)
+            usage
+            return 1
+            ;;
+    esac
+}
+
+main "$@"

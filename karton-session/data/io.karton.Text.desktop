@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Karton Text
+Comment=Open text files with KartON default editor
+Exec=karton-text %U
+Icon=io.karton.Text
+Terminal=false
+Categories=Utility;TextEditor;
+MimeType=text/plain;text/markdown;text/x-log;application/json;application/x-yaml;text/x-ini;
+StartupNotify=true
+StartupWMClass=io.karton.Text

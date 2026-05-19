@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="ext_idle_notifier_v1">
+  <copyright>
+    SPDX-FileCopyrightText: 2024-2026 The Wayland Authors
+    SPDX-License-Identifier: MIT
+  </copyright>
+
+  <description summary="notify clients when users have been idle">
+    This protocol allows clients to be informed when a seat has been idle for
+    a specific timeout and when activity resumes again.
+  </description>
+
+  <interface name="ext_idle_notifier_v1" version="1">
+    <description summary="idle notification manager"/>
+
+    <request name="get_idle_notification">
+      <arg name="id" type="new_id" interface="ext_idle_notification_v1"/>
+      <arg name="seat" type="object" interface="wl_seat"/>
+      <arg name="timeout" type="uint"/>
+    </request>
+
+    <request name="destroy" type="destructor"/>
+  </interface>
+
+  <interface name="ext_idle_notification_v1" version="1">
+    <description summary="idle notification instance"/>
+
+    <request name="destroy" type="destructor"/>
+
+    <event name="idled"/>
+    <event name="resumed"/>
+  </interface>
+</protocol>

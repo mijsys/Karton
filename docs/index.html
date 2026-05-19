@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="pl" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Karton & FoldOS</title>
+  <meta name="description" content="Karton — lightweight Wayland compositor based on labwc. FoldOS — openSUSE-based Linux distribution." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── DARK THEME (default) ── */
+    :root, [data-theme="dark"] {
+      --bg:       #0e0e0d;
+      --surface:  #161614;
+      --fold:     #1e1e1b;
+      --border:   #2e2e2b;
+      --text:     #f0ece0;       /* brighter than before */
+      --muted:    #a09a8e;       /* brighter muted */
+      --sub:      #c8c2b4;       /* new: subtitles, descriptions */
+      --accent:   #d4b06a;
+      --accent3:  #7ec88a;
+      --nav-bg:   rgba(14,14,13,0.93);
+      --status-bg:#0e0e0d;
+      --card-hover:#222220;
+      --hero-g1:  rgba(212,176,106,0.07);
+      --hero-g2:  rgba(110,158,200,0.06);
+      --tag-color:#8a8478;
+    }
+
+    /* ── LIGHT THEME ── */
+    [data-theme="light"] {
+      --bg:       #f5f2eb;
+      --surface:  #fffefb;
+      --fold:     #edeae2;
+      --border:   #d8d3c8;
+      --text:     #1a1916;
+      --muted:    #5a5650;
+      --sub:      #3a3834;
+      --accent:   #a07830;
+      --accent3:  #2e8a42;
+      --nav-bg:   rgba(245,242,235,0.94);
+      --status-bg:#f5f2eb;
+      --card-hover:#f0ece2;
+      --hero-g1:  rgba(160,120,48,0.06);
+      --hero-g2:  rgba(80,130,180,0.05);
+      --tag-color:#6a6560;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-weight: 300;
+      line-height: 1.7;
+      font-size: 15px;
+      min-height: 100vh;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 3rem;
+      height: 60px;
+      border-bottom: 1px solid var(--border);
+      background: var(--nav-bg);
+      backdrop-filter: blur(14px);
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    .nav-logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.25rem;
+      color: var(--accent);
+      letter-spacing: 0.02em;
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+      align-items: center;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.78rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    /* Theme toggle */
+    .theme-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.9rem;
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Language switcher */
+    .lang-switcher { display: flex; gap: 0.4rem; align-items: center; }
+    .lang-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      padding: 3px 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .lang-btn:hover, .lang-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 120px 3rem 4rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 80% 40%, var(--hero-g1) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 60% at 10% 70%, var(--hero-g2) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .hero-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(3.5rem, 8vw, 7rem);
+      line-height: 0.95;
+      letter-spacing: -0.02em;
+      margin-bottom: 2rem;
+      color: var(--text);
+    }
+    .hero-title .accent { color: var(--accent); }
+
+    .hero-desc {
+      max-width: 540px;
+      color: var(--sub);
+      font-size: 0.92rem;
+      line-height: 1.85;
+      margin-bottom: 3rem;
+    }
+
+    .hero-cta { display: flex; gap: 1rem; flex-wrap: wrap; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.65rem 1.4rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: var(--accent); color: #fff; font-weight: 500; }
+    [data-theme="dark"] .btn-primary { color: #0e0e0d; }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    .wip-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent3);
+      border: 1px solid rgba(126,200,138,0.35);
+      padding: 3px 10px;
+      margin-top: 1rem;
+      align-self: flex-start;
+    }
+    .wip-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--accent3);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* ── LAYOUT ── */
+    .section-divider { width:100%; height:1px; background:var(--border); }
+
+    section { padding: 6rem 3rem; }
+
+    .section-label {
+      font-size: 0.65rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+
+    .section-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+      color: var(--text);
+    }
+
+    .section-body {
+      color: var(--sub);
+      max-width: 600px;
+      line-height: 1.9;
+      font-size: 0.92rem;
+    }
+
+    /* ── FEATURES ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 2rem;
+      margin-top: 3rem;
+    }
+
+    .feature { padding-top: 1.5rem; border-top: 1px solid var(--border); }
+
+    .feature-title {
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .feature-desc {
+      font-size: 0.84rem;
+      color: var(--sub);
+      line-height: 1.8;
+    }
+
+    /* ── PROJECT CARDS ── */
+    .projects {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      margin-top: 4rem;
+    }
+
+    .project-card {
+      background: var(--surface);
+      padding: 2.5rem;
+      transition: background 0.2s;
+    }
+    .project-card:hover { background: var(--card-hover); }
+
+    .project-icon { font-size: 1.8rem; margin-bottom: 1.5rem; line-height: 1; }
+
+    .project-name {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+
+    .project-tech {
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1.2rem;
+    }
+
+    .project-desc {
+      color: var(--sub);
+      font-size: 0.86rem;
+      line-height: 1.85;
+    }
+
+    /* ── TECH TAGS ── */
+    .tech-list { display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:2rem; }
+    .tech-tag {
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      padding: 4px 12px;
+      border: 1px solid var(--border);
+      color: var(--tag-color);
+    }
+
+    /* ── STATUS ── */
+    .status-section {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      margin-top: 3rem;
+    }
+
+    .status-item {
+      background: var(--status-bg);
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .status-name {
+      font-size: 0.68rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .status-value {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.4rem;
+      color: var(--text);
+    }
+
+    .status-bar { height: 2px; background: var(--border); margin-top: 0.5rem; }
+    .status-fill { height: 100%; background: var(--accent3); }
+
+    /* ── GITHUB ── */
+    .github-section {
+      text-align: center;
+      padding: 6rem 3rem;
+    }
+    .github-section .section-title { margin-bottom: 1rem; }
+    .github-section .section-body { margin: 0 auto 2.5rem; text-align: center; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem 3rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .footer-brand { font-family: 'DM Serif Display', serif; color: var(--accent); }
+    .footer-note { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.05em; }
+    .footer-links { display: flex; gap: 1.5rem; }
+    .footer-links a {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .footer-links a:hover { color: var(--accent); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 700px) {
+      nav { padding: 0 1.25rem; }
+      .nav-links { display: none; }
+      section, .github-section, .status-section { padding: 4rem 1.5rem; }
+      .hero { padding: 100px 1.5rem 4rem; }
+      footer { padding: 1.5rem; }
+    }
+
+    /* ── FADE IN ── */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(18px);
+      transition: opacity 0.55s ease, transform 0.55s ease;
+    }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#top" class="nav-logo">Karton</a>
+  <ul class="nav-links">
+    <li><a href="#about"    data-i18n="nav_about">O projekcie</a></li>
+    <li><a href="#projects" data-i18n="nav_projects">Projekty</a></li>
+    <li><a href="#status"   data-i18n="nav_status">Status</a></li>
+    <li><a href="https://translate.mijsys.pl/">Translate Project</a></li>
+  </ul>
+  <div class="nav-right">
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">☀</button>
+    <div class="lang-switcher">
+      <button class="lang-btn active" onclick="setLang('pl')">PL</button>
+      <button class="lang-btn"        onclick="setLang('en')">EN</button>
+      <button class="lang-btn"        onclick="setLang('de')">DE</button>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="top">
+  <p class="hero-label" data-i18n="hero_label">Compositor · Środowisko graficzne · Dystrybucja</p>
+  <h1 class="hero-title">
+    <span class="accent">Karton</span><br>
+    <span data-i18n="hero_title_sub">&amp; FoldOS</span>
+  </h1>
+  <p class="hero-desc" data-i18n="hero_desc">
+    Tektura kompozytor oparty o labwc, autorskie środowisko graficzne
+    oraz dystrybucja Linuksa budowana na fundamencie openSUSE.
+  </p>
+  <div class="hero-cta">
+    <a href="#projects" class="btn btn-primary" data-i18n="hero_btn_learn">Dowiedz się więcej</a>
+    <a href="https://github.com/mijsys/Tektura-i-Karton" target="_blank" class="btn btn-ghost" data-i18n="hero_btn_gh">GitHub →</a>
+  </div>
+  <div class="wip-badge">
+    <span class="wip-dot"></span>
+    <span data-i18n="wip">Aktywny rozwój</span>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="fade-in">
+    <p class="section-label" data-i18n="about_label">O projekcie</p>
+    <h2 class="section-title" data-i18n="about_title">Minimalizm bez kompromisów</h2>
+    <p class="section-body" data-i18n="about_desc">
+      Karton to ekosystem narzędzi dla Linuksa zaprojektowany z myślą o prostocie, wydajności
+      i przejrzystości. Compositor bazuje na labwc — referencyjnej implementacji Wayland opartej
+      na standardzie wlroots. Środowisko graficzne Karton buduje spójne doświadczenie użytkownika,
+      a FoldOS łączy to wszystko w gotową do użycia dystrybucję.
+    </p>
+    <div class="features-grid">
+      <div class="feature">
+        <div class="feature-title" data-i18n="feat1_title">Wayland-native</div>
+        <div class="feature-desc"  data-i18n="feat1_desc">Compositor zbudowany bezpośrednio na labwc i wlroots — żadnych warstw kompatybilności X11.</div>
+      </div>
+      <div class="feature">
+        <div class="feature-title" data-i18n="feat2_title">Niskie zużycie zasobów</div>
+        <div class="feature-desc"  data-i18n="feat2_desc">Projekt kładzie nacisk na minimalną ilość procesów i bibliotek w tle.</div>
+      </div>
+      <div class="feature">
+        <div class="feature-title" data-i18n="feat3_title">Otwarte standardy</div>
+        <div class="feature-desc"  data-i18n="feat3_desc">Pełna zgodność z XDG, zgodność z wolnym oprogramowaniem, otwarte licencje.</div>
+      </div>
+      <div class="feature">
+        <div class="feature-title" data-i18n="feat4_title">Fundament openSUSE</div>
+        <div class="feature-desc"  data-i18n="feat4_desc">FoldOS dziedziczy stabilność i ekosystem pakietów RPM od openSUSE.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- PROJECTS -->
+<section id="projects">
+  <div class="fade-in">
+    <p class="section-label" data-i18n="proj_label">Projekty</p>
+    <h2 class="section-title" data-i18n="proj_title">Trzy warstwy, jeden ekosystem</h2>
+  </div>
+
+  <div class="projects fade-in">
+    <div class="project-card">
+      <div class="project-icon">▣</div>
+      <div class="project-name">Karton</div>
+      <div class="project-tech">Compositor · Wayland · labwc</div>
+      <p class="project-desc" data-i18n="karton_desc">
+        Teksturowy compositor okienny oparty na labwc. Zarządza oknami w środowisku Wayland,
+        obsługuje dekoracje okien, układy przestrzeni roboczych i podstawowe efekty wizualne.
+        Zaprojektowany tak, by pozostawać w tle — niezauważalny, ale niezawodny.
+      </p>
+    </div>
+    <div class="project-card">
+      <div class="project-icon">◈</div>
+      <div class="project-name" data-i18n="karton_de_name">Karton DE</div>
+      <div class="project-tech">Desktop Environment · GTK · Wayland</div>
+      <p class="project-desc" data-i18n="karton_de_desc">
+        Środowisko graficzne zbudowane wokół kompozytora Karton. Zawiera panel, menedżer
+        plików, centrum powiadomień oraz narzędzia systemowe — wszystkie zachowujące spójną
+        estetykę i filozofię prostoty.
+      </p>
+    </div>
+    <div class="project-card">
+      <div class="project-icon">◉</div>
+      <div class="project-name">FoldOS</div>
+      <div class="project-tech">Linux Distribution · openSUSE · RPM</div>
+      <p class="project-desc" data-i18n="foldos_desc">
+        Dystrybucja Linuksa bazująca na openSUSE, dostarczana z Karton DE preinstalowanym
+        i skonfigurowanym. Skierowana do użytkowników, którzy cenią sobie przejrzysty system
+        gotowy do pracy po pierwszym uruchomieniu.
+      </p>
+      <div class="wip-badge" style="margin-top:1.2rem;">
+        <span class="wip-dot"></span>
+        <span data-i18n="wip">Aktywny rozwój</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tech-list fade-in">
+    <span class="tech-tag">labwc</span>
+    <span class="tech-tag">wlroots</span>
+    <span class="tech-tag">Wayland</span>
+    <span class="tech-tag">GTK4</span>
+    <span class="tech-tag">openSUSE</span>
+    <span class="tech-tag">RPM</span>
+    <span class="tech-tag">C</span>
+    <span class="tech-tag">D-Bus</span>
+    <span class="tech-tag">XDG</span>
+    <span class="tech-tag">systemd</span>
+  </div>
+</section>
+
+<!-- STATUS -->
+<section class="status-section" id="status">
+  <div class="fade-in">
+    <p class="section-label" data-i18n="status_label">Status</p>
+    <h2 class="section-title" data-i18n="status_title">Stan prac</h2>
+    <p class="section-body" data-i18n="status_desc">
+      Projekt jest w aktywnym rozwoju. Poniżej widoczny jest przybliżony postęp
+      poszczególnych komponentów.
+    </p>
+    <div class="status-grid">
+      <div class="status-item">
+        <span class="status-name"  data-i18n="stat1">Compositor (Karton)</span>
+        <span class="status-value">α</span>
+        <div class="status-bar"><div class="status-fill" style="width:55%"></div></div>
+      </div>
+      <div class="status-item">
+        <span class="status-name"  data-i18n="stat2">Karton</span>
+        <span class="status-value">pre-α</span>
+        <div class="status-bar"><div class="status-fill" style="width:25%"></div></div>
+      </div>
+      <div class="status-item">
+        <span class="status-name"  data-i18n="stat3">FoldOS</span>
+        <span class="status-value">WIP</span>
+        <div class="status-bar"><div class="status-fill" style="width:10%"></div></div>
+      </div>
+      <div class="status-item">
+        <span class="status-name"  data-i18n="stat4">Dokumentacja</span>
+        <span class="status-value">→</span>
+        <div class="status-bar"><div class="status-fill" style="width:20%"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GITHUB -->
+<div class="github-section fade-in" id="github">
+  <p class="section-label" data-i18n="gh_label">Otwarte źródło</p>
+  <h2 class="section-title" data-i18n="gh_title">Kod jest publiczny</h2>
+  <p class="section-body" data-i18n="gh_desc">
+    Wszystkie projekty rozwijane są otwarcie. Zapraszamy do obserwowania repozytoriów,
+    zgłaszania błędów oraz współtworzenia kodu.
+  </p>
+  <a href="https://github.com/mijsys/Tektura-i-Karton" target="_blank" class="btn btn-primary" data-i18n="gh_btn">
+    Przejdź do GitHub →
+  </a>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <span class="footer-brand">Karton &amp; FoldOS</span>
+  <span class="footer-note" data-i18n="footer_note">Projekt open-source · Prace w toku</span>
+  <div class="footer-links">
+    <a href="https://github.com/mijsys/Tektura-i-Karton" target="_blank">GitHub</a>
+    <a href="#top" data-i18n="footer_top">Na górę</a>
+  </div>
+</footer>
+
+<script>
+/* ── TRANSLATIONS ── */
+const i18n = {
+  pl: {
+    nav_about:"O projekcie",nav_projects:"Projekty",nav_status:"Status",nav_github:"GitHub",
+    hero_label:"Compositor · Środowisko graficzne · Dystrybucja",hero_title_sub:"&amp; FoldOS",
+    hero_desc:"Lekki compositor okienny Wayland oparty na labwc, autorskie środowisko graficzne oraz dystrybucja Linuksa budowana na fundamencie openSUSE.",
+    hero_btn_learn:"Dowiedz się więcej",hero_btn_gh:"GitHub →",wip:"Aktywny rozwój",
+    about_label:"O projekcie",about_title:"Minimalizm bez kompromisów",
+    about_desc:"Karton to ekosystem narzędzi dla Linuksa zaprojektowany z myślą o prostocie, wydajności i przejrzystości. Compositor bazuje na labwc — referencyjnej implementacji Wayland opartej na standardzie wlroots. Środowisko graficzne Karton buduje spójne doświadczenie użytkownika, a FoldOS łączy to wszystko w gotową do użycia dystrybucję.",
+    feat1_title:"Wayland-native",feat1_desc:"Compositor zbudowany bezpośrednio na labwc i wlroots — żadnych warstw kompatybilności X11.",
+    feat2_title:"Niskie zużycie zasobów",feat2_desc:"Projekt kładzie nacisk na minimalną ilość procesów i bibliotek w tle.",
+    feat3_title:"Otwarte standardy",feat3_desc:"Pełna zgodność z XDG, zgodność z wolnym oprogramowaniem, otwarte licencje.",
+    feat4_title:"Fundament openSUSE",feat4_desc:"FoldOS dziedziczy stabilność i ekosystem pakietów RPM od openSUSE.",
+    proj_label:"Projekty",proj_title:"Trzy warstwy, jeden ekosystem",
+    karton_desc:"Teksturowy compositor okienny oparty na labwc. Zarządza oknami w środowisku Wayland, obsługuje dekoracje okien, układy przestrzeni roboczych i podstawowe efekty wizualne. Zaprojektowany tak, by pozostawać w tle — niezauważalny, ale niezawodny.",
+    karton_de_name:"Karton DE",
+    karton_de_desc:"Środowisko graficzne zbudowane wokół kompozytora Karton. Zawiera panel, menedżer plików, centrum powiadomień oraz narzędzia systemowe — wszystkie zachowujące spójną estetykę i filozofię prostoty.",
+    foldos_desc:"Dystrybucja Linuksa bazująca na openSUSE, dostarczana z Karton DE preinstalowanym i skonfigurowanym. Skierowana do użytkowników, którzy cenią sobie przejrzysty system gotowy do pracy po pierwszym uruchomieniu.",
+    status_label:"Status",status_title:"Stan prac",
+    status_desc:"Projekt jest w aktywnym rozwoju. Poniżej widoczny jest przybliżony postęp poszczególnych komponentów.",
+    stat1:"Compositor (Karton)",stat2:"Karton DE",stat3:"FoldOS",stat4:"Dokumentacja",
+    gh_label:"Otwarte źródło",gh_title:"Kod jest publiczny",
+    gh_desc:"Wszystkie projekty rozwijane są otwarcie. Zapraszamy do obserwowania repozytoriów, zgłaszania błędów oraz współtworzenia kodu.",
+    gh_btn:"Przejdź do GitHub →",footer_note:"Projekt open-source · Prace w toku",footer_top:"Na górę"
+  },
+  en: {
+    nav_about:"About",nav_projects:"Projects",nav_status:"Status",nav_github:"GitHub",
+    hero_label:"Compositor · Desktop Environment · Distribution",hero_title_sub:"&amp; FoldOS",
+    hero_desc:"A lightweight Wayland window compositor based on labwc, a custom desktop environment, and a Linux distribution built on the foundation of openSUSE.",
+    hero_btn_learn:"Learn more",hero_btn_gh:"GitHub →",wip:"Active development",
+    about_label:"About",about_title:"Minimalism without compromise",
+    about_desc:"Karton is a Linux tooling ecosystem designed with simplicity, performance, and clarity in mind. The compositor is built on labwc — a reference Wayland implementation based on the wlroots standard. The Karton desktop environment provides a coherent user experience, and FoldOS ties it all together into a ready-to-use distribution.",
+    feat1_title:"Wayland-native",feat1_desc:"Compositor built directly on labwc and wlroots — no X11 compatibility shims.",
+    feat2_title:"Low resource usage",feat2_desc:"The project emphasises a minimal number of background processes and libraries.",
+    feat3_title:"Open standards",feat3_desc:"Full XDG compliance, free-software alignment, and open licensing throughout.",
+    feat4_title:"openSUSE foundation",feat4_desc:"FoldOS inherits the stability and RPM package ecosystem from openSUSE.",
+    proj_label:"Projects",proj_title:"Three layers, one ecosystem",
+    karton_desc:"A texture-based window compositor built on labwc. It manages windows in the Wayland session, handles window decorations, workspace layouts, and basic visual effects. Designed to stay out of your way — invisible but reliable.",
+    karton_de_name:"Karton DE",
+    karton_de_desc:"A desktop environment built around the Karton compositor. Includes a panel, file manager, notification center, and system tools — all maintaining a consistent aesthetic and philosophy of simplicity.",
+    foldos_desc:"A Linux distribution based on openSUSE, shipping with Karton DE pre-installed and configured. Aimed at users who value a clean system ready to use from the first boot.",
+    status_label:"Status",status_title:"Development progress",
+    status_desc:"The project is under active development. Below is an approximate progress overview of each component.",
+    stat1:"Compositor (Karton)",stat2:"Karton DE",stat3:"FoldOS",stat4:"Documentation",
+    gh_label:"Open source",gh_title:"The code is public",
+    gh_desc:"All projects are developed openly. You are welcome to watch the repositories, file issues, and contribute code.",
+    gh_btn:"Visit GitHub →",footer_note:"Open-source project · Work in progress",footer_top:"Back to top"
+  },
+  de: {
+    nav_about:"Über",nav_projects:"Projekte",nav_status:"Status",nav_github:"GitHub",
+    hero_label:"Compositor · Desktop-Umgebung · Distribution",hero_title_sub:"&amp; FoldOS",
+    hero_desc:"Ein leichtgewichtiger Wayland-Fenstermanager auf Basis von labwc, eine eigene Desktop-Umgebung und eine Linux-Distribution, die auf openSUSE aufbaut.",
+    hero_btn_learn:"Mehr erfahren",hero_btn_gh:"GitHub →",wip:"Aktive Entwicklung",
+    about_label:"Über das Projekt",about_title:"Minimalismus ohne Kompromisse",
+    about_desc:"Karton ist ein Linux-Werkzeug-Ökosystem, das mit Blick auf Einfachheit, Leistung und Klarheit entwickelt wird. Der Compositor basiert auf labwc — einer Referenzimplementierung von Wayland auf Basis des wlroots-Standards. Die Karton-Desktop-Umgebung schafft ein kohärentes Nutzererlebnis, und FoldOS fügt alles zu einer gebrauchsfertigen Distribution zusammen.",
+    feat1_title:"Wayland-nativ",feat1_desc:"Compositor direkt auf labwc und wlroots aufgebaut — keine X11-Kompatibilitätsschichten.",
+    feat2_title:"Geringer Ressourcenverbrauch",feat2_desc:"Das Projekt legt Wert auf eine minimale Anzahl von Hintergrundprozessen und Bibliotheken.",
+    feat3_title:"Offene Standards",feat3_desc:"Vollständige XDG-Konformität, freie Software und offene Lizenzen.",
+    feat4_title:"openSUSE-Grundlage",feat4_desc:"FoldOS erbt die Stabilität und das RPM-Paketökosystem von openSUSE.",
+    proj_label:"Projekte",proj_title:"Drei Schichten, ein Ökosystem",
+    karton_desc:"Ein texturbasierter Fenstermanager auf Grundlage von labwc. Er verwaltet Fenster in der Wayland-Sitzung, handhabt Fensterdekorationen, Workspace-Layouts und grundlegende visuelle Effekte. Designed, um im Hintergrund zu bleiben — unsichtbar, aber zuverlässig.",
+    karton_de_name:"Karton DE",
+    karton_de_desc:"Eine Desktop-Umgebung, die rund um den Karton-Compositor aufgebaut ist. Enthält ein Panel, einen Dateimanager, ein Benachrichtigungszentrum und Systemwerkzeuge — alle mit einer konsistenten Ästhetik und der Philosophie der Einfachheit.",
+    foldos_desc:"Eine Linux-Distribution auf Basis von openSUSE, die mit vorinstalliertem und konfiguriertem Karton DE ausgeliefert wird. Richtet sich an Nutzer, die ein klares System schätzen, das nach dem ersten Start sofort einsatzbereit ist.",
+    status_label:"Status",status_title:"Entwicklungsstand",
+    status_desc:"Das Projekt befindet sich in aktiver Entwicklung. Unten sehen Sie einen ungefähren Fortschritt der einzelnen Komponenten.",
+    stat1:"Compositor (Karton)",stat2:"Karton DE",stat3:"FoldOS",stat4:"Dokumentation",
+    gh_label:"Open Source",gh_title:"Der Code ist öffentlich",
+    gh_desc:"Alle Projekte werden offen entwickelt. Sie sind eingeladen, die Repositories zu beobachten, Fehler zu melden und Code beizutragen.",
+    gh_btn:"Zu GitHub →",footer_note:"Open-Source-Projekt · In Entwicklung",footer_top:"Nach oben"
+  }
+};
+
+function setLang(lang) {
+  const t = i18n[lang];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (t[key] !== undefined) el.innerHTML = t[key];
+  });
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent === lang.toUpperCase());
+  });
+  document.documentElement.lang = lang;
+}
+
+/* ── THEME TOGGLE ── */
+const html = document.documentElement;
+const toggleBtn = document.getElementById('themeToggle');
+let dark = true;
+
+function applyTheme(isDark) {
+  html.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  toggleBtn.textContent = isDark ? '☀' : '☾';
+  toggleBtn.title = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+  try { localStorage.setItem('karton-theme', isDark ? 'dark' : 'light'); } catch(e){}
+}
+
+toggleBtn.addEventListener('click', () => {
+  dark = !dark;
+  applyTheme(dark);
+});
+
+// Restore saved theme
+try {
+  const saved = localStorage.getItem('karton-theme');
+  if (saved === 'light') { dark = false; applyTheme(false); }
+} catch(e){}
+
+/* ── SCROLL FADE ── */
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.08 });
+document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+
+setLang('pl');
+</script>
+</body>
+</html>

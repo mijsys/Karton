@@ -1,0 +1,10 @@
+[Icon Theme]
+Name=KartONCursorDark
+Comment=Karton cursor theme (dark)
+Inherits=DMZ-Black,Vanilla-DMZ,default
+Directories=cursors
+
+[cursors]
+Size=24
+Context=Cursors
+Type=Scalable

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Karton PDF
+Comment=Open PDF documents with KartON default viewer
+Exec=karton-pdf %U
+Icon=io.karton.PDF
+Terminal=false
+Categories=Office;Viewer;
+MimeType=application/pdf;
+StartupNotify=true
+StartupWMClass=io.karton.PDF

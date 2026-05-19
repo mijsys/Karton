@@ -1,0 +1,25 @@
+<svg width="1600" height="1200" viewBox="0 0 1600 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="1200" fill="#EFE2CB"/>
+  <rect x="94" y="86" width="1412" height="1028" rx="52" fill="#FFF8EB" stroke="#DDB582" stroke-width="4"/>
+  <rect x="144" y="156" width="420" height="828" rx="42" fill="#FAF5EA" stroke="#E7D8BD" stroke-width="4"/>
+  <rect x="198" y="226" width="312" height="74" rx="24" fill="#B4512F" fill-opacity="0.12"/>
+  <rect x="198" y="344" width="312" height="74" rx="24" fill="#506A44" fill-opacity="0.12"/>
+  <rect x="198" y="462" width="312" height="74" rx="24" fill="#B4512F" fill-opacity="0.12"/>
+  <rect x="198" y="580" width="312" height="74" rx="24" fill="#506A44" fill-opacity="0.12"/>
+  <rect x="198" y="698" width="312" height="74" rx="24" fill="#B4512F" fill-opacity="0.12"/>
+  <rect x="612" y="156" width="836" height="364" rx="42" fill="#FAF5EA" stroke="#E7D8BD" stroke-width="4"/>
+  <rect x="664" y="216" width="360" height="26" rx="13" fill="#CFB99B"/>
+  <rect x="664" y="268" width="590" height="18" rx="9" fill="#E1D3BC"/>
+  <rect x="664" y="306" width="514" height="18" rx="9" fill="#E1D3BC"/>
+  <rect x="664" y="344" width="632" height="18" rx="9" fill="#E1D3BC"/>
+  <rect x="612" y="556" width="392" height="428" rx="42" fill="#FFFDF8" stroke="#E7D8BD" stroke-width="4"/>
+  <circle cx="716" cy="682" r="68" fill="#B4512F" fill-opacity="0.18"/>
+  <rect x="676" y="842" width="264" height="18" rx="9" fill="#E1D3BC"/>
+  <rect x="676" y="884" width="210" height="18" rx="9" fill="#E1D3BC"/>
+  <rect x="1056" y="556" width="392" height="428" rx="42" fill="#FFFDF8" stroke="#E7D8BD" stroke-width="4"/>
+  <rect x="1118" y="634" width="268" height="176" rx="28" fill="#F0E1CA"/>
+  <rect x="1118" y="842" width="196" height="18" rx="9" fill="#E1D3BC"/>
+  <rect x="1118" y="884" width="242" height="18" rx="9" fill="#E1D3BC"/>
+  <text x="144" y="1052" fill="#7F3418" font-family="Space Grotesk, Arial, sans-serif" font-size="72" font-weight="700">Session Layer</text>
+  <text x="144" y="1110" fill="#6D5A46" font-family="IBM Plex Sans, Arial, sans-serif" font-size="34">Launcher, notifications and screenshots turned into a single desktop story.</text>
+</svg>

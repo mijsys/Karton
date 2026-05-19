@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>KartON Category Other</title>
+  <circle cx="18" cy="32" r="5" fill="#7b66f0"/>
+  <circle cx="32" cy="32" r="5" fill="#5dcdc3"/>
+  <circle cx="46" cy="32" r="5" fill="#f05d7b"/>
+  <path fill="none" stroke="#ffb84d" stroke-width="4" stroke-linecap="round" d="M18 46c4-3 8-4 14-4s10 1 14 4" opacity="0.9"/>
+</svg>

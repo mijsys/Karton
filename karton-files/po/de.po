@@ -1,0 +1,479 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: karton-files 0.1\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-10 10:45+0200\n"
+"PO-Revision-Date: 2026-05-09 00:00+0000\n"
+"Last-Translator: KartON Team\n"
+"Language-Team: Deutsch\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: src/window.c:556
+#, fuzzy, c-format
+msgid "%u item selected"
+msgid_plural "%u items selected"
+msgstr[0] "%u Element"
+msgstr[1] "%u Elemente"
+
+#: src/window.c:746
+#, c-format
+msgid "%u item"
+msgid_plural "%u items"
+msgstr[0] "%u Element"
+msgstr[1] "%u Elemente"
+
+#: src/window.c:759
+#, c-format
+msgid "%s, free space: %s"
+msgstr "%s, freier Speicher: %s"
+
+#: src/window.c:773
+msgid "No recent files."
+msgstr "Keine zuletzt verwendeten Dateien."
+
+#: src/window.c:778
+msgid "No favorite locations."
+msgstr "Keine Favoritenorte."
+
+#: src/window.c:782 src/window.c:3811
+msgid "This folder is empty."
+msgstr "Dieser Ordner ist leer."
+
+#: src/window.c:866
+msgid "Recent files"
+msgstr "Zuletzt verwendete Dateien"
+
+#: src/window.c:873
+msgid "Favorite locations"
+msgstr "Favoritenorte"
+
+#: src/window.c:887
+msgid "Files"
+msgstr "Dateien"
+
+#: src/window.c:1056 src/window.c:2746 src/window.c:3497
+msgid "Cannot open this location."
+msgstr "Dieser Ort kann nicht geöffnet werden."
+
+#: src/window.c:1106
+msgid "No application is associated with this file type."
+msgstr "Keine Anwendung ist diesem Dateityp zugeordnet."
+
+#: src/window.c:1146 src/window.c:1208 src/window.c:1282
+msgid "Name cannot be empty."
+msgstr "Name darf nicht leer sein."
+
+#: src/window.c:1158 src/window.c:1174
+msgid "Rename failed."
+msgstr "Umbenennen fehlgeschlagen."
+
+#: src/window.c:1179
+msgid "Item renamed."
+msgstr "Element wurde umbenannt."
+
+#: src/window.c:1202
+msgid "Current location does not support creating folders."
+msgstr "Am aktuellen Ort können keine Ordner erstellt werden."
+
+#: src/window.c:1216
+msgid "Cannot create folder."
+msgstr "Ordner kann nicht erstellt werden."
+
+#: src/window.c:1221
+msgid "Folder created."
+msgstr "Ordner erstellt."
+
+#: src/window.c:1240
+msgid "Create folder"
+msgstr "Ordner erstellen"
+
+#: src/window.c:1243 src/window.c:1317 src/window.c:1853
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: src/window.c:1244 src/window.c:1318
+msgid "Create"
+msgstr "Erstellen"
+
+#: src/window.c:1249
+msgid "Folder name"
+msgstr "Ordnername"
+
+#: src/window.c:1257
+msgid "New folder"
+msgstr "Neuer Ordner"
+
+#: src/window.c:1276
+msgid "Current location does not support creating files."
+msgstr "Am aktuellen Ort können keine Dateien erstellt werden."
+
+#: src/window.c:1290
+msgid "Cannot create file."
+msgstr "Datei kann nicht erstellt werden."
+
+#: src/window.c:1295
+msgid "File created."
+msgstr "Datei erstellt."
+
+#: src/window.c:1314
+msgid "Create file"
+msgstr "Datei erstellen"
+
+#: src/window.c:1323
+msgid "File name"
+msgstr "Dateiname"
+
+#: src/window.c:1331 src/window.c:2157
+msgid "New file"
+msgstr "Neue Datei"
+
+#: src/window.c:1347 src/window.c:1357 src/window.c:1367
+msgid "Select an item first."
+msgstr "Bitte zuerst ein Element auswählen."
+
+#: src/window.c:1352
+msgid "Copied to clipboard."
+msgstr "In die Zwischenablage kopiert."
+
+#: src/window.c:1362
+msgid "Cut to clipboard."
+msgstr "In die Zwischenablage ausgeschnitten."
+
+#: src/window.c:1373 src/window.c:1391 src/window.c:1900 src/window.c:1918
+msgid "Delete failed."
+msgstr "Löschen fehlgeschlagen."
+
+#: src/window.c:1399 src/window.c:1926
+msgid "Deleted from trash."
+msgstr "Aus dem Papierkorb gelöscht."
+
+#: src/window.c:1399 src/window.c:1926
+msgid "Moved to trash."
+msgstr "In den Papierkorb verschoben."
+
+#: src/window.c:1409
+msgid "Nothing to paste."
+msgstr "Nichts zum Einfügen vorhanden."
+
+#: src/window.c:1414 src/window.c:1506
+msgid "Current location does not support paste."
+msgstr "Am aktuellen Ort ist Einfügen nicht möglich."
+
+#: src/window.c:1423 src/window.c:1454 src/window.c:1479 src/window.c:1488
+#: src/window.c:1515 src/window.c:1568 src/window.c:1574 src/window.c:1602
+#: src/window.c:1614
+msgid "Paste failed."
+msgstr "Einfügen fehlgeschlagen."
+
+#: src/window.c:1436 src/window.c:1523
+msgid "Source and destination are the same."
+msgstr "Quelle und Ziel sind identisch."
+
+#: src/window.c:1460 src/window.c:1611
+msgid "Paste complete."
+msgstr "Einfügen abgeschlossen."
+
+#: src/window.c:1532
+#, fuzzy
+msgid "Cannot copy a folder into itself."
+msgstr "Ordner kann nicht erstellt werden."
+
+#: src/window.c:1719
+msgid "Nothing to undo."
+msgstr "Nichts zum Rückgängigmachen."
+
+#: src/window.c:1742
+msgid "Undo failed."
+msgstr "Rückgängig fehlgeschlagen."
+
+#: src/window.c:1754
+msgid "Undo complete."
+msgstr "Rückgängig abgeschlossen."
+
+#: src/window.c:1761
+msgid "Nothing to redo."
+msgstr "Nichts zum Wiederholen."
+
+#: src/window.c:1792
+msgid "Redo failed."
+msgstr "Wiederholen fehlgeschlagen."
+
+#: src/window.c:1804
+msgid "Redo complete."
+msgstr "Wiederholen abgeschlossen."
+
+#: src/window.c:1850
+msgid "Rename item"
+msgstr "Element umbenennen"
+
+#: src/window.c:1854 src/window.c:2155
+msgid "Rename"
+msgstr "Umbenennen"
+
+#: src/window.c:1859
+msgid "Choose new name"
+msgstr "Neuen Namen wählen"
+
+#: src/window.c:1996 src/window.c:2094
+msgid "About authors"
+msgstr "Über die Autoren"
+
+#: src/window.c:1999
+msgid "Close"
+msgstr "Schließen"
+
+#: src/window.c:2047 src/window.c:3764
+msgid "File manager settings"
+msgstr "Dateimanager-Einstellungen"
+
+#: src/window.c:2061
+msgid "Show hidden files"
+msgstr "Versteckte Dateien anzeigen"
+
+#: src/window.c:2076
+msgid "Open files with single click"
+msgstr "Dateien mit einfachem Klick öffnen"
+
+#: src/window.c:2086
+#, fuzzy
+msgid ""
+"Shortcuts: Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V, Ctrl+N, Ctrl+Shift+N, Ctrl+Z, "
+"Ctrl+Y, Ctrl+Click, Shift+Click"
+msgstr ""
+"Tastenkürzel: Strg+C, Strg+X, Strg+V, Strg+N, Strg+Umschalt+N, Strg+Z, Strg+Y"
+
+#: src/window.c:2150
+msgid "Open folder"
+msgstr "Ordner öffnen"
+
+#: src/window.c:2150
+msgid "Open"
+msgstr "Öffnen"
+
+#: src/window.c:2151
+msgid "Last location"
+msgstr "Letzter Ort"
+
+#: src/window.c
+msgid "Opened app store for this file type."
+msgstr "App-Store für diesen Dateityp wurde geöffnet."
+
+#: src/window.c
+msgid "Select an application first."
+msgstr "Wähle zuerst eine Anwendung aus."
+
+#: src/window.c
+msgid "Could not open selected application."
+msgstr "Die ausgewählte Anwendung konnte nicht geöffnet werden."
+
+#: src/window.c
+msgid "Opened with selected application."
+msgstr "Mit der ausgewählten Anwendung geöffnet."
+
+#: src/window.c
+msgid "Could not start app store."
+msgstr "App-Store konnte nicht gestartet werden."
+
+#: src/window.c
+msgid "Open with"
+msgstr "Öffnen mit"
+
+#: src/window.c
+msgid "Install app"
+msgstr "App installieren"
+
+#: src/window.c
+#, c-format
+msgid "No default app was found. Choose an installed app for type: %s"
+msgstr "Keine Standardanwendung gefunden. Wähle eine installierte Anwendung für den Typ: %s"
+
+#: src/window.c:2152
+msgid "Copy"
+msgstr "Kopieren"
+
+#: src/window.c:2153
+msgid "Cut"
+msgstr "Ausschneiden"
+
+#: src/window.c:2154
+msgid "Paste"
+msgstr "Einfügen"
+
+#: src/window.c:2156
+msgid "Move to Trash"
+msgstr "In den Papierkorb verschieben"
+
+#: src/window.c:2158
+msgid "New Folder"
+msgstr "Neuer Ordner"
+
+#: src/window.c:2164
+msgid "Delete from Trash"
+msgstr "Aus dem Papierkorb löschen"
+
+#: src/window.c:2716 src/window.c:2723
+msgid "Cannot browse this location."
+msgstr "Dieser Ort kann nicht durchsucht werden."
+
+#: src/window.c:2732
+msgid "Location is not a folder."
+msgstr "Dieser Ort ist kein Ordner."
+
+#: src/window.c:2905
+msgid "Searching files..."
+msgstr "Dateien werden gesucht..."
+
+#: src/window.c:2909
+msgid "Search is available only in folders."
+msgstr "Suche ist nur in Ordnern verfügbar."
+
+#: src/window.c:2916
+msgid "Search failed."
+msgstr "Suche fehlgeschlagen."
+
+#: src/window.c:2930
+msgid "No files match your search."
+msgstr "Keine Dateien passen zur Suche."
+
+#: src/window.c:2934
+#, c-format
+msgid "%u search result"
+msgid_plural "%u search results"
+msgstr[0] "%u Suchergebnis"
+msgstr[1] "%u Suchergebnisse"
+
+#: src/window.c:2963 src/window.c:3158 src/window.c:3835
+msgid "Loading files..."
+msgstr "Dateien werden geladen..."
+
+#: src/window.c:2994
+msgid "Cannot resolve path."
+msgstr "Pfad kann nicht aufgelöst werden."
+
+#: src/window.c:3049 src/window.c:3056
+msgid "Cannot move up from this location."
+msgstr "Von diesem Ort kann nicht nach oben gewechselt werden."
+
+#: src/window.c:3351
+msgid "Places"
+msgstr "Orte"
+
+#: src/window.c:3352
+msgid "Recent"
+msgstr "Zuletzt"
+
+#: src/window.c:3353
+msgid "Favorites"
+msgstr "Favoriten"
+
+#: src/window.c:3355
+msgid "Home"
+msgstr "Home"
+
+#: src/window.c:3356
+msgid "Desktop"
+msgstr "Desktop"
+
+#: src/window.c:3357
+msgid "Documents"
+msgstr "Dokumente"
+
+#: src/window.c:3358
+msgid "Downloads"
+msgstr "Downloads"
+
+#: src/window.c:3359
+msgid "Music"
+msgstr "Musik"
+
+#: src/window.c:3360
+msgid "Pictures"
+msgstr "Bilder"
+
+#: src/window.c:3361
+msgid "Videos"
+msgstr "Videos"
+
+#: src/window.c:3362
+msgid "Public"
+msgstr "Öffentlich"
+
+#: src/window.c:3372
+msgid "Trash"
+msgstr "Papierkorb"
+
+#: src/window.c:3375
+msgid "Karton Drive"
+msgstr "Karton Drive"
+
+#: src/window.c:3425 src/window.c:3452
+msgid "Mounted devices"
+msgstr "Eingehängte Geräte"
+
+#: src/window.c:3426
+msgid "Network locations"
+msgstr "Netzwerkorte"
+
+#: src/window.c:3445
+msgid "Available devices"
+msgstr ""
+
+#: src/window.c:3691
+msgid "Karton Files"
+msgstr "Karton Dateien"
+
+#: src/window.c:3755
+msgid "Back (Alt+Left)"
+msgstr "Zurück (Alt+Links)"
+
+#: src/window.c:3758
+msgid "Up (Alt+Up)"
+msgstr "Nach oben (Alt+Hoch)"
+
+#: src/window.c:3761
+msgid "Refresh (F5)"
+msgstr "Aktualisieren (F5)"
+
+#: src/window.c:3770
+msgid "Enter path or search phrase and press Enter (Ctrl+L to focus)"
+msgstr ""
+"Pfad oder Suchbegriff eingeben und Enter drücken (Strg+L zum Fokussieren)"
+
+#: src/window.c:3874
+msgid "Grid view"
+msgstr "Rasteransicht"
+
+#: src/window.c:3888
+msgid "List view"
+msgstr "Listenansicht"
+
+#~ msgid "File system"
+#~ msgstr "Dateisystem"
+
+#~ msgid "Back"
+#~ msgstr "Zurück"
+
+#~ msgid "Up"
+#~ msgstr "Nach oben"
+
+#~ msgid "Refresh"
+#~ msgstr "Aktualisieren"
+
+#~ msgid "Enter path and press Enter"
+#~ msgstr "Pfad eingeben und Enter drücken"
+
+#~ msgid "Enter path and press Enter (Ctrl+L to focus)"
+#~ msgstr "Pfad eingeben und Enter drücken (Strg+L zum Fokussieren)"
+
+#~ msgid "Network"
+#~ msgstr "Netzwerk"
+
+#~ msgid "Undo"
+#~ msgstr "Rückgängig"
+
+#~ msgid "Redo"
+#~ msgstr "Wiederholen"

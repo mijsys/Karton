@@ -1,0 +1,72 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+set -eu
+
+PREFIX="${KARTON_PREFIX:-${HOME}/.local-karton}"
+PATH="$PREFIX/bin:$PATH"
+export PATH
+
+resolve_cmd() {
+cmd="$1"
+if [ -x "$PREFIX/bin/$cmd" ]; then
+printf '%s\n' "$PREFIX/bin/$cmd"
+return 0
+fi
+
+if command -v "$cmd" >/dev/null 2>&1; then
+command -v "$cmd"
+return 0
+fi
+
+return 1
+}
+
+session_pattern='karton-sessiond|karton-shell --top-only|karton-shell --side-only|karton-shell --desktop-only|karton-screenshot --daemon|karton-idle|karton-settingsd|karton-notifyd|karton-notify-log'
+
+pkill -f 'karton-shell --top-only' 2>/dev/null || true
+pkill -f 'karton-shell --side-only' 2>/dev/null || true
+pkill -f 'karton-shell --desktop-only' 2>/dev/null || true
+pkill -x karton-shell 2>/dev/null || true
+pkill -f 'karton-sessiond' 2>/dev/null || true
+pkill -f 'karton-screenshot --daemon' 2>/dev/null || true
+pkill -f 'karton-idle' 2>/dev/null || true
+pkill -f 'karton-settingsd' 2>/dev/null || true
+pkill -f 'karton-notifyd' 2>/dev/null || true
+pkill -f 'karton-notify-log' 2>/dev/null || true
+
+attempts=30
+while pgrep -fa "$session_pattern" >/dev/null 2>&1 && [ "$attempts" -gt 0 ]; do
+attempts=$((attempts - 1))
+sleep 0.1
+done
+
+if command -v karton >/dev/null 2>&1; then
+karton --reconfigure >/dev/null 2>&1 || true
+elif [ -x "$PREFIX/bin/karton" ]; then
+"$PREFIX/bin/karton" --reconfigure >/dev/null 2>&1 || true
+fi
+
+if sessiond="$(resolve_cmd karton-sessiond 2>/dev/null || true)" && [ -n "$sessiond" ]; then
+"$sessiond" >/dev/null 2>&1 &
+exit 0
+fi
+
+if top_panel="$(resolve_cmd karton-top-panel 2>/dev/null || true)" && [ -n "$top_panel" ]; then
+"$top_panel" >/dev/null 2>&1 &
+fi
+if side_dock="$(resolve_cmd karton-side-dock 2>/dev/null || true)" && [ -n "$side_dock" ]; then
+"$side_dock" >/dev/null 2>&1 &
+fi
+if desktop="$(resolve_cmd karton-desktop 2>/dev/null || true)" && [ -n "$desktop" ]; then
+"$desktop" >/dev/null 2>&1 &
+fi
+if screenshotd="$(resolve_cmd karton-screenshot 2>/dev/null || true)" && [ -n "$screenshotd" ]; then
+"$screenshotd" --daemon >/dev/null 2>&1 &
+fi
+if settingsd="$(resolve_cmd karton-settingsd 2>/dev/null || true)" && [ -n "$settingsd" ]; then
+"$settingsd" >/dev/null 2>&1 &
+fi
+if notifyd="$(resolve_cmd karton-notifyd 2>/dev/null || true)" && [ -n "$notifyd" ]; then
+"$notifyd" >/dev/null 2>&1 &
+fi

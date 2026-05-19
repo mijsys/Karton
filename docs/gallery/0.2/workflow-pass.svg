@@ -1,0 +1,11 @@
+<svg width="1600" height="1200" viewBox="0 0 1600 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="1200" fill="#F7F0E4"/>
+  <rect x="92" y="84" width="1416" height="1032" rx="48" fill="#FFF8EB" stroke="#D9CBB1" stroke-width="4"/>
+  <path d="M220 760C372 520 540 520 690 760C836 994 1008 994 1172 760C1276 612 1364 544 1450 546" stroke="#B4512F" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="320" cy="626" r="82" fill="#FFFDF8" stroke="#DDB582" stroke-width="4"/>
+  <circle cx="760" cy="858" r="82" fill="#FFFDF8" stroke="#DDB582" stroke-width="4"/>
+  <circle cx="1220" cy="650" r="82" fill="#FFFDF8" stroke="#DDB582" stroke-width="4"/>
+  <rect x="256" y="204" width="1088" height="214" rx="42" fill="#FAF5EA" stroke="#E7D8BD" stroke-width="4"/>
+  <text x="320" y="304" fill="#7F3418" font-family="Space Grotesk, Arial, sans-serif" font-size="80" font-weight="700">0.2 Workflow Pass</text>
+  <text x="320" y="366" fill="#6D5A46" font-family="IBM Plex Sans, Arial, sans-serif" font-size="34">Next step: tighter shell and session loops, better flow, fewer seams.</text>
+</svg>

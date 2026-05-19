@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Karton Place Trash</title>
+  <path d="M21 19h22M27 14h10" fill="none" stroke="#7b66f0" stroke-width="5" stroke-linecap="round"/>
+  <path d="M20 21h24l-2 28a5 5 0 0 1-5 4H27a5 5 0 0 1-5-4z" fill="none" stroke="#7b66f0" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M28 28v16M36 28v16" fill="none" stroke="#5dcdc3" stroke-width="4" stroke-linecap="round"/>
+</svg>

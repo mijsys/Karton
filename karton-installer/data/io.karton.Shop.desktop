@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Karton Shop
+Name[pl]=Karton Shop
+Name[en]=Karton Shop
+Comment=Package manager frontend for Pacman, AUR and Flatpak
+Comment[pl]=Frontend menedzera pakietow dla Pacman, AUR i Flatpak
+Comment[en]=Package manager frontend for Pacman, AUR and Flatpak
+Exec=karton-shop
+Icon=io.karton.Shop
+Terminal=false
+Categories=System;Settings;
+StartupNotify=true

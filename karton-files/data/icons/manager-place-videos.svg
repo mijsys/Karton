@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Karton Place Videos</title>
+  <rect x="10" y="16" width="34" height="32" rx="6" fill="none" stroke="#7b66f0" stroke-width="5"/>
+  <path d="m44 24 10-6v28l-10-6z" fill="none" stroke="#7b66f0" stroke-width="5" stroke-linejoin="round"/>
+  <path d="m23 26 10 6-10 6z" fill="#5dcdc3"/>
+</svg>

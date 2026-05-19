@@ -1,0 +1,956 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+set -eu
+
+config_root="${XDG_CONFIG_HOME:-$HOME/.config}/karton"
+mkdir -p "$config_root" "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0" "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0"
+
+theme_tokens="$config_root/theme.toml"
+
+find_config_file() {
+  filename="$1"
+
+  user_config_root="${XDG_CONFIG_HOME:-$HOME/.config}/karton"
+  if [ -r "$user_config_root/$filename" ]; then
+    printf '%s\n' "$user_config_root/$filename"
+    return 0
+  fi
+
+  config_dirs="${XDG_CONFIG_DIRS:-/etc/xdg}"
+  old_ifs="$IFS"
+  IFS=:
+  for base in $config_dirs; do
+    [ -n "$base" ] || continue
+    if [ -r "$base/karton/$filename" ]; then
+      IFS="$old_ifs"
+      printf '%s\n' "$base/karton/$filename"
+      return 0
+    fi
+  done
+  IFS="$old_ifs"
+
+  return 1
+}
+
+if resolved_theme_tokens="$(find_config_file theme.toml 2>/dev/null)"; then
+  theme_tokens="$resolved_theme_tokens"
+fi
+
+read_mode_from_css() {
+  css_file="$config_root/shell.css"
+  [ -r "$css_file" ] || return 1
+  mode="$(awk -F: '/--theme-mode[[:space:]]*:/ { gsub(/[[:space:];]/, "", $2); print tolower($2); exit }' "$css_file")"
+  [ -n "$mode" ] || return 1
+  printf '%s\n' "$mode"
+}
+
+read_mode_from_file() {
+  mode_file="$config_root/theme-mode"
+  [ -r "$mode_file" ] || return 1
+  mode="$(tr -d '[:space:]' < "$mode_file" | tr '[:upper:]' '[:lower:]')"
+  [ -n "$mode" ] || return 1
+  printf '%s\n' "$mode"
+}
+
+read_decoration_layout_override() {
+  file="$config_root/decoration-layout"
+  [ -r "$file" ] || return 1
+
+  value="$(tr -d '[:space:]' < "$file")"
+  case "$value" in
+    minimize,maximize,close|close,minimize,maximize|close)
+      printf '%s\n' "$value"
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+read_accent_override() {
+  accent_file="$config_root/accent-color"
+  [ -r "$accent_file" ] || return 1
+  accent="$(tr -d '[:space:]' < "$accent_file")"
+  case "$accent" in
+    \#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f])
+      printf '%s\n' "$accent"
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+read_int_override() {
+  file="$1"
+  min="$2"
+  max="$3"
+  [ -r "$file" ] || return 1
+
+  value="$(tr -d '[:space:]' < "$file")"
+  case "$value" in
+    ''|*[!0-9]*) return 1 ;;
+  esac
+
+  [ "$value" -ge "$min" ] 2>/dev/null || return 1
+  [ "$value" -le "$max" ] 2>/dev/null || return 1
+  printf '%s\n' "$value"
+}
+
+read_bool_override() {
+  file="$1"
+  [ -r "$file" ] || return 1
+
+  value="$(tr -d '[:space:]' < "$file" | tr '[:upper:]' '[:lower:]')"
+  case "$value" in
+    1|true|yes|on)
+      printf 'true\n'
+      return 0
+      ;;
+    0|false|no|off)
+      printf 'false\n'
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+color_with_alpha() {
+  color="$1"
+  alpha_dec="$2"
+
+  case "$alpha_dec" in
+    ''|*[!0-9]*) alpha_dec=255 ;;
+  esac
+  if [ "$alpha_dec" -lt 0 ] 2>/dev/null; then
+    alpha_dec=0
+  fi
+  if [ "$alpha_dec" -gt 255 ] 2>/dev/null; then
+    alpha_dec=255
+  fi
+
+  color_len=${#color}
+  if [ "$color_len" -eq 9 ]; then
+    rgb="$(printf '%s' "$color" | cut -c1-7)"
+  elif [ "$color_len" -eq 7 ]; then
+    rgb="$color"
+  else
+    printf '%s\n' "$color"
+    return 0
+  fi
+
+  alpha_hex="$(printf '%02x' "$alpha_dec")"
+  printf '%s%s\n' "$rgb" "$alpha_hex"
+}
+
+read_icon_theme_override() {
+  file="$config_root/icon-theme"
+  [ -r "$file" ] || return 1
+
+  value="$(sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' "$file" | head -n 1)"
+  [ -n "$value" ] || return 1
+  printf '%s\n' "$value"
+}
+
+read_cursor_theme_override() {
+  file="$config_root/cursor-theme"
+  [ -r "$file" ] || return 1
+
+  value="$(sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' "$file" | head -n 1)"
+  [ -n "$value" ] || return 1
+  printf '%s\n' "$value"
+}
+
+toml_get() {
+  file="$1"
+  section="$2"
+  key="$3"
+  [ -r "$file" ] || return 1
+  awk -v sec="$section" -v key="$key" '
+    BEGIN { insec = 0 }
+    /^[[:space:]]*\[/ {
+      s = $0
+      gsub(/^[[:space:]]*\[/, "", s)
+      gsub(/\][[:space:]]*$/, "", s)
+      insec = (s == sec)
+      next
+    }
+    insec {
+      line = $0
+      sub(/^[[:space:]]+/, "", line)
+      if (line ~ /^#/ || line == "") next
+      eq = index(line, "=")
+      if (!eq) next
+      k = substr(line, 1, eq - 1)
+      gsub(/[[:space:]]/, "", k)
+      if (k != key) next
+      v = substr(line, eq + 1)
+      sub(/^[[:space:]]+/, "", v)
+      sub(/[[:space:]]+$/, "", v)
+      if (v ~ /^".*"$/) {
+        sub(/^"/, "", v)
+        sub(/"$/, "", v)
+      }
+      print v
+      exit
+    }
+  ' "$file"
+}
+
+token_or_default() {
+  file="$1"
+  section="$2"
+  key="$3"
+  default="$4"
+  value="$(toml_get "$file" "$section" "$key" 2>/dev/null || true)"
+  if [ -z "$value" ]; then
+    value="$default"
+  fi
+  printf '%s\n' "$value"
+}
+
+have_icon_theme() {
+  t="$1"
+  [ -d "/usr/share/icons/$t" ] || [ -d "/usr/local/share/icons/$t" ] || [ -d "$HOME/.icons/$t" ] || [ -d "$HOME/.local/share/icons/$t" ]
+}
+
+has_cursor_theme() {
+  t="$1"
+  [ -d "/usr/share/icons/$t/cursors" ] || [ -d "/usr/local/share/icons/$t/cursors" ] || [ -d "$HOME/.icons/$t/cursors" ] || [ -d "$HOME/.local/share/icons/$t/cursors" ]
+}
+
+theme_exists() {
+  t="$1"
+  [ -d "/usr/share/themes/$t" ] || [ -d "$HOME/.themes/$t" ] || [ -d "$HOME/.local/share/themes/$t" ]
+}
+
+list_installed_names() {
+  kind="$1"
+  case "$kind" in
+    icons)
+      set -- "/usr/share/icons" "$HOME/.icons" "$HOME/.local/share/icons"
+      ;;
+    themes)
+      set -- "/usr/share/themes" "$HOME/.themes" "$HOME/.local/share/themes"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+
+  for base in "$@"; do
+    [ -d "$base" ] || continue
+    for d in "$base"/*; do
+      [ -d "$d" ] || continue
+      name="${d##*/}"
+      [ -n "$name" ] || continue
+      case "$name" in
+        "."|"..") continue ;;
+      esac
+      printf '%s\n' "$name"
+    done
+  done | awk 'BEGIN{IGNORECASE=1} !seen[tolower($0)]++ { print }'
+}
+
+list_installed_cursor_themes() {
+  for base in "/usr/share/icons" "/usr/local/share/icons" "$HOME/.icons" "$HOME/.local/share/icons"; do
+    [ -d "$base" ] || continue
+    for d in "$base"/*; do
+      [ -d "$d" ] || continue
+      [ -d "$d/cursors" ] || continue
+      [ -f "$d/index.theme" ] || continue
+      name="${d##*/}"
+      [ -n "$name" ] || continue
+      case "$name" in
+        "."|"..") continue ;;
+      esac
+      printf '%s\n' "$name"
+    done
+  done | awk 'BEGIN{IGNORECASE=1} !seen[tolower($0)]++ { print }'
+}
+
+name_is_dark() {
+  name_lc="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  case "$name_lc" in
+    *dark*|*black*|*night*|*noir*|*mocha*)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+name_is_light() {
+  name_lc="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  case "$name_lc" in
+    *light*|*white*|*day*|*latte*)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+pick_icon_theme() {
+  mode="$1"
+
+  if [ "$mode" = "dark" ]; then
+    for t in Tela-dark Papirus-Dark breeze-dark Tela Papirus Adwaita hicolor; do
+      if have_icon_theme "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      if name_is_dark "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done <<EOF
+$(list_installed_names icons)
+EOF
+  else
+    for t in Tela Papirus breeze Kora Adwaita hicolor; do
+      if have_icon_theme "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      if name_is_light "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done <<EOF
+$(list_installed_names icons)
+EOF
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      if ! name_is_dark "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done <<EOF
+$(list_installed_names icons)
+EOF
+  fi
+
+  while IFS= read -r t; do
+    [ -n "$t" ] || continue
+    printf '%s\n' "$t"
+    return 0
+  done <<EOF
+$(list_installed_names icons)
+EOF
+
+  printf 'hicolor\n'
+}
+
+pick_gtk_theme() {
+  mode="$1"
+
+  if [ "$mode" = "dark" ]; then
+    for t in Breeze-Dark Adwaita-dark Graphite-Dark GraphiteDark Catppuccin-Mocha-Standard-Blue-Dark Adwaita; do
+      if theme_exists "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      if name_is_dark "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done <<EOF
+$(list_installed_names themes)
+EOF
+  else
+    for t in Breeze Adwaita Graphite-Light GraphiteLight Catppuccin-Latte-Standard-Blue-Light Adwaita-dark; do
+      if theme_exists "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      if name_is_light "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done <<EOF
+$(list_installed_names themes)
+EOF
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      if ! name_is_dark "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done <<EOF
+$(list_installed_names themes)
+EOF
+  fi
+
+  while IFS= read -r t; do
+    [ -n "$t" ] || continue
+    printf '%s\n' "$t"
+    return 0
+  done <<EOF
+$(list_installed_names themes)
+EOF
+
+  printf 'Adwaita\n'
+}
+
+pick_cursor_theme() {
+  mode="$1"
+
+  if [ "$mode" = "dark" ]; then
+    for t in KartONCursorDark Bibata-Modern-Ice Bibata-Ice DMZ-Black Vanilla-DMZ; do
+      if has_cursor_theme "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      if name_is_dark "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done <<EOF
+$(list_installed_cursor_themes)
+EOF
+  else
+    for t in KartONCursorLight Bibata-Modern-Classic Bibata-Original-Classic DMZ-White Vanilla-DMZ; do
+      if has_cursor_theme "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      if name_is_light "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done <<EOF
+$(list_installed_cursor_themes)
+EOF
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      if ! name_is_dark "$t"; then
+        printf '%s\n' "$t"
+        return 0
+      fi
+    done <<EOF
+$(list_installed_cursor_themes)
+EOF
+  fi
+
+  while IFS= read -r t; do
+    [ -n "$t" ] || continue
+    printf '%s\n' "$t"
+    return 0
+  done <<EOF
+$(list_installed_cursor_themes)
+EOF
+
+  printf 'default\n'
+}
+
+set_ini_key() {
+  file="$1"
+  key="$2"
+  value="$3"
+
+  if [ ! -f "$file" ]; then
+    printf '[Settings]\n' > "$file"
+  fi
+
+  if ! grep -q '^\[Settings\]' "$file"; then
+    tmp_header="$(mktemp)"
+    {
+      printf '[Settings]\n'
+      cat "$file"
+    } > "$tmp_header"
+    mv "$tmp_header" "$file"
+  fi
+
+  tmp_file="$(mktemp)"
+  awk -v k="$key" -v v="$value" '
+    BEGIN { done=0 }
+    $0 ~ "^" k "=" {
+      if (!done) {
+        print k "=" v
+        done=1
+      }
+      next
+    }
+    { print }
+    END { if (!done) print k "=" v }
+  ' "$file" > "$tmp_file"
+  mv "$tmp_file" "$file"
+}
+
+write_managed_env_block() {
+  file="$1"
+  begin_marker="$2"
+  end_marker="$3"
+  block="$4"
+
+  tmp_file="$(mktemp)"
+  if [ -f "$file" ]; then
+    awk -v begin="$begin_marker" -v end="$end_marker" '
+      $0 == begin { skip = 1; next }
+      $0 == end { skip = 0; next }
+      /^# Generated by karton-apply-theme$/ { skip_legacy = 1; next }
+      skip_legacy && /^# Keep GTK apps visually aligned with KartON\/Tektura server-side decorations\.$/ { next }
+      skip_legacy && /^GTK_THEME=/ { skip_legacy = 0; next }
+      skip_legacy && $0 == "" { skip_legacy = 0; next }
+      /^GTK_THEME=/ { next }
+      skip { next }
+      { print }
+    ' "$file" > "$tmp_file"
+  fi
+
+  {
+    printf '%s\n' "$begin_marker"
+    printf '%s\n' "$block"
+    printf '%s\n' "$end_marker"
+    if [ -s "$tmp_file" ]; then
+      printf '\n'
+      cat "$tmp_file"
+    fi
+  } > "$file"
+
+  rm -f "$tmp_file"
+}
+
+cleanup_generated_css() {
+  file="$1"
+  if [ -f "$file" ] && head -n 1 "$file" | grep -Fqx '/* Generated by karton-apply-theme */'; then
+    rm -f "$file"
+  fi
+}
+
+mode_arg="${1:-}"
+if [ "$mode_arg" = "--sync-from-tokens" ] || [ "$mode_arg" = "--sync-from-css" ] || [ -z "$mode_arg" ]; then
+  mode_arg=""
+fi
+
+mode="$mode_arg"
+if [ -z "$mode" ]; then
+  mode="$(toml_get "$theme_tokens" "theme" "mode" 2>/dev/null || true)"
+fi
+if [ -z "$mode" ]; then
+  mode="$(read_mode_from_file || true)"
+fi
+if [ -z "$mode" ]; then
+  mode="$(read_mode_from_css || true)"
+fi
+if [ -z "$mode" ]; then
+  mode="auto"
+fi
+
+case "$mode" in
+  light|dark|auto) ;;
+  *) mode="auto" ;;
+esac
+
+printf '%s\n' "$mode" > "$config_root/theme-mode"
+
+resolved="$mode"
+if [ "$mode" = "auto" ]; then
+  hour="$(date +%H)"
+  if [ "$hour" -ge 19 ] || [ "$hour" -lt 7 ]; then
+    resolved="dark"
+  else
+    resolved="light"
+  fi
+fi
+
+layout_top_height="$(token_or_default "$theme_tokens" "layout" "top_height" "42")"
+layout_top_expanded_height="$(token_or_default "$theme_tokens" "layout" "top_expanded_height" "392")"
+layout_side_width="$(token_or_default "$theme_tokens" "layout" "side_width" "74")"
+layout_side_expanded_width="$(token_or_default "$theme_tokens" "layout" "side_expanded_width" "362")"
+
+radius_quick_button="$(token_or_default "$theme_tokens" "radius" "quick_button" "13")"
+radius_quick_panel="$(token_or_default "$theme_tokens" "radius" "quick_panel" "22")"
+radius_quick_tile="$(token_or_default "$theme_tokens" "radius" "quick_tile" "14")"
+radius_popup="$(token_or_default "$theme_tokens" "radius" "popup" "20")"
+
+window_transparency="$(read_int_override "$config_root/window-transparency" 0 40 2>/dev/null || true)"
+[ -n "$window_transparency" ] || window_transparency="12"
+desktop_effects="$(read_bool_override "$config_root/desktop-effects" 2>/dev/null || true)"
+if [ -z "$desktop_effects" ] && command -v gsettings >/dev/null 2>&1; then
+  gs_animations="$(gsettings get org.gnome.desktop.interface enable-animations 2>/dev/null | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]' || true)"
+  case "$gs_animations" in
+    true|false)
+      desktop_effects="$gs_animations"
+      ;;
+  esac
+fi
+[ -n "$desktop_effects" ] || desktop_effects="true"
+
+dialog_radius="$(token_or_default "$theme_tokens" "dialog" "radius" "14")"
+dialog_spacing="$(token_or_default "$theme_tokens" "dialog" "spacing" "8")"
+
+palette_section="palette.$resolved"
+if [ "$resolved" = "light" ]; then
+  top_bg="$(token_or_default "$theme_tokens" "$palette_section" "top_bg" "#ffffff")"
+  quick_panel_bg="$(token_or_default "$theme_tokens" "$palette_section" "quick_panel_bg" "#ffffff")"
+else
+  top_bg="$(token_or_default "$theme_tokens" "$palette_section" "top_bg" "#f7f4ff")"
+  quick_panel_bg="$(token_or_default "$theme_tokens" "$palette_section" "quick_panel_bg" "#fffdff")"
+fi
+quick_button_bg="$(token_or_default "$theme_tokens" "$palette_section" "quick_button_bg" "#7a66f4")"
+quick_button_fg="$(token_or_default "$theme_tokens" "$palette_section" "quick_button_fg" "#ffffff")"
+top_text="$(token_or_default "$theme_tokens" "$palette_section" "top_text" "#2a2242")"
+quick_tile_bg="$(token_or_default "$theme_tokens" "$palette_section" "quick_tile_bg" "#ebe6ff")"
+quick_title_text="$(token_or_default "$theme_tokens" "$palette_section" "quick_title_text" "#2d2550")"
+side_bg="$(token_or_default "$theme_tokens" "$palette_section" "side_bg" "#ece7ff")"
+side_popup_bg="$(token_or_default "$theme_tokens" "$palette_section" "side_popup_bg" "#faf8ff")"
+side_separator="$(token_or_default "$theme_tokens" "$palette_section" "side_separator" "#b9addf")"
+side_launcher_bg="$(token_or_default "$theme_tokens" "$palette_section" "side_launcher_bg" "#8b78f6")"
+side_slot_active="$(token_or_default "$theme_tokens" "$palette_section" "side_slot_active" "#74c7c2")"
+side_slot_inactive="$(token_or_default "$theme_tokens" "$palette_section" "side_slot_inactive" "#8b84b7")"
+surface_raised="$quick_panel_bg"
+surface_subtle="$quick_tile_bg"
+surface_overlay="$side_popup_bg"
+border_subtle="$side_separator"
+text_primary="$quick_title_text"
+text_muted="$top_text"
+accent_primary="$side_launcher_bg"
+accent_success="$side_slot_active"
+accent_neutral="$side_slot_inactive"
+
+if [ "$resolved" = "dark" ]; then
+  def_deco_bg_act="#1e1e2eff"
+  def_deco_bg_inact="#11111bff"
+  def_deco_border="#00000000"
+  def_label_act="#ffffff"
+  def_label_inact="#a0a0a0"
+  def_iconify_act="#a0c0ff"
+  def_max_act="#a0f0bd"
+  def_close_act="#ff9eb8"
+  def_iconify_inact="#a0a0a0"
+  def_max_inact="#a0a0a0"
+  def_close_inact="#a0a0a0"
+  def_btn_act="#ffffff"
+  def_btn_inact="#a0a0a0"
+else
+  def_deco_bg_act="#fdfdfdff"
+  def_deco_bg_inact="#f1f1f1ff"
+  def_deco_border="#00000000"
+  def_label_act="#1c1c20"
+  def_label_inact="#666666"
+  def_iconify_act="#6b8dff"
+  def_max_act="#48c4a0"
+  def_close_act="#e66d93"
+  def_iconify_inact="#9ca9d9"
+  def_max_inact="#90bca9"
+  def_close_inact="#c394a8"
+  def_btn_act="#5a4d7a"
+  def_btn_inact="#9387b2"
+fi
+
+deco_title_bg_active="$(token_or_default "$theme_tokens" "$palette_section" "deco_title_bg_active" "$def_deco_bg_act")"
+deco_title_bg_inactive="$(token_or_default "$theme_tokens" "$palette_section" "deco_title_bg_inactive" "$def_deco_bg_inact")"
+deco_border_active="$(token_or_default "$theme_tokens" "$palette_section" "deco_border_active" "$def_deco_border")"
+deco_border_inactive="$(token_or_default "$theme_tokens" "$palette_section" "deco_border_inactive" "$def_deco_border")"
+deco_label_active="$(token_or_default "$theme_tokens" "$palette_section" "deco_label_active" "$def_label_act")"
+deco_label_inactive="$(token_or_default "$theme_tokens" "$palette_section" "deco_label_inactive" "$def_label_inact")"
+deco_hover_bg="#00000000"
+deco_iconify_active="$(token_or_default "$theme_tokens" "$palette_section" "deco_iconify_active" "$def_iconify_act")"
+deco_max_active="$(token_or_default "$theme_tokens" "$palette_section" "deco_max_active" "$def_max_act")"
+deco_close_active="$(token_or_default "$theme_tokens" "$palette_section" "deco_close_active" "$def_close_act")"
+deco_iconify_inactive="$(token_or_default "$theme_tokens" "$palette_section" "deco_iconify_inactive" "$def_iconify_inact")"
+deco_max_inactive="$(token_or_default "$theme_tokens" "$palette_section" "deco_max_inactive" "$def_max_inact")"
+deco_close_inactive="$(token_or_default "$theme_tokens" "$palette_section" "deco_close_inactive" "$def_close_inact")"
+deco_button_unpressed_active="$(token_or_default "$theme_tokens" "$palette_section" "deco_button_unpressed_active" "$def_btn_act")"
+deco_button_unpressed_inactive="$(token_or_default "$theme_tokens" "$palette_section" "deco_button_unpressed_inactive" "$def_btn_inact")"
+
+window_alpha=$((255 - window_transparency * 3))
+if [ "$window_alpha" -lt 140 ]; then
+  window_alpha=140
+fi
+deco_border_alpha=$((window_alpha - 24))
+if [ "$deco_border_alpha" -lt 96 ]; then
+  deco_border_alpha=96
+fi
+deco_button_alpha=$((window_alpha + 10))
+if [ "$deco_button_alpha" -gt 255 ]; then
+  deco_button_alpha=255
+fi
+menu_alpha=$((window_alpha - 16))
+if [ "$menu_alpha" -lt 120 ]; then
+  menu_alpha=120
+fi
+
+deco_title_bg_active="$(color_with_alpha "$deco_title_bg_active" "$window_alpha")"
+deco_title_bg_inactive="$(color_with_alpha "$deco_title_bg_inactive" "$window_alpha")"
+deco_border_active="$(color_with_alpha "$deco_border_active" "$deco_border_alpha")"
+deco_border_inactive="$(color_with_alpha "$deco_border_inactive" "$deco_border_alpha")"
+deco_button_unpressed_active="$(color_with_alpha "$deco_button_unpressed_active" "$deco_button_alpha")"
+deco_button_unpressed_inactive="$(color_with_alpha "$deco_button_unpressed_inactive" "$deco_button_alpha")"
+menu_surface_overlay="$(color_with_alpha "$surface_overlay" "$menu_alpha")"
+
+shell_css="$config_root/shell.css"
+cat > "$shell_css" <<EOF
+:root {
+  --theme-mode: $mode;
+  --top-height: $layout_top_height;
+  --top-expanded-height: $layout_top_expanded_height;
+  --side-width: $layout_side_width;
+  --side-expanded-width: $layout_side_expanded_width;
+  --quick-button-radius: $radius_quick_button;
+  --quick-panel-radius: $radius_quick_panel;
+  --quick-tile-radius: $radius_quick_tile;
+  --popup-radius: $radius_popup;
+  --top-bg: $top_bg;
+  --top-text: $top_text;
+  --quick-button-bg: $quick_button_bg;
+  --quick-button-fg: $quick_button_fg;
+  --quick-panel-bg: $quick_panel_bg;
+  --quick-tile-bg: $quick_tile_bg;
+  --quick-title-text: $quick_title_text;
+  --side-bg: $side_bg;
+  --side-popup-bg: $side_popup_bg;
+  --side-separator: $side_separator;
+  --side-launcher-bg: $side_launcher_bg;
+  --side-slot-active: $side_slot_active;
+  --side-slot-inactive: $side_slot_inactive;
+  --window-transparency: $window_transparency;
+  --desktop-effects: $desktop_effects;
+}
+EOF
+
+gtk_font="$(token_or_default "$theme_tokens" "gtk" "font" "Inter 10")"
+deco_layout="$(token_or_default "$theme_tokens" "gtk" "decoration_layout" "minimize,maximize,close")"
+gtk_theme_light="$(token_or_default "$theme_tokens" "gtk" "gtk_theme_light" "")"
+gtk_theme_dark="$(token_or_default "$theme_tokens" "gtk" "gtk_theme_dark" "")"
+icon_theme_light="$(token_or_default "$theme_tokens" "gtk" "icon_theme_light" "")"
+icon_theme_dark="$(token_or_default "$theme_tokens" "gtk" "icon_theme_dark" "")"
+cursor_theme_light="$(token_or_default "$theme_tokens" "gtk" "cursor_theme_light" "KartONCursorLight")"
+cursor_theme_dark="$(token_or_default "$theme_tokens" "gtk" "cursor_theme_dark" "KartONCursorDark")"
+cursor_size="$(read_int_override "$config_root/cursor-size" 16 64 2>/dev/null || true)"
+if [ -z "$cursor_size" ]; then
+  cursor_size="24"
+fi
+
+if deco_override="$(read_decoration_layout_override 2>/dev/null || true)" && [ -n "$deco_override" ]; then
+  deco_layout="$deco_override"
+fi
+
+if [ "$resolved" = "dark" ]; then
+  gtk_theme="$gtk_theme_dark"
+  icon_theme="$icon_theme_dark"
+  cursor_theme="$cursor_theme_dark"
+else
+  gtk_theme="$gtk_theme_light"
+  icon_theme="$icon_theme_light"
+  cursor_theme="$cursor_theme_light"
+fi
+
+if cursor_override="$(read_cursor_theme_override 2>/dev/null || true)" && [ -n "$cursor_override" ]; then
+  if [ "$cursor_override" != "auto" ]; then
+    cursor_theme="$cursor_override"
+  fi
+fi
+
+if [ -z "$gtk_theme" ] || ! theme_exists "$gtk_theme"; then
+  gtk_theme="$(pick_gtk_theme "$resolved")"
+fi
+
+if [ -z "$icon_theme" ] || ! have_icon_theme "$icon_theme"; then
+  icon_theme="$(pick_icon_theme "$resolved")"
+fi
+
+if [ -z "$cursor_theme" ] || ! has_cursor_theme "$cursor_theme"; then
+  cursor_theme="$(pick_cursor_theme "$resolved")"
+fi
+
+prefer_dark="false"
+if [ "$resolved" = "dark" ]; then
+  prefer_dark="true"
+fi
+
+gtk3="${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/settings.ini"
+gtk4="${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/settings.ini"
+session_env="$config_root/environment"
+
+set_ini_key "$gtk3" "gtk-decoration-layout" "$deco_layout"
+set_ini_key "$gtk3" "gtk-application-prefer-dark-theme" "$prefer_dark"
+set_ini_key "$gtk4" "gtk-application-prefer-dark-theme" "$prefer_dark"
+set_ini_key "$gtk3" "gtk-theme-name" "$gtk_theme"
+set_ini_key "$gtk4" "gtk-theme-name" "$gtk_theme"
+set_ini_key "$gtk3" "gtk-icon-theme-name" "$icon_theme"
+set_ini_key "$gtk4" "gtk-icon-theme-name" "$icon_theme"
+set_ini_key "$gtk3" "gtk-cursor-theme-name" "$cursor_theme"
+set_ini_key "$gtk4" "gtk-cursor-theme-name" "$cursor_theme"
+set_ini_key "$gtk3" "gtk-cursor-theme-size" "$cursor_size"
+set_ini_key "$gtk4" "gtk-cursor-theme-size" "$cursor_size"
+
+if command -v gsettings >/dev/null 2>&1; then
+  scheme="default"
+  if [ "$resolved" = "dark" ]; then scheme="prefer-dark"; fi
+  gsettings set org.gnome.desktop.interface color-scheme "$scheme" 2>/dev/null || true
+  gsettings set org.gnome.desktop.interface gtk-theme "$gtk_theme" 2>/dev/null || true
+  gsettings set org.gnome.desktop.interface icon-theme "$icon_theme" 2>/dev/null || true
+  gsettings set org.gnome.desktop.interface cursor-theme "$cursor_theme" 2>/dev/null || true
+  gsettings set org.gnome.desktop.interface cursor-size "$cursor_size" 2>/dev/null || true
+fi
+
+set_ini_key "$gtk4" "gtk-decoration-layout" "$deco_layout"
+
+gtk3_css="${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/gtk.css"
+gtk4_css="${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/gtk.css"
+
+cleanup_generated_css "$gtk3_css"
+cleanup_generated_css "$gtk4_css"
+
+managed_theme_env_block="XCURSOR_THEME=$cursor_theme
+XCURSOR_SIZE=$cursor_size"
+
+write_managed_env_block \
+  "$session_env" \
+  "# BEGIN KartON managed theme env" \
+  "# END KartON managed theme env" \
+  "$managed_theme_env_block"
+
+cat > "$config_root/themerc-override" <<EOF
+# KartonDE decorations override
+# Synced by karton-apply-theme ($resolved)
+
+window.active.title.bg: Solid
+window.inactive.title.bg: Solid
+window.active.title.bg.color: $deco_title_bg_active
+window.inactive.title.bg.color: $deco_title_bg_inactive
+
+window.active.border.color: $deco_border_active
+window.inactive.border.color: $deco_border_inactive
+border.width: 0
+
+window.active.shadow.size: 76
+window.inactive.shadow.size: 48
+window.active.shadow.color: #00000052
+window.inactive.shadow.color: #00000030
+
+window.active.label.text.color: $deco_label_active
+window.inactive.label.text.color: $deco_label_inactive
+window.label.text.justify: Center
+
+window.titlebar.padding.width: 18
+window.titlebar.padding.height: 12
+window.title.separator.width: 0
+
+window.button.width: 18
+window.button.height: 18
+window.button.spacing: 10
+window.button.hover.bg.corner-radius: 0
+window.button.hover.bg.color: $deco_hover_bg
+
+window.active.button.unpressed.image.color: $deco_button_unpressed_active
+window.inactive.button.unpressed.image.color: $deco_button_unpressed_inactive
+
+window.active.button.iconify.unpressed.image.color: $deco_iconify_active
+window.active.button.max.unpressed.image.color: $deco_max_active
+window.active.button.menu.unpressed.image.color: $deco_label_active
+window.active.button.shade.unpressed.image.color: $side_slot_inactive
+window.active.button.desk.unpressed.image.color: $side_slot_active
+window.active.button.close.unpressed.image.color: $deco_close_active
+
+window.inactive.button.iconify.unpressed.image.color: $deco_iconify_inactive
+window.inactive.button.max.unpressed.image.color: $deco_max_inactive
+window.inactive.button.menu.unpressed.image.color: $deco_label_inactive
+window.inactive.button.shade.unpressed.image.color: $deco_button_unpressed_inactive
+window.inactive.button.desk.unpressed.image.color: $deco_max_inactive
+window.inactive.button.close.unpressed.image.color: $deco_close_inactive
+
+menu.border.width: 0
+menu.border.color: $deco_border_active
+menu.overlap.x: 0
+menu.overlap.y: 0
+menu.separator.width: 1
+menu.separator.color: $surface_subtle
+menu.separator.padding.height: 6
+menu.separator.padding.width: 12
+menu.items.padding.x: 14
+menu.items.padding.y: 10
+menu.items.bg.color: $menu_surface_overlay
+menu.items.text.color: $text_primary
+menu.items.active.bg.color: $accent_primary
+menu.items.active.text.color: $surface_raised
+menu.title.bg.color: $menu_surface_overlay
+menu.title.text.color: $text_primary
+menu.title.text.justify: Center
+
+osd.bg.color: $menu_surface_overlay
+osd.border.color: $border_subtle
+osd.border.width: 1
+osd.label.text.color: $text_primary
+osd.window-switcher.preview.border.color: $border_subtle
+osd.window-switcher.style-thumbnail.item.active.border.color: $accent_success
+EOF
+
+# Colorize SVG icons for KartONFlat theme locally if they exist
+karton_theme_dir="${XDG_DATA_HOME:-$HOME/.local/share}/themes/KartONFlat/openbox-3"
+if [ -d "$karton_theme_dir" ]; then
+  c_close_act="${deco_close_active:0:7}"
+  c_close_inact="${deco_close_inactive:0:7}"
+  c_max_act="${deco_max_active:0:7}"
+  c_max_inact="${deco_max_inactive:0:7}"
+  c_iconify_act="${deco_iconify_active:0:7}"
+  c_iconify_inact="${deco_iconify_inactive:0:7}"
+  c_menu_act="${deco_label_active:0:7}"
+  c_menu_inact="${deco_label_inactive:0:7}"
+  c_shade_act="${side_slot_inactive:0:7}"
+  c_shade_inact="${deco_button_unpressed_inactive:0:7}"
+  c_desk_act="${side_slot_active:0:7}"
+  c_desk_inact="${deco_max_inactive:0:7}"
+
+  sed -i -E 's/stroke="#[0-9A-Fa-f]+"/stroke="'"$c_close_act"'"/g' "$karton_theme_dir/close-active.svg" 2>/dev/null || true
+  sed -i -E 's/stroke="#[0-9A-Fa-f]+"/stroke="'"$c_close_inact"'"/g' "$karton_theme_dir/close-inactive.svg" 2>/dev/null || true
+  sed -i -E 's/stroke="#[0-9A-Fa-f]+"/stroke="'"$c_max_act"'"/g' "$karton_theme_dir/max-active.svg" "$karton_theme_dir/max_toggled-active.svg" 2>/dev/null || true
+  sed -i -E 's/stroke="#[0-9A-Fa-f]+"/stroke="'"$c_max_inact"'"/g' "$karton_theme_dir/max-inactive.svg" "$karton_theme_dir/max_toggled-inactive.svg" 2>/dev/null || true
+  sed -i -E 's/stroke="#[0-9A-Fa-f]+"/stroke="'"$c_iconify_act"'"/g' "$karton_theme_dir/iconify-active.svg" 2>/dev/null || true
+  sed -i -E 's/stroke="#[0-9A-Fa-f]+"/stroke="'"$c_iconify_inact"'"/g' "$karton_theme_dir/iconify-inactive.svg" 2>/dev/null || true
+  sed -i -E 's/stroke="#[0-9A-Fa-f]+"/stroke="'"$c_menu_act"'"/g' "$karton_theme_dir/menu-active.svg" 2>/dev/null || true
+  sed -i -E 's/stroke="#[0-9A-Fa-f]+"/stroke="'"$c_menu_inact"'"/g' "$karton_theme_dir/menu-inactive.svg" 2>/dev/null || true
+  sed -i -E 's/stroke="#[0-9A-Fa-f]+"/stroke="'"$c_shade_act"'"/g' "$karton_theme_dir/shade-active.svg" "$karton_theme_dir/shade_toggled-active.svg" 2>/dev/null || true
+  sed -i -E 's/stroke="#[0-9A-Fa-f]+"/stroke="'"$c_shade_inact"'"/g' "$karton_theme_dir/shade-inactive.svg" "$karton_theme_dir/shade_toggled-inactive.svg" 2>/dev/null || true
+  sed -i -E 's/stroke="#[0-9A-Fa-f]+"/stroke="'"$c_desk_act"'"/g' "$karton_theme_dir/desk-active.svg" "$karton_theme_dir/desk_toggled-active.svg" 2>/dev/null || true
+  sed -i -E 's/stroke="#[0-9A-Fa-f]+"/stroke="'"$c_desk_inact"'"/g' "$karton_theme_dir/desk-inactive.svg" "$karton_theme_dir/desk_toggled-inactive.svg" 2>/dev/null || true
+fi
+
+cat > "$config_root/dialogd.conf" <<EOF
+# Generated by karton-apply-theme
+# Do not edit manually
+
+theme_mode=$mode
+effective_mode=$resolved
+panel_bg=$quick_panel_bg
+text_color=$quick_title_text
+accent_color=$side_launcher_bg
+dialog_radius=$dialog_radius
+dialog_spacing=$dialog_spacing
+EOF
+
+karton_cmd=""
+if command -v karton >/dev/null 2>&1; then
+  karton_cmd="$(command -v karton)"
+elif [ -x "$HOME/.local-karton/bin/karton" ]; then
+  karton_cmd="$HOME/.local-karton/bin/karton"
+fi
+if [ -n "$karton_cmd" ]; then
+  "$karton_cmd" --reconfigure >/dev/null 2>&1 || true
+fi
+if [ -n "${KARTON_PID:-}" ]; then
+  kill -HUP "$KARTON_PID" >/dev/null 2>&1 || true
+fi
+
+pkill -USR1 -x karton-shell >/dev/null 2>&1 || true
+pkill -USR1 -x karton-dialogd >/dev/null 2>&1 || true
+
+exit 0

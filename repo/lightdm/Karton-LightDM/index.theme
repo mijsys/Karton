@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=Karton-LightDM
+Comment=KartON LightDM Greeter Theme
+Encoding=UTF-8
+
+[X-GNOME-Metatheme]
+GtkTheme=Karton-LightDM
+IconTheme=Adwaita
+CursorTheme=KartONCursorDark

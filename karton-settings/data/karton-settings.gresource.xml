@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/io/karton/Settings">
+    <file>icons/theme.svg</file>
+    <file>icons/sidebar-appearance.svg</file>
+    <file>icons/sidebar-desktop.svg</file>
+    <file>icons/sidebar-windows.svg</file>
+    <file>icons/sidebar-display.svg</file>
+    <file>icons/sidebar-sound.svg</file>
+    <file>icons/sidebar-devices.svg</file>
+    <file>icons/sidebar-network.svg</file>
+    <file>icons/sidebar-power.svg</file>
+    <file>icons/sidebar-users.svg</file>
+    <file>icons/sidebar-security.svg</file>
+    <file>icons/sidebar-notifications.svg</file>
+    <file>icons/sidebar-default-apps.svg</file>
+    <file>icons/sidebar-updates.svg</file>
+  </gresource>
+  <gresource prefix="/io/karton/Settings/styles">
+    <file alias="settings.css">styles/settings.css</file>
+  </gresource>
+</gresources>

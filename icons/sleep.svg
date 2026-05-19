@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>KartON Sleep</title>
+  <path fill="#7b66f0" d="M39 8c-8 4-13 12-13 22 0 12 9 22 21 24-4 2-8 3-13 3-15 0-27-12-27-27S19 3 34 3c2 0 4 0 5 1z"/>
+  <path fill="none" stroke="#5dcdc3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" d="M43 16h12l-12 13h12"/>
+  <path fill="none" stroke="#ffb84d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M38 37h9l-9 9h9"/>
+</svg>

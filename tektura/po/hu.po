@@ -1,0 +1,90 @@
+# Labwc pot file
+# Copyright (C) 2024
+# This file is distributed under the same license as the labwc package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: labwc\n"
+"Report-Msgid-Bugs-To: https://github.com/labwc/labwc/issues\n"
+"POT-Creation-Date: 2026-05-10 11:47+0200\n"
+"PO-Revision-Date: 2025-07-04 17:16+0000\n"
+"Last-Translator: therealmate <hellogaming91@gmail.com>\n"
+"Language-Team: Hungarian <https://translate.lxqt-project.org/projects/labwc/"
+"labwc/hu/>\n"
+"Language: hu\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 4.2.1\n"
+
+#: src/menu/menu.c:842
+msgid "Always on Visible Workspace"
+msgstr "Mindig a látható munkaterületen"
+
+#: src/menu/menu.c:899
+msgid "Go there..."
+msgstr "Ugrás ide..."
+
+#: src/menu/menu.c:918
+msgid "Create folder"
+msgstr ""
+
+#: src/menu/menu.c:929
+msgid "Terminal"
+msgstr "Terminál"
+
+#: src/menu/menu.c:934
+msgid "Settings"
+msgstr ""
+
+#: src/menu/menu.c:940
+msgid "Reconfigure"
+msgstr "Újrakonfigurálás"
+
+#: src/menu/menu.c:942
+msgid "Exit"
+msgstr "Kilépés"
+
+#: src/menu/menu.c:956
+msgid "Minimize"
+msgstr "Minimalizálás"
+
+#: src/menu/menu.c:958
+msgid "Maximize"
+msgstr "Maximalizálás"
+
+#: src/menu/menu.c:960
+msgid "Fullscreen"
+msgstr "Teljes képernyő"
+
+#: src/menu/menu.c:962
+msgid "Roll Up/Down"
+msgstr "Felgördítés/Legördítés"
+
+#: src/menu/menu.c:964
+msgid "Decorations"
+msgstr "Dekorációk"
+
+#: src/menu/menu.c:966
+msgid "Always on Top"
+msgstr "Mindig felül"
+
+#: src/menu/menu.c:970 src/menu/menu.c:989 src/config/rcxml.c:1857
+msgid "Workspace"
+msgstr "Munkaterület"
+
+#: src/menu/menu.c:973
+msgid "Close"
+msgstr "Bezárás"
+
+#: src/menu/menu.c:988
+msgid "Windows"
+msgstr ""
+
+#~ msgid "Move Left"
+#~ msgstr "Mozgatás balra"
+
+#~ msgid "Move Right"
+#~ msgstr "Mozgatás jobbra"

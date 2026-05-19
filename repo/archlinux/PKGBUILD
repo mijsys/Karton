@@ -1,0 +1,215 @@
+pkgbase=kartonde
+pkgname=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock' 'karton-themes-wallpapers' 'kartonde')
+pkgver=0.8.1
+pkgrel=2
+arch=('x86_64')
+url='https://github.com/mijsys/Tektura-i-Karton'
+license=('GPL-2.0-only')
+makedepends=(
+  'git' 'meson' 'ninja' 'pkgconf' 'wayland' 'wayland-protocols' 'wlroots0.20'
+  'cairo' 'pango' 'glib2' 'gtk3' 'gtk4' 'libpulse' 'libxkbcommon' 'libinput'
+  'libxml2' 'pixman' 'scdoc' 'gdk-pixbuf2' 'librsvg' 'xorg-xwayland' 'systemd'
+)
+source_repo_url="${KARTONDE_REPO_URL:-https://github.com/mijsys/Tektura-i-Karton.git}"
+source=("kartonde::git+${source_repo_url}")
+sha256sums=('SKIP')
+
+_setup_component() {
+  local name="$1"
+  shift || true
+  local src_root="$srcdir/kartonde"
+  local src_dir="$src_root/$name"
+  local build_dir="$src_dir/builddir-pkg"
+
+  meson setup "$build_dir" "$src_dir" --prefix=/usr "$@"
+}
+
+_build_component() {
+  local name="$1"
+  local src_root="$srcdir/kartonde"
+  meson compile -C "$src_root/$name/builddir-pkg"
+}
+
+_install_component() {
+  local name="$1"
+  local destdir="$2"
+  local src_root="$srcdir/kartonde"
+  DESTDIR="$destdir" meson install -C "$src_root/$name/builddir-pkg" --no-rebuild
+}
+
+prepare() {
+  cd "$srcdir/kartonde"
+}
+
+build() {
+  _setup_component tektura -Dsystemd-session=enabled -Dicon=disabled
+  _build_component tektura
+
+  _setup_component karton-shell
+  _build_component karton-shell
+
+  _setup_component karton-settings
+  _build_component karton-settings
+
+  _setup_component karton-files
+  _build_component karton-files
+
+  _setup_component karton-terminal
+  _build_component karton-terminal
+
+  _setup_component karton-idle
+  _build_component karton-idle
+
+  _setup_component karton-lock
+  _build_component karton-lock
+
+  _setup_component karton-session
+  _build_component karton-session
+}
+
+package_tektura() {
+  pkgdesc='KartonDE Wayland compositor based on Tektura'
+  depends=('cairo' 'glib2' 'libinput' 'libxkbcommon' 'libxml2' 'pango' 'pixman' 'wayland' 'wlroots0.20' 'xorg-xwayland')
+  optdepends=('grim: screenshot backend' 'slurp: area screenshot selection' 'wl-clipboard: copy screenshots to clipboard')
+
+  _install_component tektura "$pkgdir"
+}
+
+package_karton-shell() {
+  pkgdesc='KartonDE shell with top panel, side dock and desktop popups'
+  depends=('cairo' 'gdk-pixbuf2' 'glib2' 'gtk4' 'libpulse' 'libxkbcommon' 'pango' 'wayland' 'zenity')
+
+  _install_component karton-shell "$pkgdir"
+}
+
+package_karton-settings() {
+  pkgdesc='KartonDE desktop settings application (WIP build)'
+  depends=('glib2' 'gtk4')
+  optdepends=(
+    'networkmanager: nmcli backend for Wi-Fi, hotspot and VPN settings'
+    'bluez-utils: bluetoothctl backend for Bluetooth settings'
+    'upower: battery status backend for power settings'
+    'power-profiles-daemon: power profile backend (powerprofilesctl)'
+    'xdg-utils: open folders/files from settings (xdg-open)'
+    'wlr-randr: monitor layout backend for display settings'
+    'brightnessctl: brightness backend for internal displays'
+    'ddcutil: brightness fallback backend for external displays'
+    'gammastep: night light backend'
+    'wlsunset: alternative night light backend'
+  )
+
+  _install_component karton-settings "$pkgdir"
+}
+
+package_karton-files() {
+  pkgdesc='KartonDE GTK file manager'
+  depends=('glib2' 'gtk4')
+
+  _install_component karton-files "$pkgdir"
+}
+
+package_karton-terminal() {
+  pkgdesc='KartonDE VTE-based terminal emulator'
+  depends=('glib2' 'gtk4' 'vte4')
+
+  _install_component karton-terminal "$pkgdir"
+}
+
+package_karton-idle() {
+  pkgdesc='Wayland ext-idle-notify desktop idle manager for KartONDE'
+  depends=('wayland' 'glib2')
+
+  _install_component karton-idle "$pkgdir"
+}
+
+package_karton-lock() {
+  pkgdesc='Wayland ext-session-lock screen locker for KartONDE'
+  depends=('wayland' 'gtk4' 'gtk4-layer-shell' 'cairo' 'pam')
+
+  _install_component karton-lock "$pkgdir"
+}
+
+package_karton-session() {
+  pkgdesc='Session services and desktop helpers for KartONDE'
+  depends=('glib2' 'gtk4')
+  optdepends=(
+    'swayidle: idle detection backend for automatic lock and DPMS'
+    'swaylock: lockscreen backend'
+    'wlopm: output power management backend for idle DPMS'
+    'kanshi: output profile backend'
+    'grim: screenshot backend'
+    'slurp: area screenshot selection'
+    'wl-clipboard: copy screenshots to clipboard'
+  )
+
+  _install_component karton-session "$pkgdir"
+}
+
+package_kartonde() {
+  pkgdesc='Complete KartONDE desktop environment metapackage'
+  depends=(
+    'tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock' 'karton-themes-wallpapers'
+    'lxqt-policykit'
+    'swayidle' 'swaylock' 'wlopm'
+    'xdg-desktop-portal' 'xdg-desktop-portal-gtk'
+    'wl-clipboard' 'cliphist'
+    'evince'
+  )
+  optdepends=(
+    'networkmanager: nmcli backend for Wi-Fi, hotspot and VPN settings'
+    'bluez-utils: bluetoothctl backend for Bluetooth settings'
+    'upower: battery status backend for power settings'
+    'power-profiles-daemon: power profile backend (powerprofilesctl)'
+    'xdg-utils: open folders/files from settings (xdg-open)'
+    'kanshi: output profile backend'
+    'wlr-randr: monitor layout backend for display settings'
+    'brightnessctl: brightness backend for internal displays'
+    'ddcutil: brightness fallback backend for external displays'
+    'gammastep: night light backend'
+    'wlsunset: alternative night light backend'
+    'grim: screenshot backend'
+    'slurp: area screenshot selection'
+    'wl-clipboard: copy screenshots to clipboard'
+  )
+  backup=(
+    'etc/xdg/karton/autostart'
+    'etc/xdg/karton/environment'
+    'etc/xdg/karton/rc.xml'
+    'etc/xdg/karton/theme.toml'
+  )
+  install='kartonde.install'
+
+  local src_root="$srcdir/kartonde"
+
+  install -Dm755 "$src_root/repo/archlinux/config/autostart" "$pkgdir/etc/xdg/karton/autostart"
+  install -Dm644 "$src_root/repo/archlinux/config/environment" "$pkgdir/etc/xdg/karton/environment"
+  install -Dm644 "$src_root/repo/archlinux/config/rc.xml" "$pkgdir/etc/xdg/karton/rc.xml"
+  install -Dm644 "$src_root/repo/archlinux/config/theme.toml" "$pkgdir/etc/xdg/karton/theme.toml"
+  install -Dm644 "$src_root/README.md" "$pkgdir/usr/share/doc/kartonde/README.md"
+  install -Dm644 "$src_root/repo/archlinux/pacman.conf.example" "$pkgdir/usr/share/doc/kartonde/pacman.conf.example"
+}
+
+package_karton-themes-wallpapers() {
+  pkgdesc='KartONDE themes, wallpapers and icons'
+  depends=()
+  
+  local src_root="$srcdir/kartonde"
+  
+  # Install wallpapers
+  install -Dm644 "$src_root/Wallpaper/karton.png" "$pkgdir/usr/share/backgrounds/karton/karton.png"
+  install -Dm644 "$src_root/Wallpaper/karton2.png" "$pkgdir/usr/share/backgrounds/karton/karton2.png"
+  
+  # Install theme files
+  mkdir -p "$pkgdir/usr/share/themes"
+  cp -r "$src_root/tektura/themes/KartONFlat" "$pkgdir/usr/share/themes/"
+  
+  # Install icons from tektura
+  install -Dm644 "$src_root/tektura/data/karton.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/karton.svg"
+  install -Dm644 "$src_root/tektura/data/karton-symbolic.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/karton-symbolic.svg"
+  install -Dm644 "$src_root/tektura/data/tektura.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/tektura.svg"
+  install -Dm644 "$src_root/tektura/data/tektura-symbolic.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/tektura-symbolic.svg"
+  
+  # Install icons from karton-files
+  mkdir -p "$pkgdir/usr/share/icons/hicolor/scalable/apps"
+  cp "$src_root/karton-files/data/icons"/*.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/"
+}

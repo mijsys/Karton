@@ -1,0 +1,3 @@
+[kartonde]
+SigLevel = Optional TrustAll
+Server = https://cdn.jsdelivr.net/gh/mijsys/Tektura-i-Karton@main/repo/archlinux/$arch
