@@ -108,8 +108,15 @@ pkgname = karton-lock
 	depends = cairo
 	depends = pam
 
+pkgname = karton-installer
+	pkgdesc = KartonDE installer, welcome and software shop UI
+	depends = glib2
+	depends = gtk4
+	optdepends = curl: HTTP timezone autodetect support
+
 pkgname = karton-themes-wallpapers
 	pkgdesc = KartONDE themes, wallpapers and icons
+	depends = 
 
 pkgname = kartonde
 	pkgdesc = Complete KartONDE desktop environment metapackage
@@ -122,6 +129,7 @@ pkgname = kartonde
 	depends = karton-session
 	depends = karton-idle
 	depends = karton-lock
+	depends = karton-installer
 	depends = karton-themes-wallpapers
 	depends = lxqt-policykit
 	depends = swayidle

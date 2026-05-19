@@ -1,5 +1,5 @@
 pkgbase=kartonde
-pkgname=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock' 'karton-themes-wallpapers' 'kartonde')
+pkgname=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock' 'karton-installer' 'karton-themes-wallpapers' 'kartonde')
 pkgver=0.8.1
 pkgrel=2
 arch=('x86_64')
@@ -62,6 +62,9 @@ build() {
 
   _setup_component karton-lock
   _build_component karton-lock
+
+  _setup_component karton-installer
+  _build_component karton-installer
 
   _setup_component karton-session
   _build_component karton-session
@@ -129,6 +132,14 @@ package_karton-lock() {
   _install_component karton-lock "$pkgdir"
 }
 
+package_karton-installer() {
+  pkgdesc='KartonDE installer, welcome and software shop UI'
+  depends=('glib2' 'gtk4')
+  optdepends=('curl: HTTP timezone autodetect support')
+
+  _install_component karton-installer "$pkgdir"
+}
+
 package_karton-session() {
   pkgdesc='Session services and desktop helpers for KartONDE'
   depends=('glib2' 'gtk4')
@@ -148,7 +159,7 @@ package_karton-session() {
 package_kartonde() {
   pkgdesc='Complete KartONDE desktop environment metapackage'
   depends=(
-    'tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock' 'karton-themes-wallpapers'
+    'tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock' 'karton-installer' 'karton-themes-wallpapers'
     'lxqt-policykit'
     'swayidle' 'swaylock' 'wlopm'
     'xdg-desktop-portal' 'xdg-desktop-portal-gtk'
