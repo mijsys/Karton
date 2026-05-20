@@ -194,18 +194,101 @@ static void on_open_install(GtkButton *button, gpointer user_data) {
     spawn_command(state, "karton-install");
 }
 
+static char *update_system_script(void) {
+    char *msg_sudo = g_shell_quote(_("Starting system update (sudo)."));
+    char *msg_pkexec = g_shell_quote(_("Sudo unavailable, trying pkexec."));
+    char *msg_no_elevate = g_shell_quote(_("No sudo or pkexec found. Cannot elevate privileges for system update."));
+    char *msg_skip_yay = g_shell_quote(_("Skipping yay (yay does not work as root)."));
+    char *msg_no_backend = g_shell_quote(_("No supported package manager found."));
+    char *msg_done = g_shell_quote(_("Update completed."));
+    char *msg_failed = g_shell_quote(_("Update failed or was canceled."));
+
+    char *script = g_strdup_printf(
+        "MSG_SUDO=%s "
+        "MSG_PKEXEC=%s "
+        "MSG_NO_ELEVATE=%s "
+        "MSG_SKIP_YAY=%s "
+        "MSG_NO_BACKEND=%s "
+        "MSG_DONE=%s "
+        "MSG_FAILED=%s "
+        "bash -lc '"
+        "set -u; "
+        "ELEVATE=\"\"; "
+        "status=0; "
+        "if [ \"$(id -u)\" -ne 0 ]; then "
+            "if command -v sudo >/dev/null 2>&1; then "
+                "ELEVATE=\"sudo\"; "
+                "printf \"%%s\\n\" \"$MSG_SUDO\"; "
+            "elif command -v pkexec >/dev/null 2>&1; then "
+                "ELEVATE=\"pkexec\"; "
+                "printf \"%%s\\n\" \"$MSG_PKEXEC\"; "
+            "else "
+                "printf \"%%s\\n\" \"$MSG_NO_ELEVATE\"; "
+                "status=1; "
+            "fi; "
+        "fi; "
+
+        "if [ \"$status\" -eq 0 ]; then "
+            "if command -v pacman >/dev/null 2>&1; then "
+                "$ELEVATE pacman -Syu || status=1; "
+                "if command -v yay >/dev/null 2>&1; then "
+                    "if [ \"$(id -u)\" -eq 0 ]; then "
+                        "printf \"%%s\\n\" \"$MSG_SKIP_YAY\"; "
+                    "else "
+                        "yay -Syu || status=1; "
+                    "fi; "
+                "fi; "
+            "elif command -v apt-get >/dev/null 2>&1; then "
+                "$ELEVATE env DEBIAN_FRONTEND=noninteractive apt-get update && "
+                "$ELEVATE env DEBIAN_FRONTEND=noninteractive apt-get -y upgrade || status=1; "
+            "elif command -v dnf >/dev/null 2>&1; then "
+                "$ELEVATE dnf -y upgrade --refresh || status=1; "
+            "elif command -v zypper >/dev/null 2>&1; then "
+                "$ELEVATE zypper --non-interactive refresh && "
+                "$ELEVATE zypper --non-interactive update || status=1; "
+            "else "
+                "printf \"%%s\\n\" \"$MSG_NO_BACKEND\"; "
+                "status=1; "
+            "fi; "
+
+            "if command -v flatpak >/dev/null 2>&1; then "
+                "flatpak update -y || status=1; "
+            "fi; "
+        "fi; "
+
+        "if [ \"$status\" -eq 0 ]; then "
+            "printf \"%%s\\n\" \"$MSG_DONE\"; "
+        "else "
+            "printf \"%%s\\n\" \"$MSG_FAILED\"; "
+        "fi; "
+        "exec \"${SHELL:-bash}\""
+        "'",
+        msg_sudo,
+        msg_pkexec,
+        msg_no_elevate,
+        msg_skip_yay,
+        msg_no_backend,
+        msg_done,
+        msg_failed);
+
+    g_free(msg_sudo);
+    g_free(msg_pkexec);
+    g_free(msg_no_elevate);
+    g_free(msg_skip_yay);
+    g_free(msg_no_backend);
+    g_free(msg_done);
+    g_free(msg_failed);
+
+    return script;
+}
+
 static void on_update_system(GtkButton *button, gpointer user_data) {
     KartonWelcome *state = user_data;
     (void)button;
     apply_welcome_preference(state);
-    spawn_in_terminal(state,
-    "bash -lc \"set -e; "
-    "if command -v pkexec >/dev/null 2>&1; then pkexec pacman -Syu; "
-    "elif command -v sudo >/dev/null 2>&1; then sudo pacman -Syu; "
-    "else pacman -Syu; fi; "
-    "if command -v yay >/dev/null 2>&1; then yay -Syu; fi; "
-    "if command -v flatpak >/dev/null 2>&1; then flatpak update -y; fi; "
-    "echo 'Aktualizacja zakonczona.'; exec bash\"");
+    char *script = update_system_script();
+    spawn_in_terminal(state, script);
+    g_free(script);
 }
 
 static void on_readme_clicked(GtkButton *button, gpointer user_data) {

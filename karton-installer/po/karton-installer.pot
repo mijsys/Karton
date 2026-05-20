@@ -332,6 +332,34 @@ msgstr ""
 msgid "Could not open link"
 msgstr ""
 
+#: src/karton-welcome.c:179
+msgid "Starting system update (sudo)."
+msgstr ""
+
+#: src/karton-welcome.c:180
+msgid "Sudo unavailable, trying pkexec."
+msgstr ""
+
+#: src/karton-welcome.c:181
+msgid "No sudo or pkexec found. Cannot elevate privileges for system update."
+msgstr ""
+
+#: src/karton-welcome.c:182
+msgid "Skipping yay (yay does not work as root)."
+msgstr ""
+
+#: src/karton-welcome.c:183
+msgid "No supported package manager found."
+msgstr ""
+
+#: src/karton-welcome.c:184
+msgid "Update completed."
+msgstr ""
+
+#: src/karton-welcome.c:185
+msgid "Update failed or was canceled."
+msgstr ""
+
 #: src/karton-welcome.c:253
 #, c-format
 msgid "Witaj %s w KartON"

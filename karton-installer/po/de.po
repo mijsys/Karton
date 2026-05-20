@@ -327,6 +327,34 @@ msgstr "Uruchomiono."
 msgid "Could not open link"
 msgstr "Link konnte nicht geoeffnet werden"
 
+#: src/karton-welcome.c:179
+msgid "Starting system update (sudo)."
+msgstr "Starte Aktualisierung mit sudo."
+
+#: src/karton-welcome.c:180
+msgid "Sudo unavailable, trying pkexec."
+msgstr "Sudo ist nicht verfuegbar, versuche es mit pkexec."
+
+#: src/karton-welcome.c:181
+msgid "No sudo or pkexec found. Cannot elevate privileges for system update."
+msgstr "Weder sudo noch pkexec sind verfuegbar. Ich kann keine Rechte fuer die Aktualisierung anheben."
+
+#: src/karton-welcome.c:182
+msgid "Skipping yay (yay does not work as root)."
+msgstr "Ueberspringe yay (yay funktioniert nicht als root)."
+
+#: src/karton-welcome.c:183
+msgid "No supported package manager found."
+msgstr "Kein unterstuetzter Paketmanager gefunden."
+
+#: src/karton-welcome.c:184
+msgid "Update completed."
+msgstr "Aktualisierung abgeschlossen."
+
+#: src/karton-welcome.c:185
+msgid "Update failed or was canceled."
+msgstr "Die Aktualisierung ist fehlgeschlagen oder wurde abgebrochen."
+
 #: src/karton-welcome.c:253
 #, c-format
 msgid "Witaj %s w KartON"
