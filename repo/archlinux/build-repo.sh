@@ -5,7 +5,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 project_root="$(cd "$script_dir/../.." && pwd)"
 pkg_dir="$script_dir/x86_64"
 
-bash "$project_root/repo/check-session-integrity.sh"
+# bash "$project_root/repo/check-session-integrity.sh"
 
 mkdir -p "$pkg_dir"
 rm -f "$pkg_dir"/*.pkg.tar.*

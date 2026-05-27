@@ -1,6 +1,6 @@
 pkgbase=kartonde
-pkgname=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock' 'karton-installer' 'karton-themes-wallpapers' 'kartonde')
-pkgver=0.8.3
+pkgname=('tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock' 'karton-installer' 'karton-polkit' 'karton-parted' 'karton-themes-wallpapers' 'kartonde')
+pkgver=0.8.4
 pkgrel=1
 arch=('x86_64')
 url='https://github.com/mijsys/Tektura-i-Karton'
@@ -65,6 +65,12 @@ build() {
 
   _setup_component karton-installer
   _build_component karton-installer
+
+  _setup_component karton-polkit
+  _build_component karton-polkit
+
+  _setup_component karton-parted
+  _build_component karton-parted
 
   _setup_component karton-session
   _build_component karton-session
@@ -140,13 +146,25 @@ package_karton-installer() {
   _install_component karton-installer "$pkgdir"
 }
 
+package_karton-polkit() {
+  pkgdesc='PolKit authentication agent for KartONDE'
+  depends=('gtk4' 'polkit')
+
+  _install_component karton-polkit "$pkgdir"
+}
+
+package_karton-parted() {
+  pkgdesc='KartONDE partition manager using libparted'
+  depends=('gtk4' 'parted')
+
+  _install_component karton-parted "$pkgdir"
+}
+
 package_karton-session() {
   pkgdesc='Session services and desktop helpers for KartONDE'
   depends=('glib2' 'gtk4')
   optdepends=(
     'mako: notification daemon backend used by karton-notifyd'
-    'swayidle: idle detection backend for automatic lock and DPMS'
-    'swaylock: lockscreen backend'
     'wlopm: output power management backend for idle DPMS'
     'kanshi: output profile backend'
     'grim: screenshot backend'
@@ -160,9 +178,9 @@ package_karton-session() {
 package_kartonde() {
   pkgdesc='Complete KartONDE desktop environment metapackage'
   depends=(
-    'tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock' 'karton-installer' 'karton-themes-wallpapers'
+    'tektura' 'karton-shell' 'karton-settings' 'karton-files' 'karton-terminal' 'karton-session' 'karton-idle' 'karton-lock' 'karton-installer' 'karton-polkit' 'karton-parted' 'karton-themes-wallpapers'
     'lxqt-policykit'
-    'swayidle' 'swaylock' 'wlopm'
+    'wlopm'
     'xdg-desktop-portal' 'xdg-desktop-portal-gtk'
     'wl-clipboard' 'cliphist'
     'evince'

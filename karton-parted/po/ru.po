@@ -1,0 +1,121 @@
+# Russian translations for PACKAGE package.
+# Copyright (C) 2026 THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# Automatically generated, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-23 17:19+0200\n"
+"PO-Revision-Date: 2026-05-22 17:16+0200\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#: ../src/main.c:77 ../src/main.c:398
+msgid "Delete Partition"
+msgstr "Удалить раздел"
+
+#: ../src/main.c:78
+msgid ""
+"Are you sure you want to delete this partition? Data will be lost "
+"permanently."
+msgstr ""
+
+#: ../src/main.c:79 ../src/main.c:123 ../src/main.c:196 ../src/main.c:290
+msgid "Cancel"
+msgstr "Отмена"
+
+#: ../src/main.c:80
+msgid "Delete"
+msgstr "Удалить"
+
+#: ../src/main.c:102
+msgid "Error"
+msgstr "Ошибка"
+
+#: ../src/main.c:102
+msgid "Formatting failed (partition might be mounted)."
+msgstr ""
+
+#: ../src/main.c:112 ../src/main.c:375
+msgid "Format Partition"
+msgstr "Форматировать раздел"
+
+#: ../src/main.c:115
+msgid "Select filesystem type. ALL DATA WILL BE LOST!"
+msgstr ""
+
+#: ../src/main.c:124
+msgid "Format"
+msgstr "Форматировать"
+
+#: ../src/main.c:181 ../src/main.c:383
+msgid "Resize Partition"
+msgstr "Изменить размер"
+
+#: ../src/main.c:184
+msgid ""
+"Enter new partition size (MB):\n"
+"WARNING: Direct resize might break filesystem!"
+msgstr ""
+
+#: ../src/main.c:197
+msgid "Resize"
+msgstr "Изменить"
+
+#: ../src/main.c:265 ../src/main.c:409
+msgid "Create Partition"
+msgstr "Создать раздел"
+
+#. Type
+#: ../src/main.c:270
+msgid "Select filesystem type:"
+msgstr ""
+
+#: ../src/main.c:283
+msgid "Partition size (MB):"
+msgstr ""
+
+#: ../src/main.c:291
+msgid "Create"
+msgstr "Создать"
+
+#: ../src/main.c:326
+msgid "No partition table found."
+msgstr ""
+
+#: ../src/main.c:339
+msgid "Free Space"
+msgstr "Свободное место"
+
+#: ../src/main.c:339
+msgid "Unknown"
+msgstr "Неизвестно"
+
+#: ../src/main.c:340
+msgid "Unallocated"
+msgstr "Нераспределено"
+
+#: ../src/main.c:369
+#, c-format
+msgid "Type: %s • Size: %.2f GB • Sectors: %lld to %lld"
+msgstr ""
+
+#: ../src/main.c:455
+msgid "Karton Parted"
+msgstr ""
+
+#: ../src/main.c:483
+msgid "Disk: "
+msgstr "Диск: "
+
+#: ../src/main.c:516
+msgid "No disks found."
+msgstr ""

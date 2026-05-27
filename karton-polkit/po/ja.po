@@ -1,0 +1,46 @@
+# Japanese translations for PACKAGE package.
+# Copyright (C) 2026 THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# Automatically generated, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-22 17:10+0200\n"
+"PO-Revision-Date: 2026-05-22 17:10+0200\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=ASCII\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: ../src/main.c:92
+msgid "Authorization failed"
+msgstr ""
+
+#: ../src/main.c:117
+msgid "Aborted by new session"
+msgstr ""
+
+#: ../src/main.c:133
+msgid "No user for authorization"
+msgstr ""
+
+#: ../src/main.c:145
+msgid "Authentication - Tektura"
+msgstr ""
+
+#: ../src/main.c:164
+msgid "Authentication Required"
+msgstr ""
+
+#: ../src/main.c:194
+msgid "Cancel"
+msgstr ""
+
+#: ../src/main.c:197
+msgid "Authenticate"
+msgstr ""

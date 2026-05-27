@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Karton Authentication Agent
+Comment=Tektura and Karton PolicyKit Authentication Agent
+Exec=/usr/bin/karton-polkit
+Terminal=false
+Type=Application
+Categories=System;Security;
+NoDisplay=true
+X-GNOME-Autostart-Phase=PolicyKit
+X-KDE-autostart-phase=1
